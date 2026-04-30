@@ -56,6 +56,24 @@ npm start        # Start production server
 
 ---
 
+## Vercel Standardization (Kingsley-A1)
+
+If you see `404: NOT_FOUND` with a Vercel request ID, this project usually has one of these account-level issues:
+
+- Multiple similarly named Vercel projects linked to the same repo
+- Deployment Protection enabled on one project while domain points to another
+- Domain alias attached to the wrong project
+
+Recommended setup:
+
+1. Keep one production Vercel project for this repo (delete duplicates or remove their domains).
+2. Ensure the project is linked to `Kingsley-A1/down-below-with-dr-didi` on `main`.
+3. Ensure root directory is repository root (`.`).
+4. This repo includes `vercel.json` with `framework: nextjs` for explicit framework detection.
+5. Re-deploy production and re-assign the production domain to the active project.
+
+---
+
 ## Brand Colours
 
 | Token | Hex | Usage |

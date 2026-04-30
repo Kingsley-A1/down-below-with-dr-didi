@@ -24,11 +24,17 @@ export default function HomePage() {
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
 
+  const quickStats = [
+    { label: 'Women reached across communities', value: '5,000+' },
+    { label: 'Communities in Cross River served', value: '12' },
+    { label: 'Health talks and outreaches hosted', value: '48' },
+  ]
+
   return (
     <>
       {/* ─── Hero ─────────────────────────────────────────────────────────── */}
       <section
-        className="relative min-h-screen flex items-center overflow-hidden"
+        className="relative min-h-[88vh] lg:min-h-screen flex items-center overflow-hidden"
         style={{ backgroundColor: 'var(--color-primary)' }}
       >
         {/* subtle noise texture */}
@@ -41,25 +47,25 @@ export default function HomePage() {
           }}
         />
 
-        <div className="max-w-container mx-auto px-6 py-32 grid grid-cols-1 lg:grid-cols-[55%_45%] gap-12 items-center w-full">
+        <div className="max-w-container mx-auto px-5 sm:px-6 pt-28 pb-16 sm:pt-32 sm:pb-20 grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12 items-center w-full">
           {/* Left */}
           <div style={{ color: '#fff' }}>
             <div
               className="inline-flex items-center gap-2 text-sm font-body px-4 py-2 rounded-full mb-8"
               style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}
             >
-              🌿 Safe Space &middot; Judgment Free &middot; Evidence Based
+              Safe Space &middot; Judgment Free &middot; Evidence Based
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              Demystifying<br />
-              Wellness,{' '}
+              Sexual & Reproductive<br />
+              Health,{' '}
               <span style={{ color: 'var(--color-accent)' }}>Empowering</span>
-              {' '}You
+              {' '}Nigerian Women
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              Down Below With Dr. Didi — your trusted space for honest, stigma-free conversations about reproductive and sexual health.
+              Down Below With Dr. Didi is your trusted, culturally grounded space for honest conversations about intimate wellness, prevention, and care.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -80,18 +86,35 @@ export default function HomePage() {
                 Ask Anonymously
               </Link>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8">
+              {quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                >
+                  <p className="font-heading font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>
+                    {stat.value}
+                  </p>
+                  <p className="font-body text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Right */}
-          <div className="relative hidden lg:block">
+          <div className="relative order-first lg:order-none">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=900"
-                alt="Dr. Didi — Women's Health Specialist"
+                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=900"
+                alt="Women attending a reproductive health consultation"
                 width={600}
                 height={700}
                 className="object-cover w-full"
-                style={{ height: '560px' }}
+                style={{ height: 'clamp(300px, 62vw, 560px)' }}
                 priority
               />
               <div
@@ -127,7 +150,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── Three Pillars ─────────────────────────────────────────────────── */}
-      <section className="py-24" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <section className="py-20 md:py-24" style={{ backgroundColor: 'var(--color-surface)' }}>
         <div className="max-w-container mx-auto px-6">
           <div className="text-center mb-16">
             <div
@@ -195,7 +218,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── V-Vault Preview ───────────────────────────────────────────────── */}
-      <section className="py-24" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="py-20 md:py-24" style={{ backgroundColor: 'var(--color-primary)' }}>
         <div className="max-w-container mx-auto px-6">
           <div className="text-center mb-12">
             <div
@@ -245,13 +268,13 @@ export default function HomePage() {
       </section>
 
       {/* ─── Welcome from Dr. Didi ─────────────────────────────────────────── */}
-      <section className="py-24" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <section className="py-20 md:py-24" style={{ backgroundColor: 'var(--color-surface)' }}>
         <div className="max-w-container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative order-2 lg:order-1">
               <div className="relative rounded-2xl overflow-hidden shadow-xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=600"
+                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=700"
                   alt="Dr. Didi — Founder"
                   width={500}
                   height={600}
@@ -305,7 +328,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── Latest Resources ──────────────────────────────────────────────── */}
-      <section className="py-24 bg-white">
+      <section className="py-20 md:py-24 bg-white">
         <div className="max-w-container mx-auto px-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
             <div>
