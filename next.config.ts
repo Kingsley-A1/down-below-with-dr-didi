@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'images.unsplash.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'encrypted-tbn3.gstatic.com',
+        pathname: '/images',
+      },
     ],
   },
 }

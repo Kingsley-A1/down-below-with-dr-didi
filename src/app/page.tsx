@@ -110,19 +110,31 @@ export default function HomePage() {
 
           {/* Right */}
           <div className="relative order-first lg:order-none">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/30" style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}>
               <Image
-                src="/down below with dr didi_1.jpeg"
+                src="/down below with dr didi_2.jpeg"
+                alt="Down Below with Dr. Didi outreach campaign banner"
+                width={318}
+                height={159}
+                className="object-contain w-full lg:hidden"
+                style={{ height: 'clamp(220px, 48vw, 360px)' }}
+                priority
+                quality={100}
+                sizes="(max-width: 1024px) 92vw, 0px"
+              />
+              <Image
+                src="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTcxrEC41nwlaFyJtTtKHgJ6gErW5c9yHK-I0BRZTcKw2UYQOyE"
                 alt="Down Below with Dr. Didi outreach campaign banner"
                 width={1200}
                 height={675}
-                className="object-cover w-full"
+                className="hidden lg:block object-contain w-full"
                 style={{ height: 'clamp(280px, 54vw, 430px)' }}
-                priority
+                quality={100}
+                sizes="(min-width: 1024px) 42vw, 0px"
               />
               <div
                 className="absolute inset-0"
-                style={{ background: 'linear-gradient(to top, rgba(11,78,65,0.22), rgba(11,78,65,0.06))' }}
+                style={{ background: 'linear-gradient(to top, rgba(11,78,65,0.14), rgba(11,78,65,0.02))' }}
               />
             </div>
 
