@@ -41,7 +41,7 @@ export default function HomePage() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            opacity: 0.04,
+            opacity: 0.012,
             backgroundImage:
               "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='1' fill-rule='evenodd'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E\")",
           }}
@@ -58,14 +58,17 @@ export default function HomePage() {
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              Sexual & Reproductive<br />
-              Health,{' '}
-              <span style={{ color: 'var(--color-accent)' }}>Empowering</span>
-              {' '}Nigerian Women
+              Teach. Heal. Win.<br />
+              <span style={{ color: 'var(--color-accent)' }}>For God, Family,</span>{' '}
+              and Women&apos;s Health
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              Down Below With Dr. Didi is your trusted, culturally grounded space for honest conversations about intimate wellness, prevention, and care.
+              A faith-based family health initiative blending clinical care, natural wellness guidance, and spiritual support for women across Nigeria and beyond.
+            </p>
+
+            <p className="font-body text-sm mb-8 max-w-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              Motto: Together we will teach, heal, and win the world for God.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -109,17 +112,17 @@ export default function HomePage() {
           <div className="relative order-first lg:order-none">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=900"
-                alt="Women attending a reproductive health consultation"
-                width={600}
-                height={700}
+                src="/down below with dr didi_1.jpeg"
+                alt="Down Below with Dr. Didi outreach campaign banner"
+                width={1200}
+                height={675}
                 className="object-cover w-full"
-                style={{ height: 'clamp(300px, 62vw, 560px)' }}
+                style={{ height: 'clamp(280px, 54vw, 430px)' }}
                 priority
               />
               <div
                 className="absolute inset-0"
-                style={{ background: 'linear-gradient(to top, rgba(11,78,65,0.55), transparent)' }}
+                style={{ background: 'linear-gradient(to top, rgba(11,78,65,0.22), rgba(11,78,65,0.06))' }}
               />
             </div>
 
@@ -136,7 +139,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>Safe Space</p>
-                <p className="font-body text-xs text-gray-500">Judgment Free Zone</p>
+                <p className="font-body text-xs text-gray-500">Faith + Medicine + Community</p>
               </div>
             </div>
           </div>
@@ -172,21 +175,21 @@ export default function HomePage() {
               {
                 icon: BookOpen,
                 title: 'Education',
-                description: 'Evidence-based articles on SRH, menstrual health, and anatomy — written in plain language you can actually understand.',
+                description: 'The Woman\'s Health Hub with practical SRH education, fertility awareness, and natural remedy guidance in clear language.',
                 link: '/library',
                 linkLabel: 'Explore Library',
               },
               {
                 icon: Users,
                 title: 'Community',
-                description: 'Peer stories, outreach events, and safe discussion spaces that break the silence around reproductive health.',
+                description: 'Outreaches, screenings, and the Down Below Family where women find support, prayer, and practical next steps.',
                 link: '/outreach',
                 linkLabel: 'See Our Impact',
               },
               {
                 icon: Heart,
                 title: 'Care',
-                description: 'Direct access to Dr. Didi for consultations, anonymous questions, and personalised guidance.',
+                description: 'Infertility-focused consultations, reproductive health guidance, and compassionate care backed by clinical expertise.',
                 link: '/contact',
                 linkLabel: 'Book a Session',
               },
@@ -401,13 +404,45 @@ export default function HomePage() {
       </section>
 
       {/* ─── CTA Strip ─────────────────────────────────────────────────────── */}
+      <section className="py-16 bg-white border-t" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="max-w-container mx-auto px-6 text-center">
+          <h2 className="font-heading font-bold mb-4" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', color: 'var(--color-primary)' }}>
+            Join the Down Below Family
+          </h2>
+          <p className="font-body text-gray-600 mb-8 max-w-2xl mx-auto">
+            Connect with our Facebook community, watch in-depth tutorials on YouTube, and get updates on our annual family retreat.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link
+              href="https://www.facebook.com/search/top?q=Down%20Below%20with%20Dr.%20Didi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 font-body font-semibold px-8 py-4 rounded-full border-2"
+              style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+            >
+              Join Facebook Community
+            </Link>
+            <Link
+              href="https://www.youtube.com/results?search_query=Down+Below+with+Dr.+Didi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 font-body font-semibold px-8 py-4 rounded-full"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+            >
+              Watch on YouTube
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CTA Strip ─────────────────────────────────────────────────────── */}
       <section className="py-16" style={{ backgroundColor: 'var(--color-accent)' }}>
         <div className="max-w-container mx-auto px-6 text-center">
           <h2 className="font-heading font-bold mb-4" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--color-primary)' }}>
-            Ready to take control of your health?
+            Ready to start your healing journey?
           </h2>
           <p className="font-body mb-8 max-w-lg mx-auto" style={{ color: 'rgba(11,78,65,0.7)' }}>
-            Book a consultation with Dr. Didi or explore our free health resources today.
+            Book a consultation, join a retreat update list, or explore trusted fertility and reproductive health resources.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

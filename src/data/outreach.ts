@@ -14,10 +14,10 @@ export interface ImpactMetric {
 }
 
 export const impactMetrics: ImpactMetric[] = [
+  { label: 'Years in Active Service', value: '2+', icon: '⏳' },
   { label: 'Women Reached', value: '5,000+', icon: '👩' },
   { label: 'Communities Served', value: '12', icon: '🏘️' },
   { label: 'Health Talks Hosted', value: '48', icon: '🎤' },
-  { label: 'Free Screenings', value: '800+', icon: '🩺' },
 ]
 
 export const galleryItems: GalleryItem[] = [
@@ -27,15 +27,15 @@ export const galleryItems: GalleryItem[] = [
     date: 'March 2024',
     location: 'Calabar South, Cross River',
     image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600',
-    description: 'Interactive workshop on menstrual health for 200+ women',
+    description: 'Interactive workshop on reproductive wellness, menstrual care, and fertility awareness for 200+ women',
   },
   {
     id: 2,
-    title: 'Free Cervical Screening Drive',
+    title: 'Pink Africa Foundation Joint Screening',
     date: 'January 2024',
     location: 'CRSMOH Centre, Calabar',
     image: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600',
-    description: 'Partnered with CRSMOH for free pap smear screenings',
+    description: 'Partnership event delivering targeted screenings and reproductive health counselling',
   },
   {
     id: 3,
@@ -47,19 +47,19 @@ export const galleryItems: GalleryItem[] = [
   },
   {
     id: 4,
-    title: 'Radio Health Talk — Sunrise FM',
+    title: 'Faith & Family Health Talk — Sunrise FM',
     date: 'October 2023',
     location: 'Calabar, Cross River',
     image: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600',
-    description: 'Live call-in health show reaching 50,000+ listeners',
+    description: 'Live call-in show covering infertility, prayer support, and women\'s healing pathways',
   },
   {
     id: 5,
-    title: 'Community Market Outreach',
+    title: 'Asi Ukpo Hospitals Community Outreach',
     date: 'August 2023',
     location: 'Watt Market, Calabar',
     image: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=600',
-    description: 'Free hygiene kits distribution and health talks at markets',
+    description: 'Joint community outreach with screening, consultations, and health kits distribution',
   },
   {
     id: 6,

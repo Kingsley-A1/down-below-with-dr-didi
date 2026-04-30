@@ -10,10 +10,10 @@ export interface TeamMember {
 export const team: TeamMember[] = [
   {
     id: 1,
-    name: 'Dr. Didi',
+    name: 'Dr. Edidiong Ekereuke',
     role: 'Founder & Lead Physician',
-    credentials: 'MBBS, MPH',
-    bio: 'SRH advocate and community health educator based in Calabar. Passionate about making reproductive health knowledge accessible to every Nigerian woman.',
+    credentials: 'Senior Medical Official, UCTH',
+    bio: 'Faith-based women\'s health advocate focused on infertility management, reproductive education, and practical support for women and families.',
     image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=300',
   },
   {

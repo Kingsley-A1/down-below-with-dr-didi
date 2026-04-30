@@ -5,7 +5,7 @@ import { impactMetrics, galleryItems } from '@/data/outreach'
 
 export const metadata: Metadata = {
   title: 'Community Outreach',
-  description: "See the real-world impact of Down Below With Dr. Didi — from free screenings to school health talks across Cross River State.",
+  description: "See the field impact of Down Below With Dr. Didi — from screenings and infertility education to faith-based family health programs.",
 }
 
 export default function OutreachPage() {
@@ -24,7 +24,7 @@ export default function OutreachPage() {
             Community Outreach
           </h1>
           <p className="font-body text-lg max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Taking women&apos;s health education from screens to streets — one community at a time.
+            Taking women&apos;s health education from screens to streets through screenings, consultations, and faith-rooted support.
           </p>
         </div>
       </section>
@@ -112,7 +112,7 @@ export default function OutreachPage() {
             Want to Partner With Us?
           </h2>
           <p className="font-body text-gray-600 max-w-xl mx-auto mb-8 text-sm leading-relaxed">
-            We welcome collaborations with health organisations, schools, NGOs, and community leaders who share our vision for women&apos;s health equity.
+            We welcome collaborations with hospitals, foundations, churches, and community leaders to scale women&apos;s health and infertility support.
           </p>
           <Link
             href="/contact"

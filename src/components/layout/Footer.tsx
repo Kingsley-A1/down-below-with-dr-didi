@@ -24,18 +24,20 @@ export default function Footer() {
               </div>
             </Link>
             <p className="font-body text-sm leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              Demystifying Wellness, Empowering You. Your trusted space for honest conversations about reproductive and sexual health.
+              A faith-based family health initiative supporting women through medical guidance, natural wellness, and spiritual encouragement.
             </p>
             <div className="flex gap-4">
               {[
-                { icon: Camera, label: 'Instagram' },
-                { icon: MessageCircle, label: 'Twitter' },
-                { icon: Globe, label: 'Facebook' },
-                { icon: Play, label: 'YouTube' },
-              ].map(({ icon: Icon, label }) => (
+                { icon: Camera, label: 'Instagram', href: 'https://www.instagram.com/' },
+                { icon: MessageCircle, label: 'Twitter', href: 'https://x.com/' },
+                { icon: Globe, label: 'Facebook', href: 'https://www.facebook.com/search/top?q=Down%20Below%20with%20Dr.%20Didi' },
+                { icon: Play, label: 'YouTube', href: 'https://www.youtube.com/results?search_query=Down+Below+with+Dr.+Didi' },
+              ].map(({ icon: Icon, label, href }) => (
                 <a
                   key={label}
-                  href="#"
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={label}
                   className="transition-colors"
                   style={{ color: 'rgba(255,255,255,0.55)' }}

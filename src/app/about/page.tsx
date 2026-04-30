@@ -6,16 +6,16 @@ import { team } from '@/data/team'
 export const metadata: Metadata = {
   title: 'About Dr. Didi',
   description:
-    "Learn about Dr. Didi, the founder of Down Below With Dr. Didi, and her mission to make reproductive health accessible to all Nigerian women.",
+    "Learn about Dr. Edidiong Ekereuke, founder of Down Below With Dr. Didi, and the initiative's faith-based mission for women's reproductive health.",
 }
 
 const partners = [
-  { name: 'UNFPA Nigeria', type: 'International Health Body' },
-  { name: 'Cross River State Ministry of Health', type: 'Government' },
-  { name: 'SOGON', type: 'Medical Association' },
-  { name: 'Girl Effect Nigeria', type: 'NGO' },
-  { name: 'Pathfinder International', type: 'Health NGO' },
-  { name: 'WHO Nigeria', type: 'International Health Body' },
+  { name: 'Pink Africa Foundation', type: 'Health Foundation' },
+  { name: 'Asi Ukpo Hospitals', type: 'Hospital Partner' },
+  { name: 'University of Calabar Teaching Hospital (UCTH)', type: 'Clinical Institution' },
+  { name: 'Community Faith Leaders', type: 'Community Partner' },
+  { name: 'Local Women Support Groups', type: 'Grassroots Network' },
+  { name: 'Regional Screening Volunteers', type: 'Medical Volunteers' },
 ]
 
 export default function AboutPage() {
@@ -41,14 +41,14 @@ export default function AboutPage() {
               <div className="text-2xl mb-3">🎯</div>
               <h2 className="font-heading text-2xl font-semibold mb-3">Mission</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                To make sexual and reproductive health knowledge accessible, understandable, and stigma-free for every woman in Nigeria and beyond.
+                To teach, heal, and uplift women and families through evidence-based medical guidance, natural wellness support, and prayer-centered community care.
               </p>
             </div>
             <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
               <div className="text-2xl mb-3">🌟</div>
               <h2 className="font-heading text-2xl font-semibold mb-3">Vision</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                A Nigeria where every woman knows her body, understands her rights, and has access to honest, reliable health information.
+                A global family of women who can access trusted reproductive health support while growing in purpose, wholeness, and faith.
               </p>
             </div>
           </div>
@@ -79,17 +79,17 @@ export default function AboutPage() {
               <h2 className="font-heading font-bold mb-1" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--color-primary)' }}>
                 Dr. Didi
               </h2>
-              <p className="font-body text-gray-500 mb-6">Dr. Adaeze Okonkwo · MBBS, MPH</p>
+              <p className="font-body text-gray-500 mb-6">Dr. Edidiong Ekereuke · Senior Medical Official (UCTH)</p>
 
               <div className="space-y-4 font-body text-gray-700 leading-relaxed mb-8 text-sm">
                 <p>
-                  Dr. Didi is a medical practitioner specialising in obstetrics, gynaecology, and sexual and reproductive health (SRH). Based in Calabar, Cross River State, she has dedicated her career to breaking down the stigma and misinformation that surround women&apos;s health in Nigeria.
+                  Dr. Edidiong Ekereuke (Dr. Didi) is a Senior Medical Official at the University of Calabar Teaching Hospital (UCTH), with a longstanding commitment to women&apos;s reproductive health and infertility support.
                 </p>
                 <p>
-                  Her journey into SRH advocacy began during her residency at the University of Calabar Teaching Hospital, where she witnessed first-hand how lack of knowledge — not lack of healthcare — was the biggest barrier women faced. Many patients arrived with preventable conditions simply because they had never been given honest, accessible information about their bodies.
+                  Through Down Below With Dr. Didi, she leads a faith-based family health movement that combines clinical consultations with natural health strategies, prayer, and practical education women can use daily.
                 </p>
                 <p>
-                  Down Below With Dr. Didi was born from that realisation. What started as a small community health series in 2021 has grown into a platform reaching over 5,000 women across Cross River State, with a growing national digital presence.
+                  Since launch, the initiative has passed two years of active service, reaching women through community outreaches in Calabar and through digital channels that serve a global audience.
                 </p>
               </div>
 
@@ -99,11 +99,11 @@ export default function AboutPage() {
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { icon: GraduationCap, text: 'MBBS — University of Calabar Teaching Hospital' },
-                    { icon: GraduationCap, text: 'MPH (Public Health, SRH specialisation)' },
-                    { icon: CheckCircle, text: 'Licensed by the Medical and Dental Council of Nigeria' },
-                    { icon: Award, text: 'Cross River Health Advocate Award, 2023' },
-                    { icon: CheckCircle, text: 'Member, Society of Gynaecology and Obstetrics of Nigeria (SOGON)' },
+                    { icon: GraduationCap, text: 'Senior Medical Official — University of Calabar Teaching Hospital (UCTH)' },
+                    { icon: CheckCircle, text: 'Clinical focus on women\'s health and infertility management' },
+                    { icon: CheckCircle, text: 'Community health educator for reproductive wellness and prevention' },
+                    { icon: Award, text: 'Founder — Down Below With Dr. Didi Family Health Initiative' },
+                    { icon: CheckCircle, text: 'Leads faith-integrated wellness programs and annual family retreat' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-3">
                       <Icon size={17} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />

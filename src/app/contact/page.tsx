@@ -8,10 +8,10 @@ export const metadata: Metadata = {
 }
 
 const socials = [
-  { icon: Camera, label: 'Instagram', handle: '@downbelowwithdrdidi', href: '#' },
-  { icon: MessageCircle, label: 'Twitter / X', handle: '@DrDidiHealth', href: '#' },
-  { icon: Globe, label: 'Facebook', handle: 'Down Below With Dr. Didi', href: '#' },
-  { icon: Play, label: 'YouTube', handle: 'Down Below With Dr. Didi', href: '#' },
+  { icon: Camera, label: 'Instagram', handle: '@downbelowwithdrdidi', href: 'https://www.instagram.com/' },
+  { icon: MessageCircle, label: 'Twitter / X', handle: '@DrDidiHealth', href: 'https://x.com/' },
+  { icon: Globe, label: 'Facebook Community', handle: 'Down Below With Dr. Didi', href: 'https://www.facebook.com/search/top?q=Down%20Below%20with%20Dr.%20Didi' },
+  { icon: Play, label: 'YouTube Channel', handle: 'Down Below With Dr. Didi', href: 'https://www.youtube.com/results?search_query=Down+Below+with+Dr.+Didi' },
 ]
 
 export default function ContactPage() {

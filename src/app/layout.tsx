@@ -5,15 +5,17 @@ import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Down Below With Dr. Didi — Demystifying Wellness, Empowering You',
+    default: 'Down Below With Dr. Didi — Teach, Heal, Win',
     template: '%s | Down Below With Dr. Didi',
   },
   description:
-    "Your trusted space for honest, stigma-free conversations about women's reproductive and sexual health in Nigeria.",
+    "A faith-based family health initiative led by Dr. Edidiong Ekereuke, blending clinical care, natural wellness, and spiritual support for women.",
   keywords: [
     "women's health",
     'reproductive health',
     'sexual health Nigeria',
+    'infertility support',
+    'faith-based health',
     'Dr. Didi',
     'SRH',
     'Calabar',
