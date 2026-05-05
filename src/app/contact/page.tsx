@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Camera, MessageCircle, Globe, Play } from 'lucide-react'
 import ContactForm from '@/components/contact/ContactForm'
+import { getPublicSiteSettings } from '@/lib/site-settings'
 
 export const metadata: Metadata = {
   title: 'Contact & Booking',
@@ -14,7 +15,11 @@ const socials = [
   { icon: Play, label: 'YouTube Channel', handle: 'Down Below With Dr. Didi', href: 'https://www.youtube.com/results?search_query=Down+Below+with+Dr.+Didi' },
 ]
 
-export default function ContactPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function ContactPage() {
+  const siteSettings = await getPublicSiteSettings()
+
   return (
     <>
       <section className="pt-32 pb-16 text-white text-center" style={{ backgroundColor: 'var(--color-primary)' }}>
@@ -29,7 +34,7 @@ export default function ContactPage() {
             Contact &amp; Booking
           </h1>
           <p className="font-body text-lg max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Ready to talk? Book a consultation with Dr. Didi or reach out with any enquiries.
+            Book a consultation, send a WhatsApp message, or reach the team directly through the public contact channels managed from admin.
           </p>
         </div>
       </section>
@@ -45,9 +50,10 @@ export default function ContactPage() {
                 <div className="space-y-4 font-body text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
                   {[
                     { emoji: '📍', label: 'Location', value: 'Calabar, Cross River State, Nigeria' },
-                    { emoji: '📧', label: 'Email', value: 'hello@downbelowwithdrdidi.com' },
+                    { emoji: '📧', label: 'Gmail', value: siteSettings.contactEmail },
+                    { emoji: '💬', label: 'WhatsApp', value: siteSettings.primaryWhatsapp },
                     { emoji: '🕐', label: 'Consultation Hours', value: 'Monday – Saturday · 9:00 AM – 5:00 PM WAT' },
-                    { emoji: '⏱️', label: 'Response Time', value: 'Booking confirmations within 24 hours' },
+                    { emoji: '⏱️', label: 'Response Flow', value: 'Direct contact is handled through WhatsApp and Gmail.' },
                   ].map(({ emoji, label, value }) => (
                     <div key={label} className="flex items-start gap-3">
                       <span style={{ color: 'var(--color-accent)' }}>{emoji}</span>
@@ -57,6 +63,24 @@ export default function ContactPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <a
+                    href={siteSettings.primaryWhatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
+                    style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
+                  >
+                    Contact on WhatsApp
+                  </a>
+                  <a
+                    href={`mailto:${siteSettings.contactEmail}`}
+                    className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
+                    style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}
+                  >
+                    Send Gmail
+                  </a>
                 </div>
               </div>
 
@@ -92,7 +116,10 @@ export default function ContactPage() {
             </div>
 
             {/* Right: Form */}
-            <ContactForm />
+            <ContactForm
+              contactEmail={siteSettings.contactEmail}
+              primaryWhatsapp={siteSettings.primaryWhatsapp}
+            />
           </div>
         </div>
       </section>

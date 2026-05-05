@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight } from 'lucide
 import { articles } from '@/data/articles'
 import { vaultPreviewItems } from '@/data/vault-preview'
 import { formatDate } from '@/lib/utils'
+import { getPublicSiteSettings } from '@/lib/site-settings'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
@@ -19,10 +20,16 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   anatomy: { bg: '#dbeafe', text: '#1e40af' },
 }
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const siteSettings = await getPublicSiteSettings()
   const latestArticles = [...articles]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
+
+  const heroImageSrc = siteSettings.heroImageUrl || '/down below with dr didi_2.jpeg'
+  const heroImageAlt = siteSettings.heroImageAlt || `${siteSettings.siteName} hero image`
 
   const quickStats = [
     { label: 'Women reached across communities', value: '5,000+' },
@@ -54,21 +61,19 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 text-sm font-body px-4 py-2 rounded-full mb-8"
               style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}
             >
-              Safe Space &middot; Judgment Free &middot; Evidence Based
+              {siteSettings.tagline}
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              Teach. Heal. Win.<br />
-              <span style={{ color: 'var(--color-accent)' }}>For God, Family,</span>{' '}
-              and Women&apos;s Health
+              {siteSettings.heroHeadline}
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              A faith-based family health initiative blending clinical care, natural wellness guidance, and spiritual support for women across Nigeria and beyond.
+              {siteSettings.heroBody}
             </p>
 
             <p className="font-body text-sm mb-8 max-w-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              Motto: Together we will teach, heal, and win the world for God.
+              Motto: {siteSettings.motto}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -109,28 +114,18 @@ export default function HomePage() {
           </div>
 
           {/* Right */}
-          <div className="relative order-first lg:order-none">
+          <div className="relative order-first lg:order-0">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/30" style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}>
               <Image
-                src="/down below with dr didi_2.jpeg"
-                alt="Down Below with Dr. Didi outreach campaign banner"
-                width={318}
-                height={159}
-                className="object-contain w-full lg:hidden"
-                style={{ height: 'clamp(220px, 48vw, 360px)' }}
+                src={heroImageSrc}
+                alt={heroImageAlt}
+                width={1200}
+                height={800}
+                className="object-contain w-full"
+                style={{ height: 'clamp(240px, 50vw, 430px)' }}
                 priority
                 quality={100}
-                sizes="(max-width: 1024px) 92vw, 0px"
-              />
-              <Image
-                src="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcTcxrEC41nwlaFyJtTtKHgJ6gErW5c9yHK-I0BRZTcKw2UYQOyE"
-                alt="Down Below with Dr. Didi outreach campaign banner"
-                width={1200}
-                height={675}
-                className="hidden lg:block object-contain w-full"
-                style={{ height: 'clamp(280px, 54vw, 430px)' }}
-                quality={100}
-                sizes="(min-width: 1024px) 42vw, 0px"
+                sizes="(max-width: 1024px) 92vw, 42vw"
               />
               <div
                 className="absolute inset-0"
@@ -215,7 +210,7 @@ export default function HomePage() {
                   className="w-14 h-14 rounded-xl flex items-center justify-center mb-6 transition-colors group-hover:bg-primary"
                   style={{ backgroundColor: 'var(--color-primary-muted)' }}
                 >
-                  <Icon size={26} style={{ color: 'var(--color-primary)' }} className="group-hover:!text-white transition-colors" />
+                  <Icon size={26} style={{ color: 'var(--color-primary)' }} className="group-hover:text-white! transition-colors" />
                 </div>
                 <h3 className="font-heading font-bold text-2xl mb-3" style={{ color: 'var(--color-primary)' }}>{title}</h3>
                 <p className="font-body text-gray-600 leading-relaxed mb-6 text-sm">{description}</p>

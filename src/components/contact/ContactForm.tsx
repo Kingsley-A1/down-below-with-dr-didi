@@ -15,7 +15,13 @@ const fieldStyle = {
   backgroundColor: 'var(--color-surface)',
 }
 
-export default function ContactForm() {
+export default function ContactForm({
+  contactEmail,
+  primaryWhatsapp,
+}: {
+  contactEmail: string
+  primaryWhatsapp: string
+}) {
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   const {
@@ -47,12 +53,32 @@ export default function ContactForm() {
           <CheckCircle size={40} style={{ color: '#16a34a' }} />
         </div>
         <h3 className="font-heading font-bold text-3xl mb-4" style={{ color: 'var(--color-primary)' }}>
-          Booking Request Sent! 🎉
+          Request Saved
         </h3>
         <p className="font-body text-gray-600 mb-2 max-w-sm mx-auto text-sm">
-          Dr. Didi will review your request and confirm your appointment within 24 hours.
+          Your consultation request has been recorded in the system.
         </p>
-        <p className="font-body text-gray-400 text-xs mb-8">Check your email for a confirmation message.</p>
+        <p className="font-body text-gray-400 text-xs mb-8">
+          For faster follow-up, continue the conversation on WhatsApp or Gmail.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+          <a
+            href={primaryWhatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-body font-semibold px-8 py-3 rounded-full"
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
+          >
+            Open WhatsApp
+          </a>
+          <a
+            href={`mailto:${contactEmail}`}
+            className="font-body font-semibold px-8 py-3 rounded-full border"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+          >
+            Send Gmail
+          </a>
+        </div>
         <button
           onClick={() => setSubmitState('idle')}
           className="font-body font-semibold px-8 py-3 rounded-full transition-colors"
@@ -73,7 +99,7 @@ export default function ContactForm() {
         Book a Consultation
       </h2>
       <p className="font-body text-gray-500 text-sm mb-8">
-        Fill in your details and Dr. Didi will confirm your appointment within 24 hours.
+        Fill in your details to save a consultation request, or use the direct WhatsApp and Gmail contact options for faster follow-up.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -173,7 +199,7 @@ export default function ContactForm() {
           >
             <AlertCircle size={18} style={{ color: '#dc2626' }} />
             <p className="font-body text-sm" style={{ color: '#b91c1c' }}>
-              Something went wrong. Please try again or contact us directly.
+              Something went wrong. Please try again or use WhatsApp or Gmail for direct contact.
             </p>
           </div>
         )}
