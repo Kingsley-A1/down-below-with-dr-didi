@@ -30,5 +30,26 @@ export const contactSchema = z.object({
   message: z.string().min(10, 'Message must be at least 10 characters').max(1000),
 })
 
+export const adminSignInSchema = z.object({
+  email: z.string().email('Enter a valid admin email address'),
+  accessCode: z.string().min(12, 'Admin access code must be at least 12 characters'),
+})
+
+export const siteSettingsSchema = z.object({
+  siteName: z.string().min(5).max(120),
+  tagline: z.string().min(10).max(180),
+  motto: z.string().min(8).max(120),
+  siteUrl: z.string().url('Enter a valid site URL'),
+  primaryWhatsapp: z.string().url('Enter a valid WhatsApp link'),
+  contactEmail: z.string().email('Enter a valid contact email'),
+  heroHeadline: z.string().min(10).max(140),
+  heroBody: z.string().min(20).max(400),
+  heroImageUrl: z.string().url('Enter a valid image URL').optional().or(z.literal('')),
+  heroImageAlt: z.string().max(160).optional().or(z.literal('')),
+  footerBlurb: z.string().min(20).max(280),
+})
+
 export type VaultFormData = z.infer<typeof vaultSchema>
 export type ContactFormData = z.infer<typeof contactSchema>
+export type AdminSignInData = z.infer<typeof adminSignInSchema>
+export type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>

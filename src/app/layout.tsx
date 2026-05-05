@@ -3,15 +3,15 @@ import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
+import { siteConfig } from '@/lib/site-config'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://down-below-with-dr-didi.vercel.app'),
+  metadataBase: new URL(siteConfig.siteUrl),
   title: {
-    default: 'Down Below With Dr. Didi — Teach, Heal, Win',
-    template: '%s | Down Below With Dr. Didi',
+    default: `${siteConfig.name} | ${siteConfig.motto}`,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    "A faith-based family health initiative led by Dr. Edidiong Ekereuke, blending clinical care, natural wellness, and spiritual support for women.",
+  description: siteConfig.description,
   keywords: [
     "women's health",
     'reproductive health',
@@ -21,28 +21,27 @@ export const metadata: Metadata = {
     'Dr. Didi',
     'SRH',
     'Calabar',
+    'Down Below Family Health Initiative',
   ],
   openGraph: {
-    title: 'Down Below With Dr. Didi — Teach, Heal, Win',
-    description:
-      "A faith-based family health initiative led by Dr. Edidiong Ekereuke, blending clinical care, natural wellness, and spiritual support for women.",
+    title: `${siteConfig.name} | ${siteConfig.motto}`,
+    description: siteConfig.description,
     type: 'website',
     locale: 'en_NG',
-    siteName: 'Down Below With Dr. Didi',
+    siteName: siteConfig.name,
     images: [
       {
         url: '/logo.jpg',
         width: 1200,
         height: 1200,
-        alt: 'Down Below With Dr. Didi logo',
+        alt: `${siteConfig.name} logo`,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Down Below With Dr. Didi — Teach, Heal, Win',
-    description:
-      "A faith-based family health initiative led by Dr. Edidiong Ekereuke, blending clinical care, natural wellness, and spiritual support for women.",
+    title: `${siteConfig.name} | ${siteConfig.motto}`,
+    description: siteConfig.description,
     images: ['/logo.jpg'],
   },
 }
@@ -54,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WelcomeIntro />
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded focus:font-semibold"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100 focus:px-4 focus:py-2 focus:rounded focus:font-semibold"
           style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
         >
           Skip to content

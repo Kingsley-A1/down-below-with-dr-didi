@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  super_admin
+  editor
+  moderator
+}
+
+enum PublicationStatus {
+  draft
+  published
+  archived
+}
+
+enum MediaAssetKind {
+  image
+  document
+  video
+  other
+}
+
+enum VaultSubmissionStatus {
+  new
+  reviewed
+  answered_privately
+  approved_for_faq
+  archived
+}
+
+model AdminUser {
+  id                    String        @id @default(cuid())
+  email                 String        @unique
+  name                  String?
+  role                  AdminRole
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  mediaAssets           MediaAsset[]
+  auditLogs             AuditLog[]
+  updatedSiteSettings   SiteSettings[] @relation("SiteSettingsUpdatedBy")
+}
+
+model SiteSettings {
+  id              String    @id @default(cuid())
+  scope           String    @unique @default("global")
+  siteName        String
+  tagline         String
+  motto           String
+  siteUrl         String
+  primaryWhatsapp String
+  contactEmail    String
+  heroHeadline    String
+  heroBody        String
+  heroImageUrl    String?
+  heroImageAlt    String?
+  footerBlurb     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  updatedById     String?
+  updatedBy       AdminUser? @relation("SiteSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model MediaAsset {
+  id           String         @id @default(cuid())
+  label        String
+  storageKey   String         @unique
+  bucket       String
+  url          String
+  mimeType     String
+  sizeBytes    Int
+  kind         MediaAssetKind
+  altText      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  createdById  String?
+  createdBy    AdminUser?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  actorEmail  String
+  actorRole   AdminRole
+  summary     String
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  actorId     String?
+  actor       AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+model VaultSubmission {
+  id               String                @id @default(cuid())
+  category         String
+  question         String
+  status           VaultSubmissionStatus @default(new)
+  moderationNotes  String?
+  approvedFaqTitle String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model Article {
+  id            String            @id @default(cuid())
+  slug          String            @unique
+  title         String
+  excerpt       String
+  content       String
+  category      String
+  coverImageUrl String?
+  readTime      Int               @default(5)
+  status        PublicationStatus @default(draft)
+  publishedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model OutreachEvent {
+  id             String            @id @default(cuid())
+  slug           String            @unique
+  title          String
+  summary        String
+  body           String?
+  coverImageUrl  String?
+  communityLabel String?
+  status         PublicationStatus @default(draft)
+  publishedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
