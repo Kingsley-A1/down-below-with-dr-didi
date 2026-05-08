@@ -28,7 +28,7 @@ export default async function HomePage() {
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
 
-  const heroImageSrc = siteSettings.heroImageUrl || '/down below with dr didi_2.jpeg'
+  const heroImageSrc = siteSettings.heroImageUrl || '/events/June-2026-Banner.jpg'
   const heroImageAlt = siteSettings.heroImageAlt || `${siteSettings.siteName} hero image`
 
   const quickStats = [
@@ -115,21 +115,42 @@ export default async function HomePage() {
 
           {/* Right */}
           <div className="relative order-first lg:order-0">
+            <div
+              className="absolute -inset-2 rounded-[1.35rem] pointer-events-none"
+              style={{
+                background:
+                  'linear-gradient(145deg, rgba(255,255,255,0.2), rgba(11,78,65,0.24), rgba(255,255,255,0.16))',
+                opacity: 0.45,
+                filter: 'blur(8px)',
+              }}
+            />
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/30" style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}>
               <Image
                 src={heroImageSrc}
                 alt={heroImageAlt}
                 width={1200}
                 height={800}
-                className="object-contain w-full"
-                style={{ height: 'clamp(240px, 50vw, 430px)' }}
+                className="object-cover object-center w-full"
+                style={{
+                  height: 'clamp(260px, 58vw, 470px)',
+                }}
                 priority
                 quality={100}
-                sizes="(max-width: 1024px) 92vw, 42vw"
+                sizes="(max-width: 640px) 94vw, (max-width: 1024px) 88vw, 42vw"
               />
               <div
                 className="absolute inset-0"
-                style={{ background: 'linear-gradient(to top, rgba(11,78,65,0.14), rgba(11,78,65,0.02))' }}
+                style={{
+                  background:
+                    'linear-gradient(to top, rgba(11,78,65,0.22) 0%, rgba(11,78,65,0.08) 45%, rgba(11,78,65,0.02) 100%)',
+                }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'radial-gradient(circle at center, rgba(255,255,255,0) 56%, rgba(11,78,65,0.18) 100%)',
+                }}
               />
             </div>
 
@@ -284,8 +305,8 @@ export default async function HomePage() {
             <div className="relative order-2 lg:order-1">
               <div className="relative rounded-2xl overflow-hidden shadow-xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=700"
-                  alt="Dr. Didi — Founder"
+                  src="/assets/IMG-20260508-WA0061.jpg"
+                  alt="Dr. Didi providing hands-on clinical care during an outreach session"
                   width={500}
                   height={600}
                   className="object-cover w-full"
@@ -319,7 +340,7 @@ export default async function HomePage() {
               >
                 &ldquo;Your body deserves honesty. I created this space so you never have to feel embarrassed asking questions about your own health.&rdquo;
               </blockquote>
-              <p className="font-signature text-2xl mb-1" style={{ color: 'var(--color-primary)' }}>
+              <p className="font-heading italic font-medium text-2xl mb-1" style={{ color: 'var(--color-primary)' }}>
                 — Dr. Didi, MBBS
               </p>
               <p className="font-body text-sm text-gray-500 mb-8">
