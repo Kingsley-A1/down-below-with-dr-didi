@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { contactSchema } from '@/lib/validations'
+import { createContactSubmission } from '@/lib/admin/repository'
+import { contactLimiter, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  const rl = contactLimiter(getClientIp(req))
+  if (rl.limited) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait before submitting again.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      }
+    )
+  }
+
   try {
     const body = await req.json()
     const parsed = contactSchema.safeParse(body)
@@ -13,17 +26,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { firstName, lastName, email, preferredDate, preferredTime } = parsed.data
+    const { firstName, lastName, email, phone, preferredDate, preferredTime, message } = parsed.data
 
-    // Prototype: log and return success.
-    // Production: send dual emails via Resend — confirmation to patient, notification to DIDI_EMAIL.
-    console.log('[Contact] Booking request:', {
-      firstName,
-      lastName,
-      email,
-      preferredDate,
-      preferredTime,
-    })
+    await createContactSubmission({ firstName, lastName, email, phone, preferredDate, preferredTime, message })
 
     return NextResponse.json({ success: true, message: 'Booking request received' })
   } catch {

@@ -48,8 +48,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
+export async function DELETE() {
   const response = NextResponse.json({ success: true })
 
   response.cookies.set(ADMIN_SESSION_COOKIE, '', {

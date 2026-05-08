@@ -58,10 +58,6 @@ function textToBytes(value: string) {
   return new TextEncoder().encode(value)
 }
 
-function bytesToText(bytes: Uint8Array) {
-  return new TextDecoder().decode(bytes)
-}
-
 async function signPayload(payload: string) {
   const secretKey = await crypto.subtle.importKey(
     'raw',

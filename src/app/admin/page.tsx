@@ -54,6 +54,10 @@ export default async function AdminDashboardPage() {
           <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Manage Media Assets</h2>
           <p className="font-body text-sm text-gray-600">Upload hero images and reusable media into Cloudflare R2 while writing structured asset records to CockroachDB.</p>
         </Link>
+        <Link href="/admin/vault" className="bg-white rounded-2xl border p-6 block lg:col-span-2" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Moderate V-Vault Submissions</h2>
+          <p className="font-body text-sm text-gray-600">Review anonymous questions, add moderation notes, and route approved entries into your FAQ pipeline.</p>
+        </Link>
       </section>
     </div>
   )

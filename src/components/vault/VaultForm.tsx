@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Shield, CheckCircle, AlertCircle } from 'lucide-react'
 import { vaultSchema, type VaultFormData } from '@/lib/validations'
@@ -33,7 +33,7 @@ function FaqAccordionItem({ item }: { item: FaqItem }) {
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span
-            className="flex-shrink-0 text-xs font-body font-semibold px-2.5 py-1 rounded-full"
+            className="shrink-0 text-xs font-body font-semibold px-2.5 py-1 rounded-full"
             style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
           >
             {item.category}
@@ -41,7 +41,7 @@ function FaqAccordionItem({ item }: { item: FaqItem }) {
           <span className="font-body font-semibold text-gray-800 text-sm truncate">{item.question}</span>
         </div>
         <span
-          className="ml-4 flex-shrink-0 transition-transform duration-200 text-xs"
+          className="ml-4 shrink-0 transition-transform duration-200 text-xs"
           style={{
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
             color: 'var(--color-primary)',
@@ -67,10 +67,10 @@ export default function VaultForm() {
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
+    control,
   } = useForm<VaultFormData>({ resolver: zodResolver(vaultSchema) })
 
-  const questionValue = watch('question', '')
+  const questionValue = useWatch({ control, name: 'question', defaultValue: '' })
 
   const onSubmit = async (data: VaultFormData) => {
     setSubmitState('loading')
@@ -100,7 +100,7 @@ export default function VaultForm() {
           Question Received! 💚
         </h3>
         <p className="font-body text-gray-600 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-          Your question has been received anonymously. Dr. Didi will review it and may publish an answer to help others.
+          Your question has been received anonymously. Dr. Didi will review it in moderation and may publish an answer to help others.
         </p>
         <button
           onClick={() => setSubmitState('idle')}
@@ -117,7 +117,7 @@ export default function VaultForm() {
     <div>
       {/* Privacy banner */}
       <div className="text-white rounded-2xl p-6 mb-8 flex items-start gap-4" style={{ backgroundColor: 'var(--color-primary)' }}>
-        <Shield size={24} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
+        <Shield size={24} className="shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
         <div>
           <h3 className="font-body font-semibold mb-1">Your identity is completely protected.</h3>
           <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>

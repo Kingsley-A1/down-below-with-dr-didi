@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { siteSettingsSchema } from '@/lib/validations'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
-import { getSiteSettings, saveSiteSettings } from '@/lib/admin/repository'
+import { listVaultSubmissions, updateVaultSubmissionModeration } from '@/lib/admin/repository'
+import { vaultModerationSchema } from '@/lib/validations'
 
 async function requireAdmin(request: NextRequest) {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const settings = await getSiteSettings()
-  return NextResponse.json({ settings })
+  const submissions = await listVaultSubmissions()
+  return NextResponse.json({ submissions })
 }
 
 export async function PUT(request: NextRequest) {
@@ -28,29 +28,20 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const parsed = siteSettingsSchema.safeParse(body)
+    const parsed = vaultModerationSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
     }
 
-    // Normalise optional image fields to empty string so the contract with
-    // SiteSettingsState (which requires string, not string | undefined) is met.
-    const settings = await saveSiteSettings(
-      {
-        ...parsed.data,
-        heroImageUrl: parsed.data.heroImageUrl ?? '',
-        heroImageAlt: parsed.data.heroImageAlt ?? '',
-      },
-      {
-        email: session.email,
-        role: session.role,
-      }
-    )
+    const record = await updateVaultSubmissionModeration(parsed.data, {
+      email: session.email,
+      role: session.role,
+    })
 
-    return NextResponse.json({ success: true, settings })
+    return NextResponse.json({ success: true, submission: record })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update site settings'
+    const message = error instanceof Error ? error.message : 'Failed to update V-Vault submission'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -24,7 +24,13 @@ async function requireAdmin(request: NextRequest) {
   return verifyAdminSession(token)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const session = await requireAdmin(request)
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const assets = await listMediaAssets()
   return NextResponse.json({ assets })
 }
