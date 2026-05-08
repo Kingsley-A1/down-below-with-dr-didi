@@ -382,7 +382,7 @@ Hamburger → slide-over drawer with same links + social icons at bottom.
 
 **Right Panel:**
 - Real hero image: Doctor in clinical setting with warm lighting  
-  → Source: `https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=900` *(female doctor, professional portrait)*
+  → Source: `https://images.unsplash.com/ph oto-1559839734-2b71ea197ec2?w=900` *(female doctor, professional portrait)*
 - Floating badge: "🌿 Safe Space · Judgment Free"
 - Soft radial gradient overlay blending with `#0B4E41`
 
