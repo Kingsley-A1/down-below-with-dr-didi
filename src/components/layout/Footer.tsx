@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Camera, MessageCircle, Globe, Play } from 'lucide-react'
-import { siteConfig } from '@/lib/site-config'
+import { getPublicSiteSettings } from '@/lib/site-settings'
 
-export default function Footer() {
+export default async function Footer() {
+  const siteSettings = await getPublicSiteSettings()
+
   return (
     <footer style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
       <div className="max-w-container mx-auto px-6 py-16">
@@ -25,7 +27,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className="font-body text-sm leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              {siteConfig.footerBlurb}
+              {siteSettings.footerBlurb}
             </p>
             <div className="flex gap-4">
               {[
@@ -79,8 +81,8 @@ export default function Footer() {
             <h3 className="font-heading font-semibold text-lg mb-5">Get in Touch</h3>
             <div className="space-y-3 font-body text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
               <p>📍 Calabar, Cross River State, Nigeria</p>
-              <p>📧 {siteConfig.contactEmail}</p>
-              <p>📱 WhatsApp contact available from the contact page</p>
+              <p>📧 {siteSettings.contactEmail}</p>
+              <p>📱 {siteSettings.primaryWhatsapp}</p>
             </div>
             <Link
               href="/contact"
@@ -96,7 +98,7 @@ export default function Footer() {
       {/* Bottom bar */}
       <div className="border-t px-6 py-5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
         <div className="max-w-container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 font-body text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          <p>© 2026 {siteConfig.name}. All rights reserved.</p>
+          <p>© 2026 {siteSettings.siteName}. All rights reserved.</p>
           <p className="text-center">Content on this site is for educational purposes only and does not substitute professional medical advice.</p>
           <p>
             Designed &amp; Developed by{' '}
