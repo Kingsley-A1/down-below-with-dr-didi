@@ -6,6 +6,9 @@ const adminLinks = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/settings', label: 'Site Settings' },
   { href: '/admin/media', label: 'Media Library' },
+  { href: '/admin/vault', label: 'V-Vault Moderation' },
+  { href: '/admin/team', label: 'Team Members' },
+  { href: '/admin/gallery', label: 'Gallery Images' },
 ]
 
 export default function AdminShell({

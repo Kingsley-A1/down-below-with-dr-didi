@@ -4,8 +4,6 @@ generator client {
 
 datasource db {
   provider = "cockroachdb"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 enum AdminRole {
@@ -33,6 +31,20 @@ enum VaultSubmissionStatus {
   answered_privately
   approved_for_faq
   archived
+}
+
+enum TeamTier {
+  founder
+  leadership
+  core
+}
+
+enum GalleryCategory {
+  outreach
+  event
+  team
+  community
+  facility
 }
 
 model AdminUser {
@@ -136,4 +148,50 @@ model OutreachEvent {
   publishedAt    DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+}
+
+model ContactSubmission {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  preferredDate String?
+  preferredTime String?
+  message       String
+  createdAt     DateTime @default(now())
+}
+
+model TeamMember {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  name        String
+  role        String
+  tier        TeamTier
+  sortOrder   Int               @default(0)
+  credentials String
+  bio         String
+  imageUrl    String?
+  imageAlt    String?
+  status      PublicationStatus @default(published)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model GalleryImage {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  title       String
+  description String
+  caption     String?
+  imageUrl    String
+  imageAlt    String
+  category    GalleryCategory
+  eventName   String?
+  location    String?
+  capturedAt  DateTime?
+  status      PublicationStatus @default(published)
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }

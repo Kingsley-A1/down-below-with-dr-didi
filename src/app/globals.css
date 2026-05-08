@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Dancing+Script:wght@600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -20,9 +20,9 @@
   --radius-lg: 24px;
   --radius-full: 9999px;
 
-  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-heading: 'DM Sans', system-ui, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-signature: 'Dancing Script', cursive;
+  --font-display: 'DM Sans', system-ui, sans-serif;
 }
 
 body {
@@ -35,9 +35,13 @@ h1, h2, h3, h4, h5 {
   font-family: var(--font-heading);
 }
 
+h1 { letter-spacing: -0.02em; }
+h2 { letter-spacing: -0.015em; }
+h3 { letter-spacing: -0.01em; }
+
 .font-heading { font-family: var(--font-heading); }
 .font-body    { font-family: var(--font-body); }
-.font-signature { font-family: var(--font-signature); }
+.font-display { font-family: var(--font-display); }
 
 /* Utility: clamp text to N lines */
 .line-clamp-2 {
@@ -83,3 +87,24 @@ h1, h2, h3, h4, h5 {
 
 /* Focus ring */
 .focus\:ring-primary:focus { --tw-ring-color: var(--color-primary); }
+
+/* Admin form input */
+.input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  background: white;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-field:focus {
+  border-color: var(--color-primary);
+}
+
+/* Hide scrollbar on filter bar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

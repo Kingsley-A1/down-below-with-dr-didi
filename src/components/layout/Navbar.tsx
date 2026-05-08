@@ -9,6 +9,8 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/library', label: 'Library' },
   { href: '/about', label: 'About' },
+  { href: '/team', label: 'Team' },
+  { href: '/gallery', label: 'Gallery' },
   { href: '/vault', label: 'V-Vault' },
   { href: '/outreach', label: 'Outreach' },
 ]

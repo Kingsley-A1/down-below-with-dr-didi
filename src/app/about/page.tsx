@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { GraduationCap, Award, CheckCircle } from 'lucide-react'
-import { team } from '@/data/team'
+import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
+import { team as staticTeam } from '@/data/team'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'About Dr. Didi',
@@ -18,7 +21,29 @@ const partners = [
   { name: 'Regional Screening Volunteers', type: 'Medical Volunteers' },
 ]
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  let teamMembers: PublicTeamMember[]
+  try {
+    teamMembers = await getPublishedTeamMembers()
+  } catch {
+    teamMembers = []
+  }
+
+  if (teamMembers.length === 0) {
+    teamMembers = staticTeam.map((m) => ({
+      id: String(m.id),
+      slug: m.slug ?? String(m.id),
+      name: m.name,
+      role: m.role,
+      tier: (m.tier ?? 'core') as PublicTeamMember['tier'],
+      sortOrder: m.sortOrder ?? 0,
+      credentials: m.credentials ?? '',
+      bio: m.bio,
+      imageUrl: m.image ?? null,
+      imageAlt: m.name,
+    }))
+  }
+
   return (
     <>
       {/* Mission & Vision */}
@@ -61,8 +86,8 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-16 items-start">
             <div className="rounded-2xl overflow-hidden sticky top-24 shadow-xl">
               <Image
-                src="https://images.unsplash.com/photo-1591604021695-0c69b7c05981?w=700"
-                alt="Dr. Didi — Founder"
+                src="/assets/IMG-20260508-WA0082.jpg"
+                alt="Dr. Didi distributing clothing support during a community outreach"
                 width={560}
                 height={640}
                 className="object-cover w-full"
@@ -132,15 +157,15 @@ export default function AboutPage() {
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {team.map((member) => (
+            {teamMembers.map((member) => (
               <div
                 key={member.id}
                 className="rounded-2xl p-8 border text-center transition-all duration-300 hover:-translate-y-1"
                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-sm)' }}
               >
                 <Image
-                  src={member.image}
-                  alt={member.name}
+                  src={member.imageUrl ?? '/assets/placeholder-team.jpg'}
+                  alt={member.imageAlt ?? member.name}
                   width={96}
                   height={96}
                   className="rounded-full object-cover mx-auto mb-4"
