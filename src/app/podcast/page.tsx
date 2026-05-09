@@ -9,7 +9,7 @@ import { canonicalUrl } from '@/lib/site-config'
 export const metadata: Metadata = {
   title: 'Podcast',
   description:
-    'Listen to Down Below With Dr. Didi podcast episodes on reproductive health, community care, faith, and practical wellness.',
+    'Listen to Down Below podcast episodes on reproductive health, community care, faith, and practical wellness with Dr. Didi.',
   alternates: {
     canonical: canonicalUrl('/podcast'),
   },

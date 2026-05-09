@@ -207,7 +207,7 @@ export default async function HomePage() {
               Our Three Pillars
             </h2>
             <p className="font-body text-gray-600 max-w-xl mx-auto leading-relaxed">
-              Every aspect of Down Below With Dr. Didi is built around three core principles.
+              Every aspect of Down Below Family Health Initiative is built around three core principles.
             </p>
           </div>
 
@@ -318,8 +318,8 @@ export default async function HomePage() {
             <div className="relative order-2 lg:order-1">
               <div className="relative rounded-2xl overflow-hidden shadow-xl">
                 <Image
-                  src="/assets/IMG-20260508-WA0061.jpg"
-                  alt="Dr. Didi providing hands-on clinical care during an outreach session"
+                  src="/assets/dr_didi_hospital_bed_renewal_1.jpg"
+                  alt="Dr. Didi with a clinical partner during a hospital bed renewal outreach"
                   width={500}
                   height={600}
                   className="object-cover w-full"
@@ -357,7 +357,7 @@ export default async function HomePage() {
                 — Dr. Didi, MBBCH
               </p>
               <p className="font-body text-sm text-gray-500 mb-8">
-                Founder, Down Below With Dr. Didi &middot; Calabar, Nigeria
+                Founder, Down Below Family Health Initiative &middot; Calabar, Nigeria
               </p>
               <Link
                 href="/about"

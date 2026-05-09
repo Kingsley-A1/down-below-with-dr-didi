@@ -322,3 +322,6 @@ src/
 **Document Owner:** Dev Team  
 **Last Updated:** 2026-05-09  
 **Next Review:** Upon Phase 1 completion
+/NB: Verify Email and Forgot password buttons should be marked as coming soon and the buttons should be visible
+The website is acessible and mobile-friendly, but the email verification and password reset features are not yet implemented. Users can register and log in, but they will not receive verification or reset emails until those features are completed and email templates are set up. Admins can view user lists and details, but cannot yet deactivate or activate accounts. The audit log is recording user actions, but the visualization in the admin panel is still in progress. Overall, the core registration and login flows are functional, but the email-based features and admin controls are still under development.
+Both Authenticated and Non authentcaed user should be able to use the website hassle free, but non-authenticated users will have limited access to features that require authentication, such as viewing their profile or accessing certain admin functionalities. The registration and login processes are designed to be straightforward. During user registration, they shices chose ther role, but default should be Member. 

@@ -16,7 +16,7 @@ export default async function Footer() {
             <Link href="/" className="flex items-center gap-3 mb-4">
               <Image
                 src="/logo.jpg"
-                alt="Down Below With Dr. Didi"
+                alt="Down Below Family Health Initiative"
                 width={52}
                 height={52}
                 className="rounded-full object-cover"

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { Award, CheckCircle, GraduationCap, Handshake, Sparkles, Target } from 'lucide-react'
+import { Award, CheckCircle, GraduationCap, Handshake, Sparkles, Target, Users } from 'lucide-react'
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
 import { canonicalUrl } from '@/lib/site-config'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'About Dr. Didi',
   description:
-    "Learn about Dr. Edidiong Ekereuke, founder of Down Below With Dr. Didi, and the initiative's faith-based mission for women's reproductive health.",
+    "Learn about Dr. Edidiong Ekereuke, founder of Down Below Family Health Initiative, and the initiative's faith-based mission for women's reproductive health.",
   alternates: {
     canonical: canonicalUrl('/about'),
   },
@@ -87,8 +87,8 @@ export default async function AboutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-16 items-start">
             <div className="rounded-2xl overflow-hidden sticky top-24 shadow-xl">
               <Image
-                src="/assets/IMG-20260508-WA0082.jpg"
-                alt="Dr. Didi distributing clothing support during a community outreach"
+                src="/assets/dr_didi_1.jpg"
+                alt="Dr. Edidiong Ekereuke, founder of Down Below Family Health Initiative"
                 width={560}
                 height={640}
                 className="object-cover w-full"
@@ -112,7 +112,7 @@ export default async function AboutPage() {
                   Dr. Edidiong Ekereuke (Dr. Didi) is a Senior Medical Official at the University of Calabar Teaching Hospital (UCTH), with a longstanding commitment to women&apos;s reproductive health and infertility support.
                 </p>
                 <p>
-                  Through Down Below With Dr. Didi, she leads a faith-based family health movement that combines clinical consultations with natural health strategies, prayer, and practical education women can use daily.
+                  Through Down Below Family Health Initiative, she leads a faith-based family health movement that combines clinical consultations with natural health strategies, prayer, and practical education women can use daily.
                 </p>
                 <p>
                   Since launch, the initiative has passed two years of active service, reaching women through community outreaches in Calabar and through digital channels that serve a global audience.
@@ -128,7 +128,7 @@ export default async function AboutPage() {
                     { icon: GraduationCap, text: 'Senior Medical Official — University of Calabar Teaching Hospital (UCTH)' },
                     { icon: CheckCircle, text: 'Clinical focus on women\'s health and infertility management' },
                     { icon: CheckCircle, text: 'Community health educator for reproductive wellness and prevention' },
-                    { icon: Award, text: 'Founder — Down Below With Dr. Didi Family Health Initiative' },
+                    { icon: Award, text: 'Founder — Down Below Family Health Initiative' },
                     { icon: CheckCircle, text: 'Leads faith-integrated wellness programs and annual family retreat' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-3">
@@ -164,14 +164,24 @@ export default async function AboutPage() {
                 className="rounded-2xl p-8 border text-center transition-all duration-300 hover:-translate-y-1"
                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-sm)' }}
               >
-                <Image
-                  src={member.imageUrl ?? '/assets/placeholder-team.jpg'}
-                  alt={member.imageAlt ?? member.name}
-                  width={96}
-                  height={96}
-                  className="rounded-full object-cover mx-auto mb-4"
-                  style={{ width: '96px', height: '96px' }}
-                />
+                {member.imageUrl ? (
+                  <Image
+                    src={member.imageUrl}
+                    alt={member.imageAlt ?? member.name}
+                    width={96}
+                    height={96}
+                    className="rounded-full object-cover mx-auto mb-4"
+                    style={{ width: '96px', height: '96px' }}
+                  />
+                ) : (
+                  <div
+                    className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full"
+                    style={{ backgroundColor: 'var(--color-primary-muted)' }}
+                    aria-label={`${member.name} profile image placeholder`}
+                  >
+                    <Users size={34} style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                )}
                 <h3 className="font-heading font-bold text-xl mb-1" style={{ color: 'var(--color-primary)' }}>{member.name}</h3>
                 <p className="font-body text-sm font-semibold mb-1" style={{ color: 'rgba(11,78,65,0.65)' }}>{member.role}</p>
                 <p className="font-body text-xs text-gray-400 mb-4">{member.credentials}</p>

@@ -165,3 +165,88 @@ export const podcastEpisodeUpdateSchema = podcastEpisodeSchema.partial().extend(
 
 export type PodcastEpisodeFormData = z.infer<typeof podcastEpisodeSchema>
 export type PodcastEpisodeUpdateData = z.infer<typeof podcastEpisodeUpdateSchema>
+
+// ─────────────────────────────────────────────
+// USER AUTHENTICATION VALIDATION
+// ─────────────────────────────────────────────
+
+export const userRegisterSchema = z.object({
+  email: z.string().email('Please enter a valid email address').max(255),
+  displayName: z
+    .string()
+    .min(2, 'Display name must be at least 2 characters')
+    .max(100, 'Display name may not exceed 100 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password may not exceed 128 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/\d/, 'Password must contain at least one digit')
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+})
+
+export const userLoginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+export const userVerifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+})
+
+export const userForgotPasswordSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+})
+
+export const userResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password may not exceed 128 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/\d/, 'Password must contain at least one digit')
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+})
+
+export const userUpdateProfileSchema = z.object({
+  displayName: z
+    .string()
+    .min(2, 'Display name must be at least 2 characters')
+    .max(100, 'Display name may not exceed 100 characters')
+    .optional(),
+})
+
+export const userChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password may not exceed 128 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/\d/, 'Password must contain at least one digit')
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+})
+
+export type UserRegisterData = z.infer<typeof userRegisterSchema>
+export type UserLoginData = z.infer<typeof userLoginSchema>
+export type UserVerifyEmailData = z.infer<typeof userVerifyEmailSchema>
+export type UserForgotPasswordData = z.infer<typeof userForgotPasswordSchema>
+export type UserResetPasswordData = z.infer<typeof userResetPasswordSchema>
+export type UserUpdateProfileData = z.infer<typeof userUpdateProfileSchema>
+export type UserChangePasswordData = z.infer<typeof userChangePasswordSchema>

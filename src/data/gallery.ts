@@ -43,8 +43,8 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'team',
     eventName: 'Down Below Community Outreach',
     location: 'Calabar South, Cross River',
-    imageUrl: '/assets/IMG-20260508-WA0082.jpg',
-    imageAlt: 'Dr. Didi engaging directly with women during an outreach support session',
+    imageUrl: '/assets/dr_didi_hospital_bed_renewal_2.jpg',
+    imageAlt: 'Dr. Didi standing with clinical partners during a hospital bed renewal outreach',
     description:
       'Dr. Didi is shown in active field engagement, supporting women directly during distribution and community interaction. The moment reflects the initiative\'s model of combining practical service, trust, and clear health communication at grassroots level.',
     caption: 'Dr. Didi in direct field engagement',
@@ -79,7 +79,7 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'event',
     eventName: 'Women\'s Health Mobilization Event',
     location: 'Calabar, Cross River',
-    imageUrl: '/assets/IMG-20260508-WA0060.jpg',
+    imageUrl: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
     imageAlt: 'Dr. Didi speaking with a microphone during a women\'s health mobilization event',
     description:
       'Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women\'s health. The event atmosphere captures the initiative\'s core approach: clinical clarity, compassionate communication, and strong community participation.',

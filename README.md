@@ -1,4 +1,4 @@
-# Down Below With Dr. Didi
+# Down Below Family Health Initiative
 
 > **Demystifying Wellness, Empowering You**
 
@@ -8,10 +8,11 @@ A Family Health initiative  led by Dr. Edidiong Ekerueke(Dr. Didi) — a medical
 
 ## Overview
 
-Down Below With Dr. Didi reduces stigma around reproductive health through plain-language education, anonymous Q&A, and community outreach.
+Down Below Family Health Initiative reduces stigma around reproductive health through plain-language education, anonymous Q&A, and community outreach.
 
 **Agency:** [King Tech Foundation](https://kingtech.com.ng)  
-**Client:** Down Below With Dr. Didi · Calabar, Nigeria
+**Client:** Down Below Family Health Initiative · Calabar, Nigeria  
+**Production:** [https://down-below.com](https://down-below.com)
 
 ---
 
@@ -97,4 +98,4 @@ RESEND_API_KEY=re_...            # Resend transactional email API key
 
 ---
 
-© 2026 Down Below With Dr. Didi · Designed & Developed by [King Tech Foundation](https://kingtech.com.ng)
+© 2026 Down Below Family Health Initiative · Designed & Developed by [King Tech Foundation](https://kingtech.com.ng)

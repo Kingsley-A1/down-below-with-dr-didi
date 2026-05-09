@@ -45,7 +45,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-2.5">
           <Image
             src="/logo.jpg"
-            alt="Down Below With Dr. Didi"
+            alt="Down Below Family Health Initiative"
             width={44}
             height={44}
             className="rounded-full object-cover"

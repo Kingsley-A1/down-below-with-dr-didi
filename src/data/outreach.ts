@@ -42,7 +42,7 @@ export const galleryItems: GalleryItem[] = [
     title: 'Direct Community Engagement in the Field',
     date: 'March 2024',
     location: 'Calabar South, Cross River',
-    image: '/assets/IMG-20260508-WA0082.jpg',
+    image: '/assets/dr_didi_hospital_bed_renewal_2.jpg',
     description: 'Dr. Didi and team members engaged women directly, combining practical support with trusted, faith-sensitive health guidance.',
   },
   {
@@ -66,7 +66,7 @@ export const galleryItems: GalleryItem[] = [
     title: 'Founder-Led Public Health Mobilization',
     date: 'January 2024',
     location: 'Calabar, Cross River',
-    image: '/assets/IMG-20260508-WA0060.jpg',
+    image: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
     description: 'Dr. Didi led a high-energy outreach moment focused on women\'s health education, trust building, and community mobilization.',
   },
 ]

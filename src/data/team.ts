@@ -20,7 +20,7 @@ export const team: TeamMember[] = [
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
     bio: 'Faith-based women\'s health advocate focused on infertility management, reproductive education, and practical support for women and families.',
-    image: '/assets/IMG-20260508-WA0060.jpg',
+    image: '/assets/dr_didi_2.jpg',
   },
   {
     id: 2,

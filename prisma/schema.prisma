@@ -97,6 +97,21 @@ model MediaAsset {
   createdBy    AdminUser?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
 }
 
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  displayName       String
+  passwordHash      String
+  isActive          Boolean     @default(true)
+  emailVerified     Boolean     @default(false)
+  emailVerifyToken  String?     @unique
+  resetToken        String?     @unique
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  auditLogs         AuditLog[]
+}
+
 model AuditLog {
   id          String     @id @default(cuid())
   action      String
@@ -109,6 +124,11 @@ model AuditLog {
   createdAt   DateTime   @default(now())
   actorId     String?
   actor       AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean    @default(true)
 }
 
 model VaultSubmission {

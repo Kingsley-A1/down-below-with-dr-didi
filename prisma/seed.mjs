@@ -17,7 +17,7 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const defaultSiteSettings = {
-  siteName: 'Down Below Family Health Initiative with Dr. Didi',
+  siteName: 'Down Below Family Health Initiative',
   tagline: 'Expose in Love, teach, heal, and win the world for God.',
   motto: 'Expose in Love, Teach, Heal, Win.',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
@@ -54,7 +54,7 @@ const teamMembers = [
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
     bio: "Faith-based women's health advocate focused on infertility management, reproductive education, and practical support for women and families.",
-    imageUrl: '/assets/dr-didi_1.jpg',
+    imageUrl: '/assets/dr_didi_2.jpg',
     imageAlt: 'Dr. Edidiong Ekereuke, Founder of Down Below Family Health Initiative',
     status: 'published',
   },
@@ -120,8 +120,8 @@ const galleryImages = [
     eventName: 'Down Below Community Outreach',
     location: 'Calabar South, Cross River',
     sortOrder: 2,
-    imageUrl: '/assets/IMG-20260508-WA0082.jpg',
-    imageAlt: 'Dr. Didi engaging directly with women during an outreach support session',
+    imageUrl: '/assets/dr_didi_hospital_bed_renewal_2.jpg',
+    imageAlt: 'Dr. Didi standing with clinical partners during a hospital bed renewal outreach',
     description:
       "Dr. Didi is shown in active field engagement, supporting women directly during distribution and community interaction. The moment reflects the initiative's model of combining practical service, trust, and clear health communication at grassroots level.",
     caption: 'Dr. Didi in direct field engagement',
@@ -162,7 +162,7 @@ const galleryImages = [
     eventName: "Women's Health Mobilization Event",
     location: 'Calabar, Cross River',
     sortOrder: 5,
-    imageUrl: '/assets/IMG-20260508-WA0060.jpg',
+    imageUrl: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
     imageAlt: 'Dr. Didi speaking with a microphone during a women\'s health mobilization event',
     description:
       "Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women's health. The event atmosphere captures the initiative's core approach: clinical clarity, compassionate communication, and strong community participation.",
