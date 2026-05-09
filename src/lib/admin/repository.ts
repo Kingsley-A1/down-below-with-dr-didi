@@ -454,7 +454,18 @@ export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
     orderBy: [{ sortOrder: 'asc' }],
   })
 
-  return records.map((r) => ({
+  return records.map((r: {
+    id: string
+    slug: string
+    name: string
+    role: string
+    tier: string
+    sortOrder: number
+    credentials: string
+    bio: string
+    imageUrl: string | null
+    imageAlt: string | null
+  }) => ({
     id: r.id,
     slug: r.slug,
     name: r.name,
