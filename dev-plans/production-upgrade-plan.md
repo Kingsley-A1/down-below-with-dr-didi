@@ -1,6 +1,6 @@
 # Down Below Family Health Initiative with Dr. Didi
 
-> Execution-focused production plan for moving the current Next.js codebase into an operational platform at `down-below.com.ng`.
+> Execution-focused production plan for moving the current Next.js codebase into an operational platform at `down-below.com`.
 
 ## 0. Current Execution Snapshot
 
@@ -47,7 +47,7 @@ That means the current question is no longer, "What architecture should we use?"
 - Primary name: **Down Below Family Health Initiative with Dr. Didi**
 - Tagline: **Expose in Love, teach, heal, and win the world for God.**
 - Motto: **Expose in Love, Teach, Heal, Win.**
-- Primary production domain: `down-below.com.ng`
+- Primary production domain: `down-below.com`
 
 ### Fixed Product Constraints
 
@@ -142,7 +142,7 @@ These must be resolved or explicitly accepted during activation:
 
 ### Canonical configuration direction
 
-- Use `https://down-below.com.ng` as the canonical production URL.
+- Use `https://down-below.com` as the canonical production URL.
 - Treat any Vercel-hosted preview or fallback domain as non-canonical.
 - Keep asset delivery on the R2 public URL until a stricter asset delivery policy becomes necessary.
 
@@ -179,7 +179,7 @@ These must be resolved or explicitly accepted during activation:
 ### Hosting and Delivery
 
 - Frontend and server routes: Vercel
-- Domain: `down-below.com.ng`
+- Domain: `down-below.com`
 - DNS and edge delivery: Cloudflare
 - Media delivery: public R2 URL unless specific assets later require signed access
 
@@ -400,7 +400,7 @@ All assets should become updateable without code edits.
 ### SEO work
 
 - Replace all default metadata with the final brand name and canonical domain.
-- Use `down-below.com.ng` as the canonical URL base.
+- Use `down-below.com` as the canonical URL base.
 - Add structured metadata for articles and organization details.
 - Generate sitemap and robots rules from live content.
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight } from 'lucide-react'
@@ -5,6 +6,7 @@ import { articles } from '@/data/articles'
 import { vaultPreviewItems } from '@/data/vault-preview'
 import { formatDate } from '@/lib/utils'
 import { getPublicSiteSettings } from '@/lib/site-settings'
+import { canonicalUrl, siteConfig } from '@/lib/site-config'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
@@ -21,6 +23,17 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 }
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
+  description: siteConfig.description,
+  alternates: {
+    canonical: canonicalUrl('/'),
+  },
+  openGraph: {
+    url: canonicalUrl('/'),
+  },
+}
 
 export default async function HomePage() {
   const siteSettings = await getPublicSiteSettings()
@@ -135,7 +148,7 @@ export default async function HomePage() {
                   height: 'clamp(260px, 58vw, 470px)',
                 }}
                 priority
-                quality={100}
+                quality={86}
                 sizes="(max-width: 640px) 94vw, (max-width: 1024px) 88vw, 42vw"
               />
               <div

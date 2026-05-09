@@ -20,6 +20,7 @@ enum PublicationStatus {
 
 enum MediaAssetKind {
   image
+  audio
   document
   video
   other
@@ -194,4 +195,26 @@ model GalleryImage {
   sortOrder   Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+}
+
+model PodcastEpisode {
+  id                String            @id @default(cuid())
+  slug              String            @unique
+  title             String
+  summary           String
+  description       String
+  audioUrl          String
+  audioSize         Int?
+  audioType         String?
+  duration          Int?
+  coverImage        String?
+  guestName         String?
+  topicTags         Json?
+  transcript        String?
+  externalSourceUrl String?
+  publishedAt       DateTime?
+  sortOrder         Int               @default(0)
+  status            PublicationStatus @default(published)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }

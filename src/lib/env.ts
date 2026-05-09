@@ -18,8 +18,8 @@ const envSchema = z.object({
   // No defaults — the app must not run with placeholder secrets.
   ADMIN_SESSION_SECRET: z.string().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
   ADMIN_ACCESS_CODE: z.string().min(12, 'ADMIN_ACCESS_CODE must be at least 12 characters'),
-  ADMIN_ALLOWED_USERS: z.string().default('admin@down-below.com.ng:super_admin'),
-  NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com.ng'),
+  ADMIN_ALLOWED_USERS: z.string().default('admin@down-below.com:super_admin'),
+  NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com'),
 })
 
 const parsed = envSchema.parse({
@@ -34,7 +34,7 @@ const parsed = envSchema.parse({
   ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
   ADMIN_ACCESS_CODE: process.env.ADMIN_ACCESS_CODE,
   ADMIN_ALLOWED_USERS: process.env.ADMIN_ALLOWED_USERS,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com.ng',
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
 })
 
 // Fail fast on known-insecure placeholder values in any environment.

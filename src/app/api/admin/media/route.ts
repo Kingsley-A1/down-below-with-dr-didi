@@ -3,9 +3,13 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 import { createMediaAssetRecord, listMediaAssets } from '@/lib/admin/repository'
 import { uploadAssetToR2 } from '@/lib/storage/r2'
 
-function inferMediaKind(mimeType: string): 'image' | 'document' | 'video' | 'other' {
+function inferMediaKind(mimeType: string): 'image' | 'audio' | 'document' | 'video' | 'other' {
   if (mimeType.startsWith('image/')) {
     return 'image'
+  }
+
+  if (mimeType.startsWith('audio/')) {
+    return 'audio'
   }
 
   if (mimeType.startsWith('video/')) {

@@ -125,3 +125,43 @@ export const galleryImageUpdateSchema = galleryImageSchema.partial().extend({
 
 export type GalleryImageFormData = z.infer<typeof galleryImageSchema>
 export type GalleryImageUpdateData = z.infer<typeof galleryImageUpdateSchema>
+
+// ─────────────────────────────────────────────
+// PODCAST EPISODE VALIDATION
+// ─────────────────────────────────────────────
+
+export const podcastEpisodeSchema = z.object({
+  slug: z
+    .string()
+    .min(2)
+    .max(100)
+    .regex(/^[a-z0-9-]+$/, 'Slug may only contain lowercase letters, numbers, and hyphens'),
+  title: z.string().min(5, 'Title must be at least 5 characters').max(160),
+  summary: z
+    .string()
+    .min(20, 'Summary must be at least 20 characters')
+    .max(280, 'Summary may not exceed 280 characters'),
+  description: z
+    .string()
+    .min(40, 'Show notes must be at least 40 characters')
+    .max(5000, 'Show notes may not exceed 5000 characters'),
+  audioUrl: z.string().min(1, 'Audio URL is required').max(1000),
+  audioSize: z.number().int().min(0).optional(),
+  audioType: z.string().max(120).optional().or(z.literal('')),
+  duration: z.number().int().min(1).max(86400).optional(),
+  coverImage: z.string().max(1000).optional().or(z.literal('')),
+  guestName: z.string().max(120).optional().or(z.literal('')),
+  topicTags: z.array(z.string().min(1).max(40)).max(12).optional().default([]),
+  transcript: z.string().max(20000).optional().or(z.literal('')),
+  externalSourceUrl: z.string().url('Enter a valid external URL').optional().or(z.literal('')),
+  publishedAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+  sortOrder: z.number().int().min(0).optional().default(0),
+  status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
+})
+
+export const podcastEpisodeUpdateSchema = podcastEpisodeSchema.partial().extend({
+  id: z.string().min(1, 'Podcast episode id is required'),
+})
+
+export type PodcastEpisodeFormData = z.infer<typeof podcastEpisodeSchema>
+export type PodcastEpisodeUpdateData = z.infer<typeof podcastEpisodeUpdateSchema>

@@ -3,11 +3,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getPublishedGalleryImages, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
 import { gallerySeedItems } from '@/data/gallery'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: 'Gallery',
   description:
     'Photos from Down Below Family Health Initiative events, community outreach programmes, team activities, and health talks across Nigeria.',
+  alternates: {
+    canonical: canonicalUrl('/gallery'),
+  },
 }
 
 export const dynamic = 'force-dynamic'
@@ -118,7 +122,7 @@ export default async function GalleryPage({ searchParams }: Props) {
           style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
         >
           <div className="max-w-container mx-auto px-6">
-            <div className="flex items-center gap-1 overflow-x-auto py-3 no-scrollbar">
+            <div className="scroll-fade-x flex items-center gap-1 overflow-x-auto py-3 no-scrollbar">
               {CATEGORIES.map(({ value, label }) => {
                 const isActive = value === activeCategory
                 const href = value === 'all' ? '/gallery' : `/gallery?category=${value}`

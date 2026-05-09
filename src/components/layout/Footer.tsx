@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Camera, MessageCircle, Globe, Play } from 'lucide-react'
+import { Camera, Globe, Mail, MapPin, MessageCircle, Phone, Play } from 'lucide-react'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 
 export default async function Footer() {
@@ -59,9 +59,12 @@ export default async function Footer() {
                 { href: '/', label: 'Home' },
                 { href: '/about', label: 'About Dr. Didi' },
                 { href: '/library', label: 'Health Library' },
+                { href: '/podcast', label: 'Podcast' },
                 { href: '/outreach', label: 'Community Outreach' },
                 { href: '/vault', label: 'The V-Vault' },
                 { href: '/contact', label: 'Contact & Booking' },
+                { href: '/gallery', label: 'Gallery' },
+                { href: '/team', label: 'Our Team' },
               ].map(({ href, label }) => (
                 <li key={href}>
                   <Link
@@ -80,9 +83,18 @@ export default async function Footer() {
           <div>
             <h3 className="font-heading font-semibold text-lg mb-5">Get in Touch</h3>
             <div className="space-y-3 font-body text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              <p>📍 Calabar, Cross River State, Nigeria</p>
-              <p>📧 {siteSettings.contactEmail}</p>
-              <p>📱 {siteSettings.primaryWhatsapp}</p>
+              <p className="flex items-start gap-2">
+                <MapPin size={15} className="mt-0.5 shrink-0" />
+                <span>Calabar, Cross River State, Nigeria</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Mail size={15} className="mt-0.5 shrink-0" />
+                <span>{siteSettings.contactEmail}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Phone size={15} className="mt-0.5 shrink-0" />
+                <span>{siteSettings.primaryWhatsapp}</span>
+              </p>
             </div>
             <Link
               href="/contact"

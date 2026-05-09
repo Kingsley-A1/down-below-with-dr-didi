@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
-import { Camera, MessageCircle, Globe, Play } from 'lucide-react'
+import { Camera, Clock, Globe, Mail, MapPin, MessageCircle, Play, Timer } from 'lucide-react'
 import ContactForm from '@/components/contact/ContactForm'
 import { getPublicSiteSettings } from '@/lib/site-settings'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: 'Contact & Booking',
   description: 'Book a consultation with Dr. Didi or get in touch with the Down Below team.',
+  alternates: {
+    canonical: canonicalUrl('/contact'),
+  },
 }
 
 const socials = [
@@ -49,14 +53,14 @@ export default async function ContactPage() {
                 <h2 className="font-heading font-bold text-2xl mb-6">How to Reach Us</h2>
                 <div className="space-y-4 font-body text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
                   {[
-                    { emoji: '📍', label: 'Location', value: 'Calabar, Cross River State, Nigeria' },
-                    { emoji: '📧', label: 'Gmail', value: siteSettings.contactEmail },
-                    { emoji: '💬', label: 'WhatsApp', value: siteSettings.primaryWhatsapp },
-                    { emoji: '🕐', label: 'Consultation Hours', value: 'Monday – Saturday · 9:00 AM – 5:00 PM WAT' },
-                    { emoji: '⏱️', label: 'Response Flow', value: 'Direct contact is handled through WhatsApp and Gmail.' },
-                  ].map(({ emoji, label, value }) => (
+                    { icon: MapPin, label: 'Location', value: 'Calabar, Cross River State, Nigeria' },
+                    { icon: Mail, label: 'Gmail', value: siteSettings.contactEmail },
+                    { icon: MessageCircle, label: 'WhatsApp', value: siteSettings.primaryWhatsapp },
+                    { icon: Clock, label: 'Consultation Hours', value: 'Monday - Saturday · 9:00 AM - 5:00 PM WAT' },
+                    { icon: Timer, label: 'Response Flow', value: 'Direct contact is handled through WhatsApp and Gmail.' },
+                  ].map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-start gap-3">
-                      <span style={{ color: 'var(--color-accent)' }}>{emoji}</span>
+                      <Icon size={17} className="mt-0.5 shrink-0" style={{ color: 'var(--color-accent)' }} />
                       <div>
                         <p className="font-semibold text-white">{label}</p>
                         <p>{value}</p>

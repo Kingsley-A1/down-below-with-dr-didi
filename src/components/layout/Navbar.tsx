@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import Image from 'next/image'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
 import { siteConfig } from '@/lib/site-config'
@@ -11,11 +12,13 @@ const navLinks = [
   { href: '/about', label: 'About' },
   { href: '/team', label: 'Team' },
   { href: '/gallery', label: 'Gallery' },
+  { href: '/podcast', label: 'Podcast' },
   { href: '/vault', label: 'V-Vault' },
   { href: '/outreach', label: 'Outreach' },
 ]
 
 export default function Navbar() {
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -46,7 +49,6 @@ export default function Navbar() {
             width={44}
             height={44}
             className="rounded-full object-cover"
-            priority
           />
           <span
             className="font-heading font-bold text-lg hidden sm:block"
@@ -57,13 +59,18 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <ul className="hidden lg:flex items-center gap-8">
+        <ul className="hidden lg:flex items-center gap-5 xl:gap-8">
           {navLinks.map(({ href, label }) => (
             <li key={href}>
               <Link
                 href={href}
-                className="font-body font-medium text-sm transition-colors"
-                style={{ color: scrolled ? 'var(--color-primary)' : 'rgba(255,255,255,0.9)' }}
+                aria-current={pathname === href ? 'page' : undefined}
+                className="font-body font-medium text-sm transition-colors rounded-full px-1 py-2"
+                style={{
+                  color: scrolled || pathname === href ? 'var(--color-primary)' : 'rgba(255,255,255,0.9)',
+                  textDecoration: pathname === href ? 'underline' : 'none',
+                  textUnderlineOffset: '8px',
+                }}
               >
                 {label}
               </Link>
@@ -101,7 +108,8 @@ export default function Navbar() {
             <Link
               key={href}
               href={href}
-              className="font-body font-medium text-base py-2 border-b last:border-0"
+              aria-current={pathname === href ? 'page' : undefined}
+              className="font-body font-medium text-base py-3 border-b last:border-0"
               style={{ color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
               onClick={() => setMenuOpen(false)}
             >

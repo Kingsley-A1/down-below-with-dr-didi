@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
+import UploadProgress from '@/components/admin/UploadProgress'
 
 function formatBytes(size: number) {
   if (size < 1024) {
@@ -19,33 +20,43 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [assets, setAssets] = useState(initialAssets)
   const [status, setStatus] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadDetail, setUploadDetail] = useState('')
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const formData = new FormData(form)
+    const selectedFile = formData.get('file')
 
     setStatus('')
+    setUploadDetail(selectedFile instanceof File ? selectedFile.name : 'Preparing file')
     setIsUploading(true)
 
-    const response = await fetch('/api/admin/media', {
-      method: 'POST',
-      body: formData,
-    })
+    try {
+      const response = await fetch('/api/admin/media', {
+        method: 'POST',
+        body: formData,
+      })
 
-    const result = await response.json()
-    setIsUploading(false)
+      const result = await response.json()
 
-    if (!response.ok) {
-      setStatus(result.error || 'Upload failed')
-      return
+      if (!response.ok) {
+        setStatus(result.error || 'Upload failed')
+        return
+      }
+
+      setUploadDetail('Refreshing media library')
+      const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
+      const refreshedResult = await refreshed.json()
+      setAssets(refreshedResult.assets || [])
+      setStatus('Asset uploaded successfully.')
+      form.reset()
+    } catch {
+      setStatus('Upload failed. Check your connection and try again.')
+    } finally {
+      setIsUploading(false)
+      setUploadDetail('')
     }
-
-    const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
-    const refreshedResult = await refreshed.json()
-    setAssets(refreshedResult.assets || [])
-    setStatus('Asset uploaded successfully.')
-    form.reset()
   }
 
   return (
@@ -69,6 +80,11 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           <label className="block font-body text-sm font-semibold mb-2" htmlFor="file">File</label>
           <input id="file" name="file" type="file" required className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
         </div>
+        <UploadProgress
+          active={isUploading}
+          label="Uploading asset"
+          detail={uploadDetail}
+        />
         <div className="flex items-center gap-4">
           <button type="submit" disabled={isUploading} className="rounded-full px-6 py-3 font-body font-semibold" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
             {isUploading ? 'Uploading...' : 'Upload Asset'}

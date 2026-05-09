@@ -2,7 +2,7 @@
 
 > **Demystifying Wellness, Empowering You**
 
-A professional women's sexual and reproductive health (SRH) platform led by Dr. Didi — a medical practitioner based in Calabar, Cross River State, Nigeria.
+A Family Health initiative  led by Dr. Edidiong Ekerueke(Dr. Didi) — a medical practitioner based in Calabar, Cross River State, Nigeria.
 
 ---
 
@@ -24,6 +24,8 @@ Down Below With Dr. Didi reduces stigma around reproductive health through plain
 | `/library` | Health article grid with search & category filters |
 | `/library/[slug]` | Article detail pages (6 articles, SSG) |
 | `/outreach` | Impact metrics & community gallery |
+| `/podcast` | Podcast episode listing with audio players and downloads |
+| `/podcast/[slug]` | Podcast detail pages with show notes and transcripts |
 | `/vault` | Anonymous Q&A submission form + FAQ accordion |
 | `/contact` | Booking form + social media links |
 
@@ -35,8 +37,8 @@ Down Below With Dr. Didi reduces stigma around reproductive health through plain
 - **Styling:** Tailwind CSS v4 + CSS custom properties (brand tokens)
 - **Forms:** React Hook Form + Zod validation
 - **Icons:** Lucide React
-- **Fonts:** Cormorant Garamond · Plus Jakarta Sans · Dancing Script (Google Fonts)
-- **Images:** next/image with Unsplash CDN
+- **Fonts:** Production-safe system font stack
+- **Images:** next/image with local assets, Cloudflare R2, and approved remote hosts
 
 ---
 
@@ -95,4 +97,4 @@ RESEND_API_KEY=re_...            # Resend transactional email API key
 
 ---
 
-© 2024 Down Below With Dr. Didi · Designed & Developed by [King Tech Foundation](https://kingtech.com.ng)
+© 2026 Down Below With Dr. Didi · Designed & Developed by [King Tech Foundation](https://kingtech.com.ng)

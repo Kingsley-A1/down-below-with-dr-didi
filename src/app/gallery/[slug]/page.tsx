@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Tag } from 'lucide-react'
 import { getPublishedGalleryImages, getGalleryImageBySlug, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
 import { gallerySeedItems } from '@/data/gallery'
 import { formatDate } from '@/lib/utils'
+import { canonicalUrl } from '@/lib/site-config'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -58,7 +59,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: image.title,
     description: image.description.slice(0, 160),
+    alternates: {
+      canonical: canonicalUrl(`/gallery/${image.slug}`),
+    },
     openGraph: {
+      title: image.title,
+      description: image.description.slice(0, 160),
+      url: canonicalUrl(`/gallery/${image.slug}`),
       images: [{ url: image.imageUrl, alt: image.imageAlt }],
     },
   }

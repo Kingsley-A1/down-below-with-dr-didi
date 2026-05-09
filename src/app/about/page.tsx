@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { GraduationCap, Award, CheckCircle } from 'lucide-react'
+import { Award, CheckCircle, GraduationCap, Handshake, Sparkles, Target } from 'lucide-react'
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   title: 'About Dr. Didi',
   description:
     "Learn about Dr. Edidiong Ekereuke, founder of Down Below With Dr. Didi, and the initiative's faith-based mission for women's reproductive health.",
+  alternates: {
+    canonical: canonicalUrl('/about'),
+  },
 }
 
 const partners = [
@@ -48,9 +52,6 @@ export default async function AboutPage() {
     <>
       {/* Mission & Vision */}
       <section className="pt-32 pb-24 relative overflow-hidden" style={{ backgroundColor: 'var(--color-primary)' }}>
-        <div className="absolute right-0 top-0 text-[200px] leading-none select-none pointer-events-none" style={{ opacity: 0.07 }}>
-          🌻
-        </div>
         <div className="max-w-container mx-auto px-6 text-white text-center">
           <div
             className="inline-block text-sm font-body px-4 py-1.5 rounded-full mb-6"
@@ -63,14 +64,14 @@ export default async function AboutPage() {
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
             <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-              <div className="text-2xl mb-3">🎯</div>
+              <Target size={28} className="mb-4" style={{ color: 'var(--color-accent)' }} />
               <h2 className="font-heading text-2xl font-semibold mb-3">Mission</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
                 To teach, heal, and uplift women and families through evidence-based medical guidance, natural wellness support, and prayer-centered community care.
               </p>
             </div>
             <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-              <div className="text-2xl mb-3">🌟</div>
+              <Sparkles size={28} className="mb-4" style={{ color: 'var(--color-accent)' }} />
               <h2 className="font-heading text-2xl font-semibold mb-3">Vision</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
                 A global family of women who can access trusted reproductive health support while growing in purpose, wholeness, and faith.
@@ -91,7 +92,7 @@ export default async function AboutPage() {
                 width={560}
                 height={640}
                 className="object-cover w-full"
-                style={{ height: '500px' }}
+                style={{ aspectRatio: '4 / 5', maxHeight: '500px' }}
               />
             </div>
             <div>
@@ -206,10 +207,10 @@ export default async function AboutPage() {
                 style={{ borderColor: 'var(--color-border)' }}
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: 'var(--color-primary-muted)' }}
                 >
-                  🤝
+                  <Handshake size={22} style={{ color: 'var(--color-primary)' }} />
                 </div>
                 <p className="font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
                   {partner.name}

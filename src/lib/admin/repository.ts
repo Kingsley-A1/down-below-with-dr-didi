@@ -8,6 +8,7 @@ export type DashboardSummary = {
   mediaAssets: number
   auditLogs: number
   vaultSubmissions: number
+  podcastEpisodes: number
   databaseReady: boolean
 }
 
@@ -17,7 +18,7 @@ export type MediaAssetRecord = {
   url: string
   mimeType: string
   sizeBytes: number
-  kind: 'image' | 'document' | 'video' | 'other'
+  kind: 'image' | 'audio' | 'document' | 'video' | 'other'
   altText: string | null
   createdAt: string
 }
@@ -214,7 +215,7 @@ export async function createMediaAssetRecord(input: {
   url: string
   mimeType: string
   sizeBytes: number
-  kind: 'image' | 'document' | 'video' | 'other'
+  kind: 'image' | 'audio' | 'document' | 'video' | 'other'
   altText?: string
   actorEmail: string
   actorRole: AdminRole
@@ -336,15 +337,17 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       mediaAssets: 0,
       auditLogs: 0,
       vaultSubmissions: 0,
+      podcastEpisodes: 0,
       databaseReady: false,
     }
   }
 
-  const [adminUsers, mediaAssets, auditLogs, vaultSubmissions] = await Promise.all([
+  const [adminUsers, mediaAssets, auditLogs, vaultSubmissions, podcastEpisodes] = await Promise.all([
     prisma.adminUser.count(),
     prisma.mediaAsset.count(),
     prisma.auditLog.count(),
     prisma.vaultSubmission.count(),
+    prisma.podcastEpisode.count().catch(() => 0),
   ])
 
   return {
@@ -352,6 +355,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     mediaAssets,
     auditLogs,
     vaultSubmissions,
+    podcastEpisodes,
     databaseReady: true,
   }
 }
@@ -852,5 +856,295 @@ export async function deleteGalleryImage(
     actorRole: actor.role,
     summary: `Deleted gallery image "${record.title}"`,
     metadata: { slug: record.slug, category: record.category },
+  })
+}
+
+// ─────────────────────────────────────────────
+// PODCAST EPISODES
+// ─────────────────────────────────────────────
+
+export type PodcastEpisodeStatus = 'draft' | 'published' | 'archived'
+
+export type PublicPodcastEpisode = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  description: string
+  audioUrl: string
+  audioSize: number | null
+  audioType: string | null
+  duration: number | null
+  coverImage: string | null
+  guestName: string | null
+  topicTags: string[]
+  transcript: string | null
+  externalSourceUrl: string | null
+  publishedAt: string | null
+  sortOrder: number
+}
+
+export type PodcastEpisodeRecord = PublicPodcastEpisode & {
+  status: PodcastEpisodeStatus
+  createdAt: string
+  updatedAt: string
+}
+
+type PodcastEpisodeDbRecord = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  description: string
+  audioUrl: string
+  audioSize: number | null
+  audioType: string | null
+  duration: number | null
+  coverImage: string | null
+  guestName: string | null
+  topicTags: unknown
+  transcript: string | null
+  externalSourceUrl: string | null
+  publishedAt: Date | null
+  sortOrder: number
+  status: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+function parseTopicTags(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+}
+
+function mapPodcastEpisode(record: PodcastEpisodeDbRecord): PodcastEpisodeRecord {
+  return {
+    id: record.id,
+    slug: record.slug,
+    title: record.title,
+    summary: record.summary,
+    description: record.description,
+    audioUrl: record.audioUrl,
+    audioSize: record.audioSize,
+    audioType: record.audioType,
+    duration: record.duration,
+    coverImage: record.coverImage,
+    guestName: record.guestName,
+    topicTags: parseTopicTags(record.topicTags),
+    transcript: record.transcript,
+    externalSourceUrl: record.externalSourceUrl,
+    publishedAt: record.publishedAt ? record.publishedAt.toISOString() : null,
+    sortOrder: record.sortOrder,
+    status: record.status as PodcastEpisodeStatus,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function toPublicPodcastEpisode(record: PodcastEpisodeDbRecord): PublicPodcastEpisode {
+  const episode = mapPodcastEpisode(record)
+
+  return {
+    id: episode.id,
+    slug: episode.slug,
+    title: episode.title,
+    summary: episode.summary,
+    description: episode.description,
+    audioUrl: episode.audioUrl,
+    audioSize: episode.audioSize,
+    audioType: episode.audioType,
+    duration: episode.duration,
+    coverImage: episode.coverImage,
+    guestName: episode.guestName,
+    topicTags: episode.topicTags,
+    transcript: episode.transcript,
+    externalSourceUrl: episode.externalSourceUrl,
+    publishedAt: episode.publishedAt,
+    sortOrder: episode.sortOrder,
+  }
+}
+
+export async function getPublishedPodcastEpisodes(): Promise<PublicPodcastEpisode[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = await prisma.podcastEpisode.findMany({
+    where: { status: 'published' },
+    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
+  })
+
+  return records.map(toPublicPodcastEpisode)
+}
+
+export async function getAllPodcastEpisodes(): Promise<PodcastEpisodeRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = await prisma.podcastEpisode.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+  })
+
+  return records.map(mapPodcastEpisode)
+}
+
+export async function getPodcastEpisodeBySlug(slug: string): Promise<PublicPodcastEpisode | null> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const record = await prisma.podcastEpisode.findFirst({
+    where: { slug, status: 'published' },
+  })
+
+  return record ? toPublicPodcastEpisode(record) : null
+}
+
+export async function createPodcastEpisode(
+  input: {
+    slug: string
+    title: string
+    summary: string
+    description: string
+    audioUrl: string
+    audioSize?: number
+    audioType?: string
+    duration?: number
+    coverImage?: string
+    guestName?: string
+    topicTags?: string[]
+    transcript?: string
+    externalSourceUrl?: string
+    publishedAt?: string
+    sortOrder?: number
+    status?: PodcastEpisodeStatus
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<PodcastEpisodeRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.podcastEpisode.create({
+    data: {
+      slug: input.slug.trim(),
+      title: input.title.trim(),
+      summary: input.summary.trim(),
+      description: input.description.trim(),
+      audioUrl: input.audioUrl.trim(),
+      audioSize: input.audioSize ?? null,
+      audioType: input.audioType?.trim() || null,
+      duration: input.duration ?? null,
+      coverImage: input.coverImage?.trim() || null,
+      guestName: input.guestName?.trim() || null,
+      topicTags: input.topicTags ?? [],
+      transcript: input.transcript?.trim() || null,
+      externalSourceUrl: input.externalSourceUrl?.trim() || null,
+      publishedAt: input.publishedAt ? new Date(input.publishedAt) : null,
+      sortOrder: input.sortOrder ?? 0,
+      status: input.status ?? 'published',
+    },
+  })
+
+  await writeAuditLog({
+    action: 'podcast_episode.created',
+    entityType: 'podcast_episode',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Created podcast episode "${record.title}"`,
+    metadata: { slug: record.slug, status: record.status },
+  })
+
+  return mapPodcastEpisode(record)
+}
+
+export async function updatePodcastEpisode(
+  id: string,
+  input: Partial<{
+    slug: string
+    title: string
+    summary: string
+    description: string
+    audioUrl: string
+    audioSize: number | null
+    audioType: string | null
+    duration: number | null
+    coverImage: string | null
+    guestName: string | null
+    topicTags: string[]
+    transcript: string | null
+    externalSourceUrl: string | null
+    publishedAt: string | null
+    sortOrder: number
+    status: PodcastEpisodeStatus
+  }>,
+  actor: { email: string; role: AdminRole }
+): Promise<PodcastEpisodeRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.podcastEpisode.update({
+    where: { id },
+    data: {
+      ...(input.slug !== undefined && { slug: input.slug.trim() }),
+      ...(input.title !== undefined && { title: input.title.trim() }),
+      ...(input.summary !== undefined && { summary: input.summary.trim() }),
+      ...(input.description !== undefined && { description: input.description.trim() }),
+      ...(input.audioUrl !== undefined && { audioUrl: input.audioUrl.trim() }),
+      ...(input.audioSize !== undefined && { audioSize: input.audioSize }),
+      ...(input.audioType !== undefined && { audioType: input.audioType?.trim() || null }),
+      ...(input.duration !== undefined && { duration: input.duration }),
+      ...(input.coverImage !== undefined && { coverImage: input.coverImage?.trim() || null }),
+      ...(input.guestName !== undefined && { guestName: input.guestName?.trim() || null }),
+      ...(input.topicTags !== undefined && { topicTags: input.topicTags }),
+      ...(input.transcript !== undefined && { transcript: input.transcript?.trim() || null }),
+      ...(input.externalSourceUrl !== undefined && {
+        externalSourceUrl: input.externalSourceUrl?.trim() || null,
+      }),
+      ...(input.publishedAt !== undefined && {
+        publishedAt: input.publishedAt ? new Date(input.publishedAt) : null,
+      }),
+      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+      ...(input.status !== undefined && { status: input.status }),
+    },
+  })
+
+  await writeAuditLog({
+    action: 'podcast_episode.updated',
+    entityType: 'podcast_episode',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Updated podcast episode "${record.title}"`,
+    metadata: { slug: record.slug, changedFields: Object.keys(input) },
+  })
+
+  return mapPodcastEpisode(record)
+}
+
+export async function deletePodcastEpisode(
+  id: string,
+  actor: { email: string; role: AdminRole }
+): Promise<void> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.podcastEpisode.delete({ where: { id } })
+
+  await writeAuditLog({
+    action: 'podcast_episode.deleted',
+    entityType: 'podcast_episode',
+    entityId: id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Deleted podcast episode "${record.title}"`,
+    metadata: { slug: record.slug },
   })
 }

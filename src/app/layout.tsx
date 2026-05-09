@@ -3,29 +3,42 @@ import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
-import { siteConfig } from '@/lib/site-config'
+import StructuredData from '@/components/seo/StructuredData'
+import { canonicalUrl, seoKeywords, siteConfig } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
+  applicationName: siteConfig.name,
   title: {
-    default: `${siteConfig.name} | ${siteConfig.motto}`,
+    default: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
-  keywords: [
-    "women's health",
-    'reproductive health',
-    'sexual health Nigeria',
-    'infertility support',
-    'faith-based health',
-    'Dr. Didi',
-    'SRH',
-    'Calabar',
-    'Down Below Family Health Initiative',
-  ],
+  keywords: seoKeywords,
+  authors: [{ name: siteConfig.founderName }],
+  creator: siteConfig.name,
+  publisher: siteConfig.name,
+  category: 'Health',
+  alternates: {
+    languages: {
+      'en-NG': '/',
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
-    title: `${siteConfig.name} | ${siteConfig.motto}`,
+    title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
     description: siteConfig.description,
+    url: canonicalUrl('/'),
     type: 'website',
     locale: 'en_NG',
     siteName: siteConfig.name,
@@ -40,9 +53,13 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} | ${siteConfig.motto}`,
+    title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
     description: siteConfig.description,
     images: ['/logo.jpg'],
+  },
+  icons: {
+    icon: '/logo.jpg',
+    apple: '/logo.jpg',
   },
 }
 
@@ -50,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="font-body">
+        <StructuredData />
         <WelcomeIntro />
         <a
           href="#main-content"

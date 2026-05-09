@@ -1,96 +1,61 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
-const TYPING_WORD = 'DOWN BELOW'
-const TYPING_SPEED_MS = 85
-const INTRO_DURATION_MS = 3400
+const INTRO_DURATION_MS = 1450
+const REDUCED_MOTION_DURATION_MS = 650
+const SESSION_KEY = 'dbwd-intro-seen'
 
 export default function WelcomeIntro() {
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.sessionStorage.getItem('dbwd-intro-seen') !== '1'
-  })
-  const [typedLength, setTypedLength] = useState(0)
-
-  const typedWord = useMemo(() => TYPING_WORD.slice(0, typedLength), [typedLength])
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!visible || typeof window === 'undefined') return
-    window.sessionStorage.setItem('dbwd-intro-seen', '1')
-
-    return undefined
-  }, [visible])
-
-  useEffect(() => {
-    if (!visible) return
-    const typingTimer = window.setInterval(() => {
-      setTypedLength((prev) => {
-        if (prev >= TYPING_WORD.length) {
-          window.clearInterval(typingTimer)
-          return prev
-        }
-        return prev + 1
-      })
-    }, TYPING_SPEED_MS)
-
-    return () => {
-      window.clearInterval(typingTimer)
+    if (window.sessionStorage.getItem(SESSION_KEY) === '1') {
+      return undefined
     }
-  }, [visible])
 
-  useEffect(() => {
-    if (!visible) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.sessionStorage.setItem(SESSION_KEY, '1')
+    setVisible(true)
 
     const hideTimer = window.setTimeout(() => {
       setVisible(false)
-    }, INTRO_DURATION_MS)
+    }, reduceMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS)
 
     return () => {
       window.clearTimeout(hideTimer)
     }
-  }, [visible])
+  }, [])
+
+  if (!visible) return null
 
   return (
-    <AnimatePresence>
-      {visible ? (
-        <motion.div
-          key="welcome-intro"
-          className="fixed inset-0 z-[120] flex items-center justify-center px-6"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.5, ease: 'easeInOut' } }}
-          style={{
-            background:
-              'radial-gradient(circle at 15% 15%, rgba(252,238,33,0.18), rgba(11,78,65,0) 38%), radial-gradient(circle at 88% 84%, rgba(255,255,255,0.14), rgba(11,78,65,0) 34%), #0B4E41',
-          }}
-        >
-          <motion.div
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-            className="text-center text-white"
-          >
-            <p className="font-body tracking-[0.14em] uppercase text-xs sm:text-sm mb-4" style={{ color: 'rgba(255,255,255,0.72)' }}>
-              Welcome to
-            </p>
-            <h1 className="font-body font-bold tracking-[0.08em] text-3xl sm:text-5xl md:text-6xl min-h-[1.2em]">
-              {typedWord}
-              <span className="inline-block w-[0.08em] h-[1em] ml-1 align-[-0.08em]" style={{ backgroundColor: 'var(--color-accent)' }} />
-            </h1>
-            <div className="mt-5 inline-flex flex-col items-center">
-              <p className="font-heading text-2xl sm:text-3xl md:text-4xl">With Dr. Didi</p>
-              <motion.span
-                className="mt-2 block h-[2px] rounded-full"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: '100%', opacity: 1 }}
-                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-                style={{ backgroundColor: 'var(--color-accent)' }}
-              />
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <div
+      className="welcome-intro fixed inset-0 z-[120] flex items-center justify-center px-6"
+      role="status"
+      aria-live="polite"
+      style={{ backgroundColor: 'var(--color-primary)' }}
+    >
+      <div className="text-center text-white">
+        <p className="font-body text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
+          Welcome to
+        </p>
+        <p className="mt-3 font-heading text-3xl font-bold sm:text-5xl">
+          Down Below Family
+        </p>
+        <p className="mt-3 font-body text-sm sm:text-base" style={{ color: 'rgba(255,255,255,0.72)' }}>
+          Calm, trusted care with Dr. Didi.
+        </p>
+        <span className="mx-auto mt-5 block h-1 w-24 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
+      </div>
+      <button
+        type="button"
+        onClick={() => setVisible(false)}
+        className="absolute right-4 top-4 rounded-full px-4 py-2 font-body text-xs font-semibold"
+        style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
+      >
+        Skip
+      </button>
+    </div>
   )
 }

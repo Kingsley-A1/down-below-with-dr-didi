@@ -4,11 +4,15 @@ import Link from 'next/link'
 import { GraduationCap, Users } from 'lucide-react'
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: 'The Amazing Hands Behind the Flame',
   description:
     'Meet Dr. Didi and the Down Below Family Health Initiative team — clinicians, educators, and advocates serving women across Africa.',
+  alternates: {
+    canonical: canonicalUrl('/team'),
+  },
 }
 
 export const dynamic = 'force-dynamic'

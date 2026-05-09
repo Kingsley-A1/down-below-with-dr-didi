@@ -2,10 +2,14 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { impactMetrics, galleryItems } from '@/data/outreach'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: 'Community Outreach',
   description: "See the field impact of Down Below With Dr. Didi — from screenings and infertility education to faith-based family health programs.",
+  alternates: {
+    canonical: canonicalUrl('/outreach'),
+  },
 }
 
 export default function OutreachPage() {

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SearchX } from 'lucide-react'
 
 export default function NotFound() {
   return (
@@ -7,7 +8,7 @@ export default function NotFound() {
       style={{ backgroundColor: 'var(--color-primary)' }}
     >
       <div className="text-center text-white">
-        <div className="text-8xl mb-6">🌻</div>
+        <SearchX size={72} className="mx-auto mb-6" style={{ color: 'var(--color-accent)' }} />
         <h1 className="font-heading font-bold text-7xl mb-4">404</h1>
         <p className="font-heading text-2xl mb-8" style={{ color: 'rgba(255,255,255,0.6)' }}>
           Page not found

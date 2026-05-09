@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
 import VaultForm from '@/components/vault/VaultForm'
 import { getPublicSiteSettings } from '@/lib/site-settings'
+import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
   title: 'The V-Vault — Ask Anonymously',
   description:
     'Ask Dr. Didi any reproductive or sexual health question — completely anonymously. No name, no email, no judgment.',
+  alternates: {
+    canonical: canonicalUrl('/vault'),
+  },
 }
 
 export const dynamic = 'force-dynamic'

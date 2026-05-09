@@ -8,6 +8,7 @@ const cards: Array<{ key: keyof Awaited<ReturnType<typeof getDashboardSummary>>;
   { key: 'mediaAssets', label: 'Media assets' },
   { key: 'auditLogs', label: 'Audit logs' },
   { key: 'vaultSubmissions', label: 'V-Vault submissions' },
+  { key: 'podcastEpisodes', label: 'Podcast episodes' },
 ]
 
 export default async function AdminDashboardPage() {
@@ -22,7 +23,7 @@ export default async function AdminDashboardPage() {
         </p>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (
           <div key={card.key} className="bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
             <p className="font-body text-sm text-gray-500 mb-2">{card.label}</p>
@@ -57,6 +58,10 @@ export default async function AdminDashboardPage() {
         <Link href="/admin/vault" className="bg-white rounded-2xl border p-6 block lg:col-span-2" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Moderate V-Vault Submissions</h2>
           <p className="font-body text-sm text-gray-600">Review anonymous questions, add moderation notes, and route approved entries into your FAQ pipeline.</p>
+        </Link>
+        <Link href="/admin/podcast" className="bg-white rounded-2xl border p-6 block lg:col-span-2" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Manage Podcast Episodes</h2>
+          <p className="font-body text-sm text-gray-600">Upload audio, publish show notes, and keep public podcast content current without code changes.</p>
         </Link>
       </section>
     </div>

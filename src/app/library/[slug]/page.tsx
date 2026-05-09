@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar } from 'lucide-react'
 import { articles } from '@/data/articles'
 import { formatDate } from '@/lib/utils'
+import MedicalDisclaimer from '@/components/content/MedicalDisclaimer'
+import { canonicalUrl } from '@/lib/site-config'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -94,7 +96,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const article = articles.find((a) => a.slug === slug)
   if (!article) return { title: 'Article Not Found' }
-  return { title: article.title, description: article.excerpt }
+  return {
+    title: article.title,
+    description: article.excerpt,
+    alternates: {
+      canonical: canonicalUrl(`/library/${article.slug}`),
+    },
+    openGraph: {
+      title: article.title,
+      description: article.excerpt,
+      url: canonicalUrl(`/library/${article.slug}`),
+      type: 'article',
+      publishedTime: article.publishedAt,
+      authors: [article.author],
+      images: [{ url: article.coverImage, alt: article.title }],
+    },
+  }
 }
 
 export default async function ArticlePage({ params }: Props) {
@@ -140,6 +157,9 @@ export default async function ArticlePage({ params }: Props) {
           <p className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
             By Dr. Didi · MBBCH, MPH
           </p>
+          <p className="font-body text-xs mt-2" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Last reviewed {formatDate(article.publishedAt)}
+          </p>
         </div>
       </div>
 
@@ -152,7 +172,7 @@ export default async function ArticlePage({ params }: Props) {
               width={960}
               height={440}
               className="object-cover w-full"
-              style={{ height: '320px' }}
+              style={{ aspectRatio: '12 / 5', maxHeight: '360px' }}
               priority
             />
           </div>
@@ -165,14 +185,8 @@ export default async function ArticlePage({ params }: Props) {
             ))}
           </article>
 
-          <div
-            className="mt-10 rounded-xl p-5 border"
-            style={{ backgroundColor: '#fffbeb', borderColor: '#fcd34d' }}
-          >
-            <p className="font-body text-sm" style={{ color: '#92400e' }}>
-              ⚕️{' '}
-              <strong>Medical Disclaimer:</strong> This article is for educational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for diagnosis and treatment.
-            </p>
+          <div className="mt-10">
+            <MedicalDisclaimer compact />
           </div>
         </div>
       </div>

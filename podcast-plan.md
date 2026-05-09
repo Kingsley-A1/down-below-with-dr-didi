@@ -136,3 +136,18 @@ Recommended flow:
 - Users can download episodes from the same page.
 - Admins can publish and manage episodes without code changes.
 - The page remains simple, fast, and mobile-friendly.
+
+## Implementation Status - 2026-05-09
+
+Completed:
+- Added `PodcastEpisode` Prisma model and migration.
+- Added repository methods for published, admin list, slug lookup, create, update, and delete.
+- Added admin API routes at `/api/admin/podcast` and `/api/admin/podcast/[id]`.
+- Added `/admin/podcast` for create, edit, delete, publish status, audio upload, cover upload, show notes, transcript, tags, and metadata.
+- Added public `/podcast` listing with inline audio players and download links.
+- Added public `/podcast/[slug]` detail pages with player, download, show notes, transcript, and related episodes.
+- Added Podcast links to the public navigation, footer, and admin dashboard.
+- Extended media uploads to classify `audio/*` files as audio assets.
+
+Activation requirement:
+- Run the new Prisma migration in the target environment before using admin podcast CRUD against the database.

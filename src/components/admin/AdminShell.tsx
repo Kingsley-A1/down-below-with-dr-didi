@@ -7,6 +7,7 @@ const adminLinks = [
   { href: '/admin/settings', label: 'Site Settings' },
   { href: '/admin/media', label: 'Media Library' },
   { href: '/admin/vault', label: 'V-Vault Moderation' },
+  { href: '/admin/podcast', label: 'Podcast Episodes' },
   { href: '/admin/team', label: 'Team Members' },
   { href: '/admin/gallery', label: 'Gallery Images' },
 ]
