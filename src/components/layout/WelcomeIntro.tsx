@@ -16,13 +16,16 @@ export default function WelcomeIntro() {
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.sessionStorage.setItem(SESSION_KEY, '1')
-    setVisible(true)
+    const showTimer = window.setTimeout(() => {
+      setVisible(true)
+    }, 0)
 
     const hideTimer = window.setTimeout(() => {
       setVisible(false)
     }, reduceMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS)
 
     return () => {
+      window.clearTimeout(showTimer)
       window.clearTimeout(hideTimer)
     }
   }, [])

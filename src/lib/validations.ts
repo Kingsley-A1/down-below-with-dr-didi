@@ -176,6 +176,11 @@ export const userRegisterSchema = z.object({
     .string()
     .min(2, 'Display name must be at least 2 characters')
     .max(100, 'Display name may not exceed 100 characters'),
+  phone: z
+    .string()
+    .regex(/^(\+234|0)[789][01]\d{8}$/, 'Please enter a valid Nigerian phone number')
+    .optional()
+    .or(z.literal('')),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
@@ -203,6 +208,23 @@ export const userForgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 })
 
+export const userPhoneVerificationSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  phone: z
+    .string()
+    .regex(/^(\+234|0)[789][01]\d{8}$/, 'Please enter a valid Nigerian phone number'),
+})
+
+export const userPhoneVerifyCodeSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  phone: z
+    .string()
+    .regex(/^(\+234|0)[789][01]\d{8}$/, 'Please enter a valid Nigerian phone number'),
+  code: z
+    .string()
+    .regex(/^\d{6}$/, 'Verification code must be 6 digits'),
+})
+
 export const userResetPasswordSchema = z.object({
   token: z.string().min(1, 'Reset token is required'),
   password: z
@@ -225,6 +247,11 @@ export const userUpdateProfileSchema = z.object({
     .min(2, 'Display name must be at least 2 characters')
     .max(100, 'Display name may not exceed 100 characters')
     .optional(),
+  phone: z
+    .string()
+    .regex(/^(\+234|0)[789][01]\d{8}$/, 'Please enter a valid Nigerian phone number')
+    .optional()
+    .or(z.literal('')),
 })
 
 export const userChangePasswordSchema = z.object({
@@ -247,6 +274,8 @@ export type UserRegisterData = z.infer<typeof userRegisterSchema>
 export type UserLoginData = z.infer<typeof userLoginSchema>
 export type UserVerifyEmailData = z.infer<typeof userVerifyEmailSchema>
 export type UserForgotPasswordData = z.infer<typeof userForgotPasswordSchema>
+export type UserPhoneVerificationData = z.infer<typeof userPhoneVerificationSchema>
+export type UserPhoneVerifyCodeData = z.infer<typeof userPhoneVerifyCodeSchema>
 export type UserResetPasswordData = z.infer<typeof userResetPasswordSchema>
 export type UserUpdateProfileData = z.infer<typeof userUpdateProfileSchema>
 export type UserChangePasswordData = z.infer<typeof userChangePasswordSchema>

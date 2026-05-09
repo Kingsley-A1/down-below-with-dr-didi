@@ -13,6 +13,8 @@ export type PublicUserRecord = {
   id: string
   email: string
   displayName: string
+  phone?: string | null
+  role: string
   isActive: boolean
   emailVerified: boolean
   createdAt: string
@@ -26,14 +28,41 @@ type UserDbRecord = {
   id: string
   email: string
   displayName: string
+  phone: string | null
+  role: string
   passwordHash: string
   isActive: boolean
   emailVerified: boolean
   emailVerifyToken: string | null
   resetToken: string | null
   resetTokenExpiry: Date | null
+  phoneVerifyCode: string | null
+  phoneVerifyExpiry: Date | null
+  lastActivityAt: Date
   createdAt: Date
   updatedAt: Date
+}
+
+type UserAuditLogRecord = {
+  id: string
+  action: string
+  entityType: string
+  summary: string
+  ipAddress: string | null
+  userAgent: string | null
+  success: boolean
+  createdAt: Date
+}
+
+export type PublicUserAuditLogRecord = {
+  id: string
+  action: string
+  entityType: string
+  summary: string
+  ipAddress: string | null
+  userAgent: string | null
+  success: boolean
+  createdAt: string
 }
 
 /**
@@ -78,7 +107,8 @@ export async function getUserById(userId: string): Promise<PublicUserRecord | nu
 export async function createUser(
   email: string,
   displayName: string,
-  password: string
+  password: string,
+  phone?: string
 ): Promise<{ user: PublicUserRecord; verificationToken: string } | null> {
   try {
     const existingUser = await prisma.user.findUnique({
@@ -90,8 +120,7 @@ export async function createUser(
     }
 
     const passwordHash = await hashPassword(password)
-    const { token: emailVerifyToken, expiresAt: _expiresAt } =
-      generateEmailVerificationToken()
+    const { token: emailVerifyToken } = generateEmailVerificationToken()
 
     const user = (await prisma.user.create({
       data: {
@@ -99,6 +128,8 @@ export async function createUser(
         displayName,
         passwordHash,
         emailVerifyToken,
+        phone: phone || null,
+        role: 'member',
       },
     })) as UserDbRecord
 
@@ -137,13 +168,13 @@ export async function verifyUserEmail(token: string): Promise<boolean> {
     }
 
     // Token check happens implicitly - unique constraint ensures one match
-    const updatedUser = (await prisma.user.update({
+    await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
         emailVerifyToken: null,
       },
-    })) as UserDbRecord
+    })
 
     // Audit log: email verified
     await logAuditEvent({
@@ -362,12 +393,17 @@ export async function changePassword(
  */
 export async function updateUserProfile(
   userId: string,
-  displayName: string
+  displayName?: string,
+  phone?: string
 ): Promise<PublicUserRecord | null> {
   try {
+    const updateData: { displayName?: string; phone?: string | null } = {}
+    if (displayName) updateData.displayName = displayName
+    if (phone !== undefined) updateData.phone = phone || null
+
     const user = (await prisma.user.update({
       where: { id: userId },
-      data: { displayName },
+      data: updateData,
     })) as UserDbRecord
 
     // Audit: profile updated
@@ -468,15 +504,15 @@ export async function activateUser(userId: string, adminEmail: string): Promise<
 /**
  * Get user audit logs
  */
-export async function getUserAuditLogs(userId: string, limit: number = 50): Promise<any[]> {
+export async function getUserAuditLogs(userId: string, limit: number = 50): Promise<PublicUserAuditLogRecord[]> {
   try {
-    const logs = await prisma.auditLog.findMany({
+    const logs = (await prisma.auditLog.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
-    })
+    })) as UserAuditLogRecord[]
 
-    return logs.map((log: any) => ({
+    return logs.map((log) => ({
       id: log.id,
       action: log.action,
       entityType: log.entityType,
@@ -501,6 +537,8 @@ function mapToPublicRecord(user: UserDbRecord): PublicUserRecord {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    phone: user.phone,
+    role: user.role,
     isActive: user.isActive,
     emailVerified: user.emailVerified,
     createdAt: user.createdAt.toISOString(),
@@ -547,5 +585,115 @@ async function logAuditEvent({
   } catch (error) {
     console.error('Error logging audit event:', error)
     // Don't throw - audit logging shouldn't block operations
+  }
+}
+
+/**
+ * Generate and send phone verification code for password reset
+ */
+export async function generatePhoneVerificationCode(email: string, phone: string): Promise<string | null> {
+  try {
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as UserDbRecord | null
+
+    if (!user || !user.phone || user.phone !== phone) {
+      return null
+    }
+
+    // Generate 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        phoneVerifyCode: verificationCode,
+        phoneVerifyExpiry: expiresAt,
+      },
+    })
+
+    // Audit: phone verification code generated
+    await logAuditEvent({
+      action: 'user.phone_verify_requested',
+      entityType: 'User',
+      entityId: user.id,
+      userId: user.id,
+      actorEmail: user.email,
+      summary: `Phone verification code generated for ${user.email}`,
+    })
+
+    // Return code for testing/development (in production, would be sent via SMS)
+    return verificationCode
+  } catch (error) {
+    console.error('Error generating phone verification code:', error)
+    throw error
+  }
+}
+
+/**
+ * Verify phone code and proceed with password reset
+ */
+export async function verifyPhoneCodeAndGenerateReset(
+  email: string,
+  phone: string,
+  code: string
+): Promise<string | null> {
+  try {
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as UserDbRecord | null
+
+    if (!user) {
+      return null
+    }
+
+    // Verify phone and code
+    if (user.phone !== phone || user.phoneVerifyCode !== code) {
+      // Audit: phone verification failed
+      await logAuditEvent({
+        action: 'user.phone_verify_failed',
+        entityType: 'User',
+        entityId: user.id,
+        userId: user.id,
+        actorEmail: user.email,
+        summary: `Phone verification failed for ${user.email}`,
+        success: false,
+      })
+      return null
+    }
+
+    // Check if code expired
+    if (!user.phoneVerifyExpiry || isTokenExpired(user.phoneVerifyExpiry)) {
+      return null
+    }
+
+    // Generate password reset token
+    const { token: resetToken, expiresAt } = generatePasswordResetToken()
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpiry: expiresAt,
+        phoneVerifyCode: null,
+        phoneVerifyExpiry: null,
+      },
+    })
+
+    // Audit: phone verification succeeded
+    await logAuditEvent({
+      action: 'user.phone_verified',
+      entityType: 'User',
+      entityId: user.id,
+      userId: user.id,
+      actorEmail: user.email,
+      summary: `Phone verified and reset token generated for ${user.email}`,
+    })
+
+    return resetToken
+  } catch (error) {
+    console.error('Error verifying phone code:', error)
+    throw error
   }
 }

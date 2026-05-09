@@ -101,12 +101,17 @@ model User {
   id                String      @id @default(cuid())
   email             String      @unique
   displayName       String
+  phone             String?
+  role              String      @default("member") // member, contributor, verified_healer
   passwordHash      String
   isActive          Boolean     @default(true)
   emailVerified     Boolean     @default(false)
   emailVerifyToken  String?     @unique
   resetToken        String?     @unique
   resetTokenExpiry  DateTime?
+  phoneVerifyCode   String?     // For password reset verification (6-digit code)
+  phoneVerifyExpiry DateTime?   // Expires in 10 minutes
+  lastActivityAt    DateTime    @default(now()) // Track for session timeout
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   auditLogs         AuditLog[]

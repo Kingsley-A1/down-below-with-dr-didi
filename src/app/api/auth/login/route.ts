@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateUser } from '@/lib/admin/user-repository'
-import { createSession } from '@/lib/auth/session'
+import { createSession, updateLastActivity } from '@/lib/auth/session'
 import { userLoginSchema } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
@@ -46,9 +46,14 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       displayName: user.displayName,
+      role: user.role,
       isActive: user.isActive,
       emailVerified: user.emailVerified,
+      iat: Math.floor(Date.now() / 1000),
     })
+
+    // Update last activity
+    await updateLastActivity(user.id)
 
     return NextResponse.json(
       {

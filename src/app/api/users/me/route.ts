@@ -6,7 +6,7 @@ import { userUpdateProfileSchema, userChangePasswordSchema } from '@/lib/validat
 /**
  * GET /api/users/me - Get current user profile
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession()
 
@@ -102,10 +102,11 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { displayName } = validation.data
+    const { displayName, phone } = validation.data
     const user = await updateUserProfile(
       session.userId,
-      displayName || session.displayName
+      displayName,
+      phone
     )
 
     if (!user) {

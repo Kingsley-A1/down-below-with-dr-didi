@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, displayName, password } = validation.data
+    const { email, displayName, password, phone } = validation.data
 
     // Create user
-    const result = await createUser(email, displayName, password)
+    const result = await createUser(email, displayName, password, phone)
     if (!result) {
       return NextResponse.json(
         { success: false, error: 'Failed to create user' },

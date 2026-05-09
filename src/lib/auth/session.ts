@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { jwtVerify, SignJWT } from 'jose'
+import { prisma } from '@/lib/prisma'
 
 /**
  * User session interface
@@ -9,13 +10,19 @@ export interface UserSession {
   userId: string
   email: string
   displayName: string
+  role: string
   isActive: boolean
   emailVerified: boolean
+  iat: number // issued at timestamp
 }
 
 // Session configuration
 const SESSION_COOKIE_NAME = 'user_session'
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+// Use longer max duration for JWT, actual timeout enforced via inactivity check
+const SESSION_DURATION = 90 * 24 * 60 * 60 * 1000 // 90 days in milliseconds (max for either user type)
+// Inactivity timeouts
+const USER_INACTIVITY_TIMEOUT = 60 * 24 * 60 * 60 * 1000 // 60 days
+const ADMIN_INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000 // 2 hours
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'dev-secret-change-in-production'
 )
@@ -27,10 +34,11 @@ export async function createSession(user: UserSession): Promise<void> {
   const cookieStore = await cookies()
 
   // Create payload object that satisfies JWTPayload
-  const payload: Record<string, string | boolean> = {
+  const payload: Record<string, string | boolean | number> = {
     userId: user.userId,
     email: user.email,
     displayName: user.displayName,
+    role: user.role,
     isActive: user.isActive,
     emailVerified: user.emailVerified,
   }
@@ -38,7 +46,7 @@ export async function createSession(user: UserSession): Promise<void> {
   const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime('90d')
     .sign(SECRET)
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -52,6 +60,7 @@ export async function createSession(user: UserSession): Promise<void> {
 
 /**
  * Get current user session
+ * Checks both JWT validity and inactivity timeout
  */
 export async function getSession(): Promise<UserSession | null> {
   try {
@@ -64,15 +73,45 @@ export async function getSession(): Promise<UserSession | null> {
 
     const verified = await jwtVerify(token, SECRET)
     const payload = verified.payload as Record<string, unknown>
-    return {
+    
+    const session: UserSession = {
       userId: payload.userId as string,
       email: payload.email as string,
       displayName: payload.displayName as string,
+      role: payload.role as string,
       isActive: payload.isActive as boolean,
       emailVerified: payload.emailVerified as boolean,
+      iat: (payload.iat as number) || Math.floor(Date.now() / 1000),
     }
+
+    // Check inactivity timeout
+    const issuedAtMs = session.iat * 1000
+    const elapsedMs = Date.now() - issuedAtMs
+    const timeout = session.role === 'admin' ? ADMIN_INACTIVITY_TIMEOUT : USER_INACTIVITY_TIMEOUT
+
+    if (elapsedMs > timeout) {
+      // Session expired due to inactivity
+      return null
+    }
+
+    return session
   } catch {
     return null
+  }
+}
+
+/**
+ * Update user's last activity timestamp
+ */
+export async function updateLastActivity(userId: string): Promise<void> {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastActivityAt: new Date() },
+    })
+  } catch (error) {
+    console.error('Error updating last activity:', error)
+    // Don't throw - this is non-critical for session management
   }
 }
 
