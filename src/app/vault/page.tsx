@@ -29,8 +29,8 @@ export default async function VaultPage() {
           >
             The <span style={{ color: 'var(--color-accent)' }}>V-Vault</span>
           </h1>
-          <p className="font-body text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Safe space to ask anything — 100% anonymous, no judgment.
+          <p className="font-body text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Ask privately and get thoughtful guidance.
           </p>
         </div>
       </section>

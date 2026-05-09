@@ -65,7 +65,7 @@ export default async function HomePage() {
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              Expose in <span style={{ color: 'var(--color-accent)' }}>Love</span>. <span style={{ color: 'var(--color-accent)' }}>Teach</span>. <span style={{ color: 'var(--color-accent)' }}>Heal</span>. <span style={{ color: 'var(--color-accent)' }}>Win</span>.
+              Expose in <span style={{ color: 'var(--color-accent)' }}>Love</span>. Teach. Heal. Win.
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>

@@ -21,10 +21,10 @@ export default function OutreachPage() {
             Making a Difference
           </div>
           <h1 className="font-heading font-bold text-white mb-4" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}>
-            Community Outreach
+            Community <span style={{ color: 'var(--color-accent)' }}>Outreach</span>
           </h1>
-          <p className="font-body text-lg max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Taking women&apos;s health education from screens to streets through screenings, consultations, and faith-rooted support.
+          <p className="font-body text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Screenings, education, and field support delivered with care.
           </p>
         </div>
       </section>

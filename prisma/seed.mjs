@@ -24,8 +24,7 @@ const defaultSiteSettings = {
   primaryWhatsapp: 'https://wa.me/2340000000000',
   contactEmail: 'hello@down-below.com.ng',
   heroHeadline: 'Expose in Love. Teach. Heal. Win.',
-  heroBody:
-    'A faith-based family health initiative helping women with evidence-based education, compassionate guidance, and practical support.',
+  heroBody: 'Faith-based reproductive health education and support for women.',
   heroImageUrl: null,
   heroImageAlt: null,
   footerBlurb:

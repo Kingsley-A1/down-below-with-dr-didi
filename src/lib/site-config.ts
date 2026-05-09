@@ -9,8 +9,7 @@ export const siteConfig = {
   primaryWhatsapp: 'https://wa.me/2340000000000',
   contactEmail: 'hello@down-below.com.ng',
   heroHeadline: 'Expose in Love. Teach. Heal. Win.',
-  heroBody:
-    'A faith-based family health initiative helping women with evidence-based education, compassionate guidance, and practical support.',
+  heroBody: 'Faith-based reproductive health education and support for women.',
   footerBlurb:
     'A faith-based family health initiative supporting women through medical guidance, natural wellness, and spiritual encouragement.',
 }

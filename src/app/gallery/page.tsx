@@ -100,14 +100,13 @@ export default async function GalleryPage({ searchParams }: Props) {
             className="font-heading font-bold text-white mb-4"
             style={{ fontSize: 'clamp(2.2rem, 5vw, 3.2rem)' }}
           >
-            Gallery
+            Our <span style={{ color: 'var(--color-accent)' }}>Gallery</span>
           </h1>
           <p
-            className="font-body text-base max-w-xl mx-auto"
+            className="font-body text-base max-w-lg mx-auto"
             style={{ color: 'rgba(255,255,255,0.72)' }}
           >
-            A visual record of our events, community outreach programmes, team moments,
-            and health talks across Nigeria.
+            Visual moments from outreach, care, and team life.
           </p>
         </div>
       </section>

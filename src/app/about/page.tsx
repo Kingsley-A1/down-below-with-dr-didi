@@ -59,7 +59,7 @@ export default async function AboutPage() {
             Our Purpose
           </div>
           <h1 className="font-heading font-bold text-white mb-12" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)' }}>
-            Mission &amp; Vision
+            <span style={{ color: 'var(--color-accent)' }}>Mission</span> &amp; Vision
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
             <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>

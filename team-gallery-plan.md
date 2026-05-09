@@ -6,6 +6,27 @@
 > NOTE FROM REVIEW: Individual images should not have their own page, just a lightbox on the gallery page. This is a significant scope reduction and should be reflected in the plan and timeline.
 ---
 
+## Current Status
+
+### Completed
+
+- `/team` and `/gallery` are implemented end to end with database-backed content and static fallback data.
+- Admin CRUD exists for team members and gallery images.
+- Seed data and migrations are in place.
+- Vercel lockfile and Prisma compatibility issues were fixed and pushed.
+- Public hero imagery and content have been updated for mobile-first presentation.
+
+### Remaining
+
+- Final visual QA for public hero sections on mobile widths.
+- Final editorial pass on hero copy to keep titles short and professional.
+- Final content review for team member bios and gallery captions.
+- Optional production data refresh if the live database needs the latest seeded text.
+
+### Superseded
+
+- The phase-by-phase roadmap below is the original implementation plan. Use this current-status section for day-to-day tracking.
+
 ## Executive Summary
 
 | Deliverable | What it is | DB? | Admin? |

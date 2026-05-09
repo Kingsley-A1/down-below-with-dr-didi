@@ -72,11 +72,10 @@ export default async function TeamPage() {
             The Amazing Hands Behind the <span style={{ color: 'var(--color-accent)' }}>Flame</span>
           </h1>
           <p
-            className="font-body text-base max-w-xl mx-auto"
+            className="font-body text-base max-w-lg mx-auto"
             style={{ color: 'rgba(255,255,255,0.72)' }}
           >
-            Clinicians, educators, and community advocates working together to serve women
-            across Nigeria with compassion and clinical integrity.
+            Clinicians and advocates serving women with compassion and clinical integrity.
           </p>
         </div>
       </section>
