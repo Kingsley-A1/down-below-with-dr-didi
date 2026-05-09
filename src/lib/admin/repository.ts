@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import { hasDatabaseConfig } from '@/lib/env'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
 import type { AdminRole } from '@/lib/admin/rbac'
-import type { Prisma } from '@prisma/client'
 
 export type DashboardSummary = {
   adminUsers: number
@@ -71,7 +70,7 @@ export async function writeAuditLog(entry: {
       actorEmail: entry.actorEmail.trim().toLowerCase(),
       actorRole: entry.actorRole,
       summary: entry.summary,
-      metadata: entry.metadata as Prisma.InputJsonValue | undefined,
+      metadata: entry.metadata ? JSON.parse(JSON.stringify(entry.metadata)) : undefined,
       actorId: actor?.id,
     },
   })
