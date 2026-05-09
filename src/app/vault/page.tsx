@@ -27,10 +27,10 @@ export default async function VaultPage() {
             className="font-heading font-bold text-white mb-4"
             style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}
           >
-            The V-Vault
+            The <span style={{ color: 'var(--color-accent)' }}>V-Vault</span>
           </h1>
-          <p className="font-body text-lg max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Your safe space to ask anything — no judgment, no trace, just honest answers.
+          <p className="font-body text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Safe space to ask anything — 100% anonymous, no judgment.
           </p>
         </div>
       </section>

@@ -31,10 +31,10 @@ export default async function ContactPage() {
             Get in Touch
           </div>
           <h1 className="font-heading font-bold text-white mb-4" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}>
-            Contact &amp; Booking
+            <span style={{ color: 'var(--color-accent)' }}>Reach</span> Us
           </h1>
-          <p className="font-body text-lg max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Book a consultation, send a WhatsApp message, or reach the team directly through the public contact channels managed from admin.
+          <p className="font-body text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Book a consultation, send a message, or connect through direct channels.
           </p>
         </div>
       </section>

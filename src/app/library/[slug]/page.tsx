@@ -138,7 +138,7 @@ export default async function ArticlePage({ params }: Props) {
             {article.title}
           </h1>
           <p className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
-            By Dr. Didi · MBBS, MPH
+            By Dr. Didi · MBBCH, MPH
           </p>
         </div>
       </div>

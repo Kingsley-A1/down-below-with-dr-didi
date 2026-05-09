@@ -6,9 +6,9 @@ import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repo
 import { team as staticTeam } from '@/data/team'
 
 export const metadata: Metadata = {
-  title: 'Our Team',
+  title: 'The Amazing Hands Behind the Flame',
   description:
-    'Meet Dr. Didi and the Down Below Family Health Initiative team — clinicians, community health officers, and advocates serving women across Nigeria.',
+    'Meet Dr. Didi and the Down Below Family Health Initiative team — clinicians, educators, and advocates serving women across Africa.',
 }
 
 export const dynamic = 'force-dynamic'
@@ -69,7 +69,7 @@ export default async function TeamPage() {
             className="font-heading font-bold text-white mb-4"
             style={{ fontSize: 'clamp(2.2rem, 5vw, 3.2rem)' }}
           >
-            Meet Our Team
+            The Amazing Hands Behind the <span style={{ color: 'var(--color-accent)' }}>Flame</span>
           </h1>
           <p
             className="font-body text-base max-w-xl mx-auto"

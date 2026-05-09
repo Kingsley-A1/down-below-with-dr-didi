@@ -65,7 +65,7 @@ export default async function HomePage() {
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              {siteSettings.heroHeadline}
+              Expose in <span style={{ color: 'var(--color-accent)' }}>Love</span>. <span style={{ color: 'var(--color-accent)' }}>Teach</span>. <span style={{ color: 'var(--color-accent)' }}>Heal</span>. <span style={{ color: 'var(--color-accent)' }}>Win</span>.
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
@@ -341,7 +341,7 @@ export default async function HomePage() {
                 &ldquo;Your body deserves honesty. I created this space so you never have to feel embarrassed asking questions about your own health.&rdquo;
               </blockquote>
               <p className="font-heading italic font-medium text-2xl mb-1" style={{ color: 'var(--color-primary)' }}>
-                — Dr. Didi, MBBS
+                — Dr. Didi, MBBCH
               </p>
               <p className="font-body text-sm text-gray-500 mb-8">
                 Founder, Down Below With Dr. Didi &middot; Calabar, Nigeria

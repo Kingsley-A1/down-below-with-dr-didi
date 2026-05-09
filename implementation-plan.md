@@ -424,7 +424,7 @@ Q: "What does a healthy discharge look like?"
   → Source: `https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=600` *(female doctor with warm smile)*
 - Quote block (large Cormorant Garamond italic, `#0B4E41`):  
   *"Your body deserves honesty. I created this space so you never have to feel embarrassed asking questions about your own health."*
-- Signature: "— Dr. Didi, MBBS" (handwriting-style font: `Dancing Script`)
+- Signature: "— Dr. Didi, MBBCH" (handwriting-style font: `Dancing Script`)
 - CTA: "Meet Dr. Didi" → `/about`
 
 #### 6.1.5 Latest Resources Preview
@@ -455,11 +455,11 @@ Q: "What does a healthy discharge look like?"
 
 **Content:**
 - Name: **Dr. Didi** (full name placeholder: *Dr. Adaeze Okonkwo*)
-- Credentials: MBBS, MPH · University of Calabar
+- Credentials: MBBCH, MPH · University of Calabar
 - Role: Founder, Down Below With Dr. Didi
 - Bio (3 paragraphs): Background in obstetrics/gynaecology, motivation for founding the initiative, community impact
 - Credentials list (icon + text):
-  - 🎓 MBBS – University of Calabar Teaching Hospital
+  - 🎓 MBBCH – University of Calabar Teaching Hospital
   - 🎓 MPH – Public Health specialization, SRH
   - 📋 Licensed by Medical and Dental Council of Nigeria
   - 🏆 Cross River Health Advocate Award, 2023
@@ -479,7 +479,7 @@ const team = [
     name: "Dr. Didi",
     role: "Founder & Lead Physician",
     image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=300",
-    bio: "MBBS, MPH. SRH advocate and community health educator based in Calabar."
+    bio: "MBBCH, MPH. SRH advocate and community health educator based in Calabar."
   },
   {
     name: "Ngozi Eze",
