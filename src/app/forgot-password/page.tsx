@@ -9,7 +9,7 @@ export default function ForgotPasswordPage() {
             Reset your password
           </h2>
           <p className="mb-8 text-center text-sm text-gray-600">
-            We'll verify your phone number to confirm your identity
+            We&apos;ll verify your phone number to confirm your identity.
           </p>
           <ForgotPasswordForm />
         </div>

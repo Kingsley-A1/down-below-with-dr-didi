@@ -1,7 +1,7 @@
 # User Registration & Account Management Platform Plan
 
 **Date:** May 9, 2026  
-**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3-4 Pending  
+**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 Complete ✅ | Phase 4 Pending  
 **Priority:** High (Foundation for community features)
 
 ---
@@ -515,28 +515,95 @@ All APIs are functional and ready for frontend integration:
 
 ---
 
+## 16. Phase 3 Implementation Summary (COMPLETE ✅)
+
+**Commit:** `[pending]` - feat(admin): implement Phase 3 user management with audit logging
+
+### What Was Built
+
+**Admin API Endpoints:**
+- **GET `/api/admin/users`** - List users with pagination and filtering
+  - Parameters: limit (default 50, max 100), offset, search, status (active/inactive), role
+  - Response: Users array + pagination metadata (limit, offset, total, hasMore)
+  - Admin-only protection via session role check
+- **GET `/api/admin/users/[id]`** - Get user details + audit logs
+  - Returns: User profile + audit logs (max 100)
+  - Admin-only protection
+- **POST `/api/admin/users/[id]/deactivate`** - Deactivate user
+  - Validates user exists, not inactive, admin not self-deactivating
+  - Audit logged as 'user.deactivated'
+- **POST `/api/admin/users/[id]/activate`** - Activate user
+  - Validates user exists, not active
+  - Audit logged as 'user.activated'
+
+**Admin Frontend Pages:**
+- **`/admin/users`** - Paginated user list with search and filters
+  - Server-side auth check (redirects if not admin)
+- **`/admin/users/[slug]`** - User detail with profile info and audit trail
+  - Server-side auth check (redirects if not admin)
+
+**Reusable Components:**
+- **`AdminUsersListClient.tsx`** - List management (50 per page, pagination controls)
+- **`AdminUsersFilter.tsx`** - Search, status, role filters with reset
+- **`UsersTable.tsx`** - User table with role/status badges and detail links
+- **`AuditLogViewer.tsx`** - Color-coded audit log display with icons and relative timestamps
+- **`AdminUserDetailClient.tsx`** - User profile + deactivate/activate actions + audit logs
+
+**Security Features:**
+- All admin routes check session role === 'admin'
+- Confirmation dialogs before destructive actions
+- Self-deactivation prevention
+- All operations logged to audit trail
+- Proper HTTP status codes (400, 403, 404, 500)
+
+### Phase 3 Completion Status
+
+| Component | Status | Files |
+|-----------|--------|-------|
+| List users API | ✅ | `/api/admin/users/route.ts` |
+| User detail API | ✅ | `/api/admin/users/[id]/route.ts` |
+| Deactivate API | ✅ | `/api/admin/users/[id]/deactivate/route.ts` |
+| Activate API | ✅ | `/api/admin/users/[id]/activate/route.ts` |
+| Users list page | ✅ | `/admin/users/page.tsx` |
+| User detail page | ✅ | `/admin/users/[slug]/page.tsx` |
+| List client component | ✅ | `AdminUsersListClient.tsx` |
+| Filter component | ✅ | `AdminUsersFilter.tsx` |
+| Table component | ✅ | `UsersTable.tsx` |
+| Detail client component | ✅ | `AdminUserDetailClient.tsx` |
+| Audit log viewer | ✅ | `AuditLogViewer.tsx` |
+
+---
+
 ## 14. Next Steps
 
-**Phase 2 is COMPLETE ✅**
+**Phase 3 is COMPLETE ✅**
 
-Phase 2 delivered all planned user flows with special requirements for phone-based password reset (no email provider) and session timeouts (60 days for users, 2 hours for admins). All frontend pages are functional and professionally styled.
+Phase 3 delivered complete admin management system with user list (search, filter, pagination), detail view (profile + audit log), deactivate/activate controls, and role-based access protection.
 
-**Then (Phase 3 - Admin Management):**
-1. Implement `/api/admin/users` list endpoint with pagination, filtering, search
-2. Implement `/api/admin/users/[id]` detail endpoint with audit log retrieval
-3. Build `/admin/users` page with user table, filters, and actions
-4. Build `/admin/users/[id]` detail page with audit log viewer
-5. Add deactivate/activate user controls
-6. Admin dashboard with user stats
-
-**Finally (Phase 4 - Polish & Security):**
-1. Rate limiting on auth endpoints (login, register, password reset)
+**Next (Phase 4 - Polish & Security):**
+1. Rate limiting on auth endpoints (login, register, password reset, phone verification)
+   - Implement: Redis + express-rate-limit or in-memory store
+   - Suggested limits: 5 login attempts per 15 min, 3 register per hour
 2. Account lockout after N failed login attempts
-3. Email rate limiting (1 code per 5 minutes)
-4. Comprehensive test coverage for auth flows
-5. Security audit and penetration testing
-6. Performance optimization (session query caching)
-7. Optional: 2FA implementation
+   - Add: `lockoutUntil: DateTime?` to User model
+   - Logic: Lock after 5 failures for 30 minutes
+3. Code rate limiting (SMS/email verification)
+   - Max 1 code per 5 minutes per user
+   - Applies to: phone verification, password reset codes
+4. Comprehensive test coverage
+   - Auth flow tests (register, login, verify email, reset password)
+   - Admin flow tests (list, detail, deactivate, activate)
+   - Edge cases and error scenarios
+5. Security hardening
+   - XSS validation on all inputs
+   - CSRF token generation
+   - SQL injection prevention (already via Prisma)
+   - Rate limit bypass prevention
+6. Performance optimization
+   - Add database indexes on frequently queried columns
+   - Session caching for repeated auth checks
+   - Query optimization for large user lists
+7. Optional: 2FA implementation (TOTP or SMS)
 8. Optional: OAuth integration (Google, GitHub)
 
 ---

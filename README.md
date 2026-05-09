@@ -46,15 +46,15 @@ Down Below Family Health Initiative reduces stigma around reproductive health th
 ## Getting Started
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
 ```bash
-npm run build    # Production build
-npm start        # Start production server
+pnpm build    # Production build
+pnpm start    # Start production server
 ```
 
 ---

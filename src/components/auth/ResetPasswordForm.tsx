@@ -15,12 +15,17 @@ export function ResetPasswordForm() {
   })
 
   useEffect(() => {
-    // Get reset token from session storage
-    const token = sessionStorage.getItem('resetToken')
-    if (!token) {
-      setError('Invalid reset link. Please start over.')
-    } else {
-      setResetToken(token)
+    const timer = window.setTimeout(() => {
+      const token = window.sessionStorage.getItem('resetToken')
+      if (!token) {
+        setError('Invalid reset link. Please start over.')
+      } else {
+        setResetToken(token)
+      }
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timer)
     }
   }, [])
 
