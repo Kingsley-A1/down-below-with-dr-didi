@@ -22,6 +22,17 @@ export type MediaAssetRecord = {
   createdAt: string
 }
 
+type MediaAssetDbRecord = {
+  id: string
+  label: string
+  url: string
+  mimeType: string
+  sizeBytes: number
+  kind: MediaAssetRecord['kind']
+  altText: string | null
+  createdAt: Date
+}
+
 export type VaultSubmissionRecord = {
   id: string
   category: string
@@ -173,7 +184,7 @@ export async function listMediaAssets(): Promise<MediaAssetRecord[]> {
     take: 50,
   })
 
-  return records.map((record) => ({
+  return records.map((record: MediaAssetDbRecord) => ({
     id: record.id,
     label: record.label,
     url: record.url,
