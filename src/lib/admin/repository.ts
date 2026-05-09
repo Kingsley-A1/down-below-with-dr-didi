@@ -44,6 +44,17 @@ export type VaultSubmissionRecord = {
   updatedAt: string
 }
 
+type VaultSubmissionDbRecord = {
+  id: string
+  category: string
+  question: string
+  status: VaultSubmissionRecord['status']
+  moderationNotes: string | null
+  approvedFaqTitle: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export async function upsertAdminUserRecord(email: string, role: AdminRole) {
   if (!hasDatabaseConfig()) {
     return null
@@ -268,7 +279,7 @@ export async function listVaultSubmissions(): Promise<VaultSubmissionRecord[]> {
     take: 100,
   })
 
-  return records.map((record) => ({
+  return records.map((record: VaultSubmissionDbRecord) => ({
     id: record.id,
     category: record.category,
     question: record.question,
