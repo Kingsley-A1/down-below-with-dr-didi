@@ -635,7 +635,7 @@ export type GalleryImageRecord = PublicGalleryImage & {
   updatedAt: string
 }
 
-function mapGalleryImage(r: {
+type GalleryImageDbRecord = {
   id: string
   slug: string
   title: string
@@ -651,7 +651,9 @@ function mapGalleryImage(r: {
   status: string
   createdAt: Date
   updatedAt: Date
-}): GalleryImageRecord {
+}
+
+function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
   return {
     id: r.id,
     slug: r.slug,
@@ -686,7 +688,7 @@ export async function getPublishedGalleryImages(
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   })
 
-  return records.map((r) => ({
+  return records.map((r: GalleryImageDbRecord) => ({
     id: r.id,
     slug: r.slug,
     title: r.title,
