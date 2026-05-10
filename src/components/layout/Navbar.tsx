@@ -21,6 +21,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -28,11 +29,43 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+
+    async function loadSessionState() {
+      try {
+        const response = await fetch('/api/auth/session', {
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as { authenticated?: boolean }
+        if (mounted) {
+          setIsAuthenticated(Boolean(data.authenticated))
+        }
+      } catch {
+        // Keep unauthenticated CTA fallback on network errors.
+      }
+    }
+
+    void loadSessionState()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const ctaHref = isAuthenticated ? '/contact' : '/register'
+  const ctaLabel = isAuthenticated ? 'Book Now' : 'Register'
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? '#fff' : 'transparent',
+        background: '#fff',
         boxShadow: scrolled ? 'var(--shadow-sm)' : 'none',
       }}
     >
@@ -52,7 +85,7 @@ export default function Navbar() {
           />
           <span
             className="font-heading font-bold text-lg hidden sm:block"
-            style={{ color: scrolled ? 'var(--color-primary)' : '#fff' }}
+            style={{ color: 'var(--color-primary)' }}
           >
             {siteConfig.shortName}
           </span>
@@ -67,7 +100,7 @@ export default function Navbar() {
                 aria-current={pathname === href ? 'page' : undefined}
                 className="font-body font-medium text-sm transition-colors rounded-full px-1 py-2"
                 style={{
-                  color: scrolled || pathname === href ? 'var(--color-primary)' : 'rgba(255,255,255,0.9)',
+                  color: 'var(--color-primary)',
                   textDecoration: pathname === href ? 'underline' : 'none',
                   textUnderlineOffset: '8px',
                 }}
@@ -81,18 +114,18 @@ export default function Navbar() {
         {/* Book Now CTA */}
         <div className="hidden lg:block">
           <Link
-            href="/contact"
+            href={ctaHref}
             className="bg-accent text-primary font-body font-semibold text-sm px-5 py-2.5 rounded-full transition-colors"
             style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
           >
-            Book Now
+            {ctaLabel}
           </Link>
         </div>
 
         {/* Mobile hamburger */}
         <button
           className="lg:hidden p-2"
-          style={{ color: scrolled ? 'var(--color-primary)' : '#fff' }}
+          style={{ color: 'var(--color-primary)' }}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
           aria-expanded={menuOpen}
@@ -117,12 +150,12 @@ export default function Navbar() {
             </Link>
           ))}
           <Link
-            href="/contact"
+            href={ctaHref}
             className="mt-2 font-body font-semibold text-sm px-5 py-3 rounded-full text-center transition-colors"
             style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
             onClick={() => setMenuOpen(false)}
           >
-            Book Now
+            {ctaLabel}
           </Link>
         </div>
       )}
