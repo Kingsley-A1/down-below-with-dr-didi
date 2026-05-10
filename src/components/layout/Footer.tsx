@@ -7,7 +7,7 @@ export default async function Footer() {
   const siteSettings = await getPublicSiteSettings()
 
   return (
-    <footer style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text)' }}>
+    <footer style={{ backgroundColor: 'var(--color-primary)', color: 'rgba(255,255,255,0.96)' }}>
       <div className="max-w-container mx-auto px-6 py-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
 
@@ -23,10 +23,10 @@ export default async function Footer() {
               />
               <div>
                 <div className="font-heading font-bold text-lg">DownBelow Family</div>
-                <div className="font-body text-sm" style={{ color: 'var(--color-text-muted)' }}>with Dr. Didi</div>
+                <div className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>with Dr. Didi</div>
               </div>
             </Link>
-            <p className="font-body text-sm leading-relaxed mb-6" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="font-body text-sm leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.86)' }}>
               {siteSettings.footerBlurb}
             </p>
             <div className="flex gap-4">
@@ -43,7 +43,7 @@ export default async function Footer() {
                   rel="noopener noreferrer"
                   aria-label={label}
                   className="transition-colors"
-                  style={{ color: 'var(--color-text-muted)' }}
+                  style={{ color: 'rgba(255,255,255,0.78)' }}
                 >
                   <Icon size={20} />
                 </a>
@@ -70,7 +70,7 @@ export default async function Footer() {
                   <Link
                     href={href}
                     className="font-body text-sm transition-colors"
-                    style={{ color: 'var(--color-text-muted)' }}
+                    style={{ color: 'rgba(255,255,255,0.9)' }}
                   >
                     {label}
                   </Link>
@@ -82,7 +82,7 @@ export default async function Footer() {
           {/* Column 3: Contact */}
           <div>
             <h3 className="font-heading font-semibold text-lg mb-5">Get in Touch</h3>
-            <div className="space-y-3 font-body text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            <div className="space-y-3 font-body text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
               <p className="flex items-start gap-2">
                 <MapPin size={15} className="mt-0.5 shrink-0" />
                 <span>Calabar, Cross River State, Nigeria</span>
@@ -109,7 +109,7 @@ export default async function Footer() {
 
       {/* Bottom bar */}
       <div className="border-t px-6 py-5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-        <div className="max-w-container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 font-body text-xs" style={{ color: 'var(--color-muted)' }}>
+        <div className="max-w-container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 font-body text-xs" style={{ color: 'rgba(255,255,255,0.72)' }}>
           <p>© 2026 {siteSettings.siteName}. All rights reserved.</p>
           <p className="text-center">Content on this site is for educational purposes only and does not substitute professional medical advice.</p>
           <p>

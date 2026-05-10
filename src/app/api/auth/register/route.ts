@@ -7,6 +7,14 @@ import { userRegisterSchema } from '@/lib/validations'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
+function isMissingUserTableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  return error.message.includes('The table `public.User` does not exist')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const limiter = getRateLimiter()
@@ -80,6 +88,17 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Registration error:', error)
+
+    if (isMissingUserTableError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Authentication database is not initialized yet. Please run migrations and try again.',
+        },
+        { status: 503 }
+      )
+    }
+
     return NextResponse.json(
       {
         success: false,

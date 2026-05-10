@@ -10,6 +10,14 @@ import { createSession } from '@/lib/auth/session'
 import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userLoginSchema } from '@/lib/validations'
 
+function isMissingUserTableError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  return error.message.includes('The table `public.User` does not exist')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -133,6 +141,17 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Login error:', error)
+
+    if (isMissingUserTableError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Authentication database is not initialized yet. Please run migrations and try again.',
+        },
+        { status: 503 }
+      )
+    }
+
     return NextResponse.json(
       {
         success: false,

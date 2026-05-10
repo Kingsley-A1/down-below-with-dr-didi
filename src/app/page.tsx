@@ -169,23 +169,23 @@ export default async function HomePage() {
                 <p className="font-body text-xs text-gray-500">Faith + Medicine + Community</p>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:col-start-2 mt-1 lg:mt-0">
-            {quickStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl px-4 py-3"
-                style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-              >
-                <p className="font-heading font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>
-                  {stat.value}
-                </p>
-                <p className="font-body text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
-                  {stat.label}
-                </p>
-              </div>
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 lg:mt-7">
+              {quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                >
+                  <p className="font-heading font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>
+                    {stat.value}
+                  </p>
+                  <p className="font-body text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.84)' }}>
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
