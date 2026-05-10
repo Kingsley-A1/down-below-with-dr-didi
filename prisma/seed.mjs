@@ -5,7 +5,13 @@ const { loadEnvConfig } = nextEnv
 loadEnvConfig(process.cwd())
 
 import { PrismaPg } from '@prisma/adapter-pg'
-const { PrismaClient } = await import('@prisma/client')
+const prismaClientModule = await import('@prisma/client')
+const PrismaClient =
+  prismaClientModule.PrismaClient ?? prismaClientModule.default?.PrismaClient
+
+if (!PrismaClient) {
+  throw new Error('PrismaClient constructor not found in @prisma/client module exports')
+}
 
 const connectionString = process.env.DATABASE_URL
 

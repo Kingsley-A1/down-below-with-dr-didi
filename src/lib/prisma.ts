@@ -1,8 +1,17 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '@prisma/client'
+import prismaClientModule from '@prisma/client'
+
+type PrismaClientCtor = new (options?: {
+  adapter?: unknown
+  log?: ReadonlyArray<'query' | 'info' | 'warn' | 'error'>
+}) => any
+
+const PrismaClient =
+  (prismaClientModule as { PrismaClient?: PrismaClientCtor }).PrismaClient ??
+  (prismaClientModule as unknown as PrismaClientCtor)
 
 const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient
+  prisma?: ReturnType<typeof createPrismaClient>
 }
 
 let connectionString = process.env.DATABASE_URL
@@ -31,9 +40,8 @@ connectionString = urlObj.toString()
 
 const adapter = new PrismaPg({ connectionString })
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient() {
+  return new PrismaClient({
     adapter,
     // Log only errors and warnings in development to reduce I/O
     log:
@@ -41,6 +49,11 @@ export const prisma =
         ? ['error']
         : ['error', 'warn'],
   })
+}
+
+export const prisma =
+  globalForPrisma.prisma ??
+  createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma

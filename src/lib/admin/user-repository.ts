@@ -634,8 +634,6 @@ interface AuditEventData {
   metadata?: Record<string, unknown> // Structured metadata for investigations
 }
 
-type AuditLogCreateData = Parameters<typeof prisma.auditLog.create>[0]['data']
-
 async function logAuditEvent({
   action,
   entityType,
@@ -651,10 +649,10 @@ async function logAuditEvent({
 }: AuditEventData): Promise<void> {
   try {
     const serializedMetadata = metadata
-      ? (JSON.parse(JSON.stringify(metadata)) as unknown as AuditLogCreateData['metadata'])
+      ? JSON.parse(JSON.stringify(metadata))
       : undefined
 
-    const data: AuditLogCreateData = {
+    const data = {
       action,
       entityType,
       entityId: entityId || undefined,
@@ -671,7 +669,7 @@ async function logAuditEvent({
     }
 
     if (serializedMetadata !== undefined) {
-      data.metadata = serializedMetadata
+      ;(data as Record<string, unknown>).metadata = serializedMetadata
     }
 
     await prisma.auditLog.create({
