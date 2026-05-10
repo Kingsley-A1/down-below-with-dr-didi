@@ -9,13 +9,7 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
   if (pathname === '/admin/sign-in') {
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-admin-pathname', pathname)
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
+    return NextResponse.next()
   }
 
   const cookieValue = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
@@ -42,13 +36,7 @@ export async function proxy(request: NextRequest) {
       session: true,
       expiresAt: now + CACHE_TTL_MS,
     })
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-admin-pathname', pathname)
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
+    return NextResponse.next()
   }
 
   // Cache failed verification (shorter TTL to catch re-authentication quickly)

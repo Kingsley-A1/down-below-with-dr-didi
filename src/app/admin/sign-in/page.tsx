@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import AdminSignInForm from '@/components/admin/AdminSignInForm'
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 
 export const metadata: Metadata = {
   title: 'Admin Sign In',
@@ -9,7 +12,15 @@ export const metadata: Metadata = {
   },
 }
 
-export default function AdminSignInPage() {
+export default async function AdminSignInPage() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
+  const session = await verifyAdminSession(token)
+
+  if (session) {
+    redirect('/admin')
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-16" style={{ backgroundColor: 'var(--color-surface)' }}>
       <div className="w-full max-w-lg bg-white rounded-[28px] border p-8" style={{ borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-md)' }}>

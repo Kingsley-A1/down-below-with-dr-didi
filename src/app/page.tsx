@@ -70,19 +70,12 @@ export default async function HomePage() {
         <div className="max-w-container mx-auto px-5 sm:px-6 pt-28 pb-16 sm:pt-32 sm:pb-20 grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12 items-center w-full">
           {/* Left */}
           <div style={{ color: '#fff' }}>
-            <div
-              className="inline-flex items-center gap-2 text-sm font-body px-4 py-2 rounded-full mb-8"
-              style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}
-            >
-              {siteSettings.tagline}
-            </div>
-
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              {siteSettings.heroHeadline}
+              Expose In Love, Heal, Win.
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              {siteSettings.heroBody}
+              tagline: &apos;Non-profit and non-denominational Christian ministry preserving the family unit for God.&apos;
             </p>
 
             <p className="font-body text-sm mb-8 max-w-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -143,9 +136,9 @@ export default async function HomePage() {
                 alt={heroImageAlt}
                 width={1200}
                 height={800}
-                className="object-cover object-center w-full"
+                className="object-contain object-center w-full h-auto"
                 style={{
-                  height: 'clamp(260px, 58vw, 470px)',
+                  maxHeight: 'clamp(280px, 62vw, 520px)',
                 }}
                 priority
                 quality={86}
