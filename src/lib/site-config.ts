@@ -1,24 +1,26 @@
 export const siteConfig = {
-  name: 'Down Below Family Health Initiative',
-  shortName: 'Down Below Family',
+  name: 'DownBelow Family and Health Initiatives with Dr. Didi',
+  shortName: 'DownBelow Family',
   founderName: 'Dr. Didi',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
   alternateNames: [
     'Down Below With Dr. Didi',
     'Down Below Family Health Initiative with Dr. Didi',
+    'DownBelow Family and Health Initiatives with Dr. Didi',
+    'DOWNBELOW FAMILY HEALTH INITIATIVE WITH DR DIDI',
     'Down Below Family Health Initiative Nigeria',
     'Down Below women health platform',
   ],
-  tagline: 'Expose in Love, teach, heal, and win the world for God.',
-  motto: 'Expose in Love, Teach, Heal, Win.',
+  tagline: 'Non-profit and non-denominational Christian ministry preserving the family unit for God.',
+  motto: 'Expose Love. Educate. Heal.',
   description:
-    'Down Below Family Health Initiative is a faith-based women and family health platform led by Dr. Didi, blending clinical care, reproductive health education, natural wellness guidance, and spiritual support.',
+    'DownBelow Family and Health Initiatives with Dr. Didi provides accessible and reliable information on family, sexuality, and health through open discussions, medical lectures, community outreach, and supportive engagement.',
   primaryWhatsapp: 'https://wa.me/2340000000000',
   contactEmail: 'hello@down-below.com',
-  heroHeadline: 'Expose in Love. Teach. Heal. Win.',
-  heroBody: 'Faith-based reproductive health education and support for women.',
+  heroHeadline: 'Expose Love. Educate. Heal.',
+  heroBody: 'A safe and non-judgmental space for individuals, couples, and families to ask, learn, and grow.',
   footerBlurb:
-    'A faith-based family health initiative supporting women through medical guidance, natural wellness, and spiritual encouragement.',
+    'We promote holistic well-being, healthy relationships, and informed decision-making for individuals and families worldwide.',
 }
 
 export const seoKeywords = [

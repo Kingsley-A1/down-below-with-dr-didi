@@ -25,7 +25,7 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
+  title: `${siteConfig.name} | Family, Sexuality, and Health`,
   description: siteConfig.description,
   alternates: {
     canonical: canonicalUrl('/'),
@@ -45,9 +45,9 @@ export default async function HomePage() {
   const heroImageAlt = siteSettings.heroImageAlt || `${siteSettings.siteName} hero image`
 
   const quickStats = [
-    { label: 'Women reached across communities', value: '5,000+' },
-    { label: 'Communities in Cross River served', value: '12' },
-    { label: 'Health talks and outreaches hosted', value: '48' },
+    { label: 'Years of active community engagement', value: '6+' },
+    { label: 'Daily engagement on family and health issues', value: 'Daily' },
+    { label: 'Core calling in every program', value: 'Expose • Educate • Heal' },
   ]
 
   return (
@@ -78,7 +78,7 @@ export default async function HomePage() {
             </div>
 
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
-              Expose in <span style={{ color: 'var(--color-accent)' }}>Love</span>. Teach. Heal. Win.
+              {siteSettings.heroHeadline}
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
@@ -207,7 +207,8 @@ export default async function HomePage() {
               Our Three Pillars
             </h2>
             <p className="font-body text-gray-600 max-w-xl mx-auto leading-relaxed">
-              Every aspect of Down Below Family Health Initiative is built around three core principles.
+              Every part of DownBelow Family and Health Initiatives with Dr. Didi is built around
+              three core principles.
             </p>
           </div>
 
@@ -223,7 +224,7 @@ export default async function HomePage() {
               {
                 icon: Users,
                 title: 'Community',
-                description: 'Outreaches, screenings, and the Down Below Family where women find support, prayer, and practical next steps.',
+                description: 'Outreaches, discussions, and practical support where individuals, couples, and families find clarity, prayer, and next steps.',
                 link: '/outreach',
                 linkLabel: 'See Our Impact',
               },
@@ -335,8 +336,8 @@ export default async function HomePage() {
                 className="absolute -bottom-5 -right-5 rounded-2xl p-5 shadow-xl"
                 style={{ backgroundColor: 'var(--color-accent)', boxShadow: 'var(--shadow-lg)' }}
               >
-                <p className="font-heading font-bold text-xl" style={{ color: 'var(--color-primary)' }}>5,000+</p>
-                <p className="font-body text-xs" style={{ color: 'rgba(11,78,65,0.7)' }}>Women Reached</p>
+                <p className="font-heading font-bold text-xl" style={{ color: 'var(--color-primary)' }}>6+ Years</p>
+                <p className="font-body text-xs" style={{ color: 'rgba(11,78,65,0.7)' }}>Active Service</p>
               </div>
             </div>
 
@@ -351,13 +352,13 @@ export default async function HomePage() {
                 className="font-heading font-semibold italic leading-snug mb-6"
                 style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)', color: 'var(--color-primary)' }}
               >
-                &ldquo;Your body deserves honesty. I created this space so you never have to feel embarrassed asking questions about your own health.&rdquo;
+                &ldquo;We bring hidden and difficult questions to the table with truth, clarity, and compassion so families can heal and thrive.&rdquo;
               </blockquote>
               <p className="font-heading italic font-medium text-2xl mb-1" style={{ color: 'var(--color-primary)' }}>
                 — Dr. Didi, MBBCH
               </p>
               <p className="font-body text-sm text-gray-500 mb-8">
-                Founder, Down Below Family Health Initiative &middot; Calabar, Nigeria
+                Founder, DownBelow Family and Health Initiatives with Dr. Didi &middot; Calabar, Nigeria
               </p>
               <Link
                 href="/about"
@@ -448,7 +449,7 @@ export default async function HomePage() {
       <section className="py-16 bg-white border-t" style={{ borderColor: 'var(--color-border)' }}>
         <div className="max-w-container mx-auto px-6 text-center">
           <h2 className="font-heading font-bold mb-4" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', color: 'var(--color-primary)' }}>
-            Join the Down Below Family
+            Join the DownBelow Family
           </h2>
           <p className="font-body text-gray-600 mb-8 max-w-2xl mx-auto">
             Connect with our Facebook community, watch in-depth tutorials on YouTube, and get updates on our annual family retreat.

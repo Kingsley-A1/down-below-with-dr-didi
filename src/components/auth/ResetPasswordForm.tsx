@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 export function ResetPasswordForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [resetToken, setResetToken] = useState<string | null>(null)
+  const [resetSessionId, setResetSessionId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: '',
@@ -16,18 +18,23 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const token = window.sessionStorage.getItem('resetToken')
-      if (!token) {
-        setError('Invalid reset link. Please start over.')
-      } else {
-        setResetToken(token)
+      // Get session ID and user ID from URL params
+      const sessionId = searchParams.get('sessionId')
+      const uid = searchParams.get('userId')
+
+      if (!sessionId || !uid) {
+        setError('Invalid or missing reset link. Please start the password reset process again.')
+        return
       }
+
+      setResetSessionId(sessionId)
+      setUserId(uid)
     }, 0)
 
     return () => {
       window.clearTimeout(timer)
     }
-  }, [])
+  }, [searchParams])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -42,8 +49,8 @@ export function ResetPasswordForm() {
     setError(null)
     setIsLoading(true)
 
-    if (!resetToken) {
-      setError('Reset token not found')
+    if (!resetSessionId || !userId) {
+      setError('Reset session expired. Please start over.')
       setIsLoading(false)
       return
     }
@@ -53,7 +60,8 @@ export function ResetPasswordForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: resetToken,
+          resetSessionId,
+          userId,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
         }),
@@ -66,9 +74,6 @@ export function ResetPasswordForm() {
         return
       }
 
-      // Clear the session storage token
-      sessionStorage.removeItem('resetToken')
-
       // Redirect to login with success message
       router.push('/login?message=Password reset successful. Please log in.')
     } catch (err) {
@@ -79,7 +84,7 @@ export function ResetPasswordForm() {
     }
   }
 
-  if (!resetToken) {
+  if (!resetSessionId || !userId) {
     return (
       <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
         {error || 'Loading...'}

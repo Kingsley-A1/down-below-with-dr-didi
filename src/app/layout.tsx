@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   applicationName: siteConfig.name,
   title: {
-    default: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
+    default: `${siteConfig.name} | Family, Sexuality, and Health`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
+    title: `${siteConfig.name} | Family, Sexuality, and Health`,
     description: siteConfig.description,
     url: canonicalUrl('/'),
     type: 'website',
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} | Women's Health with ${siteConfig.founderName}`,
+    title: `${siteConfig.name} | Family, Sexuality, and Health`,
     description: siteConfig.description,
     images: ['/logo.jpg'],
   },

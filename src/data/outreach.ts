@@ -14,10 +14,10 @@ export interface ImpactMetric {
 }
 
 export const impactMetrics: ImpactMetric[] = [
-  { label: 'Years in Active Service', value: '2+', icon: '⏳' },
-  { label: 'Women Reached', value: '5,000+', icon: '👩' },
-  { label: 'Communities Served', value: '12', icon: '🏘️' },
-  { label: 'Health Talks Hosted', value: '48', icon: '🎤' },
+  { label: 'Years in Active Service', value: '6+', icon: '⏳' },
+  { label: 'Platform Engagement', value: 'Daily', icon: '💬' },
+  { label: 'Program Focus', value: 'Family Unit', icon: '🏘️' },
+  { label: 'Core Call', value: 'Expose • Educate • Heal', icon: '🎤' },
 ]
 
 export const galleryItems: GalleryItem[] = [

@@ -9,7 +9,7 @@ import { canonicalUrl } from '@/lib/site-config'
 export const metadata: Metadata = {
   title: 'The Amazing Hands Behind the Flame',
   description:
-    'Meet Dr. Didi and the Down Below Family Health Initiative team — clinicians, educators, and advocates serving women across Africa.',
+    'Meet Dr. Didi and the DownBelow Family team — clinicians, educators, and advocates serving individuals, couples, and families through holistic health support.',
   alternates: {
     canonical: canonicalUrl('/team'),
   },
@@ -79,7 +79,7 @@ export default async function TeamPage() {
             className="font-body text-base max-w-lg mx-auto"
             style={{ color: 'rgba(255,255,255,0.72)' }}
           >
-            Clinicians and advocates serving women with compassion and clinical integrity.
+            Clinicians and advocates serving individuals and families with compassion and integrity.
           </p>
         </div>
       </section>
@@ -96,7 +96,7 @@ export default async function TeamPage() {
               >
                 <div className="flex flex-col lg:flex-row">
                   {/* Portrait */}
-                  <div className="relative w-full lg:w-[40%] flex-shrink-0" style={{ minHeight: '360px' }}>
+                  <div className="relative w-full lg:w-[40%] shrink-0" style={{ minHeight: '360px' }}>
                     {founder.imageUrl ? (
                       <Image
                         src={founder.imageUrl}
@@ -133,7 +133,7 @@ export default async function TeamPage() {
                       {founder.role}
                     </p>
                     <div className="flex items-center gap-2 mb-6" style={{ color: 'var(--color-muted)' }}>
-                      <GraduationCap className="w-4 h-4 flex-shrink-0" />
+                      <GraduationCap className="w-4 h-4 shrink-0" />
                       <span className="font-body text-sm">{founder.credentials}</span>
                     </div>
                     <p className="font-body text-base leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
@@ -189,7 +189,7 @@ export default async function TeamPage() {
             </h2>
             <p className="font-body text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
               We welcome passionate clinicians, health communicators, and community mobilisers who share
-              our mission for women&apos;s health.
+              our mission for family health and holistic well-being.
             </p>
             <Link
               href="/contact"
@@ -243,7 +243,7 @@ function TeamMemberCard({ member }: { member: PublicTeamMember }) {
           {member.role}
         </p>
         <div className="flex items-center gap-1.5 mb-3" style={{ color: 'var(--color-muted)' }}>
-          <GraduationCap className="w-3.5 h-3.5 flex-shrink-0" />
+          <GraduationCap className="w-3.5 h-3.5 shrink-0" />
           <span className="font-body text-xs">{member.credentials}</span>
         </div>
         <p

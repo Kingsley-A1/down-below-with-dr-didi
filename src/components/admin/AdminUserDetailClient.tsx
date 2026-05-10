@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AuditLogViewer from './AuditLogViewer'
-import { PublicUserRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
+import type { PublicUserRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
 
 interface AdminUserDetailClientProps {
   userId: string
-  currentAdminEmail: string
 }
 
 /**
@@ -16,7 +15,6 @@ interface AdminUserDetailClientProps {
  */
 export default function AdminUserDetailClient({
   userId,
-  currentAdminEmail,
 }: AdminUserDetailClientProps) {
   const router = useRouter()
   const [user, setUser] = useState<PublicUserRecord | null>(null)
@@ -60,6 +58,19 @@ export default function AdminUserDetailClient({
     fetchUserDetails()
   }, [userId, router])
 
+  // Helper to refresh audit logs without full page reload
+  const refreshAuditLogs = async () => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}?auditLimit=100`)
+      if (response.ok) {
+        const data = await response.json()
+        setAuditLogs(data.auditLogs || [])
+      }
+    } catch (err) {
+      console.error('Failed to refresh audit logs:', err)
+    }
+  }
+
   const handleDeactivate = async () => {
     if (!user) return
 
@@ -85,10 +96,8 @@ export default function AdminUserDetailClient({
       setUser(data.user)
       setSuccessMessage(data.message)
 
-      // Refresh audit logs
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
+      // Refresh audit logs in-place (no page reload)
+      refreshAuditLogs()
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -121,10 +130,8 @@ export default function AdminUserDetailClient({
       setUser(data.user)
       setSuccessMessage(data.message)
 
-      // Refresh audit logs
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
+      // Refresh audit logs in-place (no page reload)
+      refreshAuditLogs()
     } catch (err) {
       setError((err as Error).message)
     } finally {

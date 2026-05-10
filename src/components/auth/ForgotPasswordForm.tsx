@@ -11,6 +11,8 @@ export function ForgotPasswordForm() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [displayedCode, setDisplayedCode] = useState<string | null>(null)
+  const [resetSessionId, setResetSessionId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -70,8 +72,9 @@ export function ForgotPasswordForm() {
         return
       }
 
-      // Store reset token for next step (password reset)
-      sessionStorage.setItem('resetToken', data.resetToken)
+      // Store resetSessionId and userId for password reset (no token stored)
+      setResetSessionId(data.resetSessionId)
+      setUserId(data.userId)
       setStep('success')
     } catch (err) {
       setError('An unexpected error occurred')
@@ -188,7 +191,7 @@ export function ForgotPasswordForm() {
             <p className="mt-1">You can now reset your password.</p>
           </div>
           <Link
-            href="/reset-password"
+            href={`/reset-password?sessionId=${encodeURIComponent(resetSessionId || '')}&userId=${encodeURIComponent(userId || '')}`}
             className="block rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
           >
             Reset Password

@@ -8,7 +8,7 @@ import { canonicalUrl } from '@/lib/site-config'
 export const metadata: Metadata = {
   title: 'Gallery',
   description:
-    'Photos from Down Below Family Health Initiative events, community outreach programmes, team activities, and health talks across Nigeria.',
+    'Photos from DownBelow Family and Health Initiatives with Dr. Didi events, community outreach programmes, team activities, and health talks across Nigeria.',
   alternates: {
     canonical: canonicalUrl('/gallery'),
   },

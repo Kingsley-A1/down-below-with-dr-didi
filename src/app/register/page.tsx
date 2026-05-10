@@ -9,7 +9,7 @@ export default function RegisterPage() {
             Create an account
           </h2>
           <p className="mb-8 text-center text-sm text-gray-600">
-            Join Down Below Family Health Initiative with Dr. Didi
+            Join DownBelow Family Health Initiative with Dr Didi
           </p>
           <RegisterForm />
         </div>

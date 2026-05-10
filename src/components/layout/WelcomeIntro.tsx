@@ -34,7 +34,7 @@ export default function WelcomeIntro() {
 
   return (
     <div
-      className="welcome-intro fixed inset-0 z-[120] flex items-center justify-center px-6"
+      className="welcome-intro fixed inset-0 z-120 flex items-center justify-center px-6"
       role="status"
       aria-live="polite"
       style={{ backgroundColor: 'var(--color-primary)' }}
@@ -44,10 +44,10 @@ export default function WelcomeIntro() {
           Welcome to
         </p>
         <p className="mt-3 font-heading text-3xl font-bold sm:text-5xl">
-          Down Below Family
+          DownBelow Family
         </p>
         <p className="mt-3 font-body text-sm sm:text-base" style={{ color: 'rgba(255,255,255,0.72)' }}>
-          Calm, trusted care with Dr. Didi.
+          Expose love, educate, and heal.
         </p>
         <span className="mx-auto mt-5 block h-1 w-24 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
       </div>

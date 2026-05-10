@@ -29,7 +29,7 @@ export default function AdminShell({
             <p className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
               Admin Console
             </p>
-            <p className="font-body text-sm text-gray-500">Production settings, assets, and governance for Down Below Family.</p>
+            <p className="font-body text-sm text-gray-500">Production settings, assets, and governance for DownBelow Family.</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">

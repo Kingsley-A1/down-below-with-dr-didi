@@ -16,13 +16,13 @@ export default async function Footer() {
             <Link href="/" className="flex items-center gap-3 mb-4">
               <Image
                 src="/logo.jpg"
-                alt="Down Below Family Health Initiative"
+                alt={siteSettings.siteName}
                 width={52}
                 height={52}
                 className="rounded-full object-cover"
               />
               <div>
-                <div className="font-heading font-bold text-lg">Down Below Family</div>
+                <div className="font-heading font-bold text-lg">DownBelow Family</div>
                 <div className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>with Dr. Didi</div>
               </div>
             </Link>
@@ -57,7 +57,7 @@ export default async function Footer() {
             <ul className="space-y-3">
               {[
                 { href: '/', label: 'Home' },
-                { href: '/about', label: 'About Dr. Didi' },
+                { href: '/about', label: 'About DownBelow' },
                 { href: '/library', label: 'Health Library' },
                 { href: '/podcast', label: 'Podcast' },
                 { href: '/outreach', label: 'Community Outreach' },

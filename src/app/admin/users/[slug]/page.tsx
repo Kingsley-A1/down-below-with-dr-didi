@@ -3,9 +3,9 @@ import { getSession } from '@/lib/auth/session'
 import AdminUserDetailClient from '@/components/admin/AdminUserDetailClient'
 
 interface AdminUserDetailPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 /**
@@ -13,6 +13,7 @@ interface AdminUserDetailPageProps {
  * Redirects to login if not authenticated, checks for admin role
  */
 export default async function AdminUserDetailPage({ params }: AdminUserDetailPageProps) {
+  const { slug } = await params
   const session = await getSession()
 
   // Redirect to login if not authenticated
@@ -28,7 +29,7 @@ export default async function AdminUserDetailPage({ params }: AdminUserDetailPag
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <AdminUserDetailClient userId={params.slug} currentAdminEmail={session.email} />
+        <AdminUserDetailClient userId={slug} />
       </div>
     </div>
   )

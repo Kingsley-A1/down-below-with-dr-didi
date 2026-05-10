@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminUsersFilter from './AdminUsersFilter'
 import UsersTable from './UsersTable'
-import { PublicUserRecord } from '@/lib/admin/user-repository'
+import type { PublicUserRecord } from '@/lib/admin/user-repository'
 
 interface PaginationData {
   limit: number
@@ -37,7 +37,7 @@ export default function AdminUsersListClient() {
   })
 
   // Fetch users with current filters and pagination
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -69,18 +69,20 @@ export default function AdminUsersListClient() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Fetch users on mount and when filters/pagination changes
-  useEffect(() => {
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [filters])
+  }, [currentPage, filters, router])
 
   useEffect(() => {
-    fetchUsers()
-  }, [currentPage, filters])
+    const timer = window.setTimeout(() => {
+      void fetchUsers()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [fetchUsers])
 
   const handleFilterChange = (newFilters: typeof filters) => {
+    setCurrentPage(1)
     setFilters(newFilters)
   }
 

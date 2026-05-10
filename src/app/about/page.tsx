@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { Award, CheckCircle, GraduationCap, Handshake, Sparkles, Target, Users } from 'lucide-react'
+import { Award, CheckCircle, GraduationCap, Sparkles, Target, Users } from 'lucide-react'
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
 import { canonicalUrl } from '@/lib/site-config'
@@ -8,22 +8,13 @@ import { canonicalUrl } from '@/lib/site-config'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'About Dr. Didi',
+  title: 'About DownBelow',
   description:
-    "Learn about Dr. Edidiong Ekereuke, founder of Down Below Family Health Initiative, and the initiative's faith-based mission for women's reproductive health.",
+    'Learn about DownBelow Family and Health Initiatives with Dr. Didi, a non-profit and non-denominational Christian ministry preserving the family unit through education, health guidance, and healing conversations.',
   alternates: {
     canonical: canonicalUrl('/about'),
   },
 }
-
-const partners = [
-  { name: 'Pink Africa Foundation', type: 'Health Foundation' },
-  { name: 'Asi Ukpo Hospitals', type: 'Hospital Partner' },
-  { name: 'University of Calabar Teaching Hospital (UCTH)', type: 'Clinical Institution' },
-  { name: 'Community Faith Leaders', type: 'Community Partner' },
-  { name: 'Local Women Support Groups', type: 'Grassroots Network' },
-  { name: 'Regional Screening Volunteers', type: 'Medical Volunteers' },
-]
 
 export default async function AboutPage() {
   let teamMembers: PublicTeamMember[]
@@ -67,14 +58,18 @@ export default async function AboutPage() {
               <Target size={28} className="mb-4" style={{ color: 'var(--color-accent)' }} />
               <h2 className="font-heading text-2xl font-semibold mb-3">Mission</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                To teach, heal, and uplift women and families through evidence-based medical guidance, natural wellness support, and prayer-centered community care.
+                Our mission is to provide accessible, reliable, and quality information on family,
+                sexuality, and health, empowering individuals to make informed choices and take
+                control of their lives.
               </p>
             </div>
             <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
               <Sparkles size={28} className="mb-4" style={{ color: 'var(--color-accent)' }} />
               <h2 className="font-heading text-2xl font-semibold mb-3">Vision</h2>
               <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                A global family of women who can access trusted reproductive health support while growing in purpose, wholeness, and faith.
+                To create a world where every individual and family has access to reliable
+                information, supportive communities, and empowered choices for healthy living,
+                loving relationships, and overall well-being.
               </p>
             </div>
           </div>
@@ -88,7 +83,7 @@ export default async function AboutPage() {
             <div className="rounded-2xl overflow-hidden sticky top-24 shadow-xl">
               <Image
                 src="/assets/dr_didi_1.jpg"
-                alt="Dr. Edidiong Ekereuke, founder of Down Below Family Health Initiative"
+                alt="Dr. Edidiong Ekereuke, founder of DownBelow Family and Health Initiatives with Dr. Didi"
                 width={560}
                 height={640}
                 className="object-cover w-full"
@@ -109,13 +104,20 @@ export default async function AboutPage() {
 
               <div className="space-y-4 font-body text-gray-700 leading-relaxed mb-8 text-sm">
                 <p>
-                  Dr. Edidiong Ekereuke (Dr. Didi) is a Senior Medical Official at the University of Calabar Teaching Hospital (UCTH), with a longstanding commitment to women&apos;s reproductive health and infertility support.
+                  DownBelow Family and Health Initiatives with Dr. Didi is a non-profit and
+                  non-denominational Christian ministry made up of men and women from different
+                  walks of life and denominations, with the primary objective of preserving the
+                  family unit for God.
                 </p>
                 <p>
-                  Through Down Below Family Health Initiative, she leads a faith-based family health movement that combines clinical consultations with natural health strategies, prayer, and practical education women can use daily.
+                  “Down below” speaks to hidden questions, difficult conversations, and cultural
+                  myths people are often too afraid or shy to discuss openly. Our calling is to
+                  bring those issues to light, expose in love, educate, and heal.
                 </p>
                 <p>
-                  Since launch, the initiative has passed two years of active service, reaching women through community outreaches in Calabar and through digital channels that serve a global audience.
+                  For over six years, this platform has provided practical support through daily
+                  engagement, medical lectures, and faith-grounded discussions that strengthen
+                  families and communities.
                 </p>
               </div>
 
@@ -125,11 +127,11 @@ export default async function AboutPage() {
                 </h3>
                 <div className="space-y-3">
                   {[
+                    { icon: Award, text: 'CAC Name: DOWNBELOW FAMILY HEALTH INITIATIVE WITH DR DIDI' },
                     { icon: GraduationCap, text: 'Senior Medical Official — University of Calabar Teaching Hospital (UCTH)' },
-                    { icon: CheckCircle, text: 'Clinical focus on women\'s health and infertility management' },
-                    { icon: CheckCircle, text: 'Community health educator for reproductive wellness and prevention' },
-                    { icon: Award, text: 'Founder — Down Below Family Health Initiative' },
-                    { icon: CheckCircle, text: 'Leads faith-integrated wellness programs and annual family retreat' },
+                    { icon: CheckCircle, text: 'Focus Areas: healthy relationships, family dynamics, sexuality, and health education' },
+                    { icon: CheckCircle, text: 'Core Call: Expose love, educate, and heal' },
+                    { icon: CheckCircle, text: 'Target Audience: individuals, couples, and families worldwide' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-3">
                       <Icon size={17} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
@@ -192,7 +194,7 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* Partners */}
+      {/* Objectives & Scope */}
       <section className="py-24" style={{ backgroundColor: 'var(--color-primary-muted)' }}>
         <div className="max-w-container mx-auto px-6">
           <div className="text-center mb-12">
@@ -200,34 +202,39 @@ export default async function AboutPage() {
               className="inline-block text-sm font-body font-semibold px-4 py-1.5 rounded-full mb-4 text-white"
               style={{ backgroundColor: 'var(--color-primary)' }}
             >
-              Partners &amp; Collaborations
+              What We Do
             </div>
             <h2 className="font-heading font-bold mb-4" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--color-primary)' }}>
-              Working Together for Women&apos;s Health
+              Expose Love, Educate, and Heal
             </h2>
             <p className="font-body text-gray-600 max-w-xl mx-auto text-sm leading-relaxed">
-              We collaborate with leading health organisations, government bodies, and NGOs to extend our reach and impact.
+              We provide a safe, inclusive, and non-judgmental space where people can ask real
+              questions, receive reliable guidance, and grow in healthy relationships and family life.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {partners.map((partner) => (
-              <div
-                key={partner.name}
-                className="bg-white rounded-xl p-4 flex flex-col items-center justify-center gap-2 border text-center transition-colors hover:border-primary"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--color-primary-muted)' }}
-                >
-                  <Handshake size={22} style={{ color: 'var(--color-primary)' }} />
-                </div>
-                <p className="font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
-                  {partner.name}
-                </p>
-                <p className="font-body text-xs text-gray-400">{partner.type}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+              <h3 className="font-heading text-xl font-semibold mb-4" style={{ color: 'var(--color-primary)' }}>
+                Objectives
+              </h3>
+              <ul className="space-y-3 font-body text-sm text-gray-700 leading-relaxed">
+                <li>To educate and inform the public on healthy relationships, family dynamics, and reproductive health.</li>
+                <li>To provide a platform for open discussions and awareness on sensitive topics.</li>
+                <li>To promote holistic well-being, self-care, and mental health.</li>
+                <li>To foster a supportive community encouraging healthy lifestyles and relationships.</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+              <h3 className="font-heading text-xl font-semibold mb-4" style={{ color: 'var(--color-primary)' }}>
+                Scope of Activities
+              </h3>
+              <ul className="space-y-3 font-body text-sm text-gray-700 leading-relaxed">
+                <li>Social media engagement across Facebook, Instagram, TikTok, and YouTube.</li>
+                <li>Online resources including blog posts, videos, and podcasts.</li>
+                <li>Collaboration with healthcare professionals, educators, and experts.</li>
+                <li>Community outreach programs, evangelical support, and medical events.</li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
