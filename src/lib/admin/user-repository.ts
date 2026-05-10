@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import {
   generateEmailVerificationToken,
@@ -635,13 +634,7 @@ interface AuditEventData {
   metadata?: Record<string, unknown> // Structured metadata for investigations
 }
 
-function toAuditMetadataValue(metadata?: Record<string, unknown>): Prisma.InputJsonValue | undefined {
-  if (!metadata) {
-    return undefined
-  }
-
-  return JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonValue
-}
+type AuditLogCreateData = Parameters<typeof prisma.auditLog.create>[0]['data']
 
 async function logAuditEvent({
   action,
@@ -657,23 +650,32 @@ async function logAuditEvent({
   metadata,
 }: AuditEventData): Promise<void> {
   try {
+    const serializedMetadata = metadata
+      ? (JSON.parse(JSON.stringify(metadata)) as unknown as AuditLogCreateData['metadata'])
+      : undefined
+
+    const data: AuditLogCreateData = {
+      action,
+      entityType,
+      entityId: entityId || undefined,
+      userId: userId || undefined,
+      actorEmail,
+      actorRole: (actorRole === 'super_admin' || actorRole === 'editor' || actorRole === 'moderator'
+        ? actorRole
+        : 'moderator') as 'super_admin' | 'editor' | 'moderator',
+      summary,
+      success,
+      ipAddress,
+      userAgent,
+      createdAt: new Date(),
+    }
+
+    if (serializedMetadata !== undefined) {
+      data.metadata = serializedMetadata
+    }
+
     await prisma.auditLog.create({
-      data: {
-        action,
-        entityType,
-        entityId: entityId || undefined,
-        userId: userId || undefined,
-        actorEmail,
-        actorRole: (actorRole === 'super_admin' || actorRole === 'editor' || actorRole === 'moderator'
-          ? actorRole
-          : 'moderator') as 'super_admin' | 'editor' | 'moderator',
-        summary,
-        success,
-        ipAddress,
-        userAgent,
-        metadata: toAuditMetadataValue(metadata),
-        createdAt: new Date(),
-      },
+      data,
     })
   } catch (error: unknown) {
     console.error('Error logging audit event:', error)
