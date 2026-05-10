@@ -55,7 +55,10 @@ export default async function HomePage() {
       {/* ─── Hero ─────────────────────────────────────────────────────────── */}
       <section
         className="relative min-h-[88vh] lg:min-h-screen flex items-center overflow-hidden"
-        style={{ backgroundColor: 'var(--color-primary)' }}
+        style={{
+          background:
+            'linear-gradient(140deg, #0b4e41 0%, #0f5b4b 44%, #0a4338 100%)',
+        }}
       >
         {/* subtle noise texture */}
         <div
@@ -67,7 +70,7 @@ export default async function HomePage() {
           }}
         />
 
-        <div className="max-w-container mx-auto px-5 sm:px-6 pt-28 pb-16 sm:pt-32 sm:pb-20 grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12 items-center w-full">
+        <div className="max-w-container mx-auto px-5 sm:px-6 pt-28 pb-16 sm:pt-32 sm:pb-20 grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12 items-start w-full">
           {/* Left */}
           <div style={{ color: '#fff' }}>
             <h1 className="font-heading font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2.8rem, 6vw, 4.5rem)' }}>
@@ -75,10 +78,16 @@ export default async function HomePage() {
             </h1>
 
             <p className="font-body text-lg leading-relaxed mb-10 max-w-lg" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              tagline: &apos;Non-profit and non-denominational Christian ministry preserving the family unit for God.&apos;
+              Non-profit and non-denominational Christian ministry preserving the family unit for God.
             </p>
 
-            <p className="font-body text-sm mb-8 max-w-lg" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <p
+              className="inline-flex font-body text-sm mb-8 max-w-lg rounded-full px-4 py-2"
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                backgroundColor: 'rgba(255,255,255,0.12)',
+              }}
+            >
               Motto: {siteSettings.motto}
             </p>
 
@@ -101,26 +110,10 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8">
-              {quickStats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl px-4 py-3"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-                >
-                  <p className="font-heading font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>
-                    {stat.value}
-                  </p>
-                  <p className="font-body text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Right */}
-          <div className="relative order-first lg:order-0">
+          <div className="relative">
             <div
               className="absolute -inset-2 rounded-[1.35rem] pointer-events-none"
               style={{
@@ -177,12 +170,23 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <span className="font-body text-xs">Scroll</span>
-          <div className="w-px h-8" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:col-start-2 mt-1 lg:mt-0">
+            {quickStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl px-4 py-3"
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+              >
+                <p className="font-heading font-bold text-2xl" style={{ color: 'var(--color-accent)' }}>
+                  {stat.value}
+                </p>
+                <p className="font-body text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

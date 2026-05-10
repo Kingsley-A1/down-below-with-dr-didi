@@ -3,6 +3,7 @@ import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
+import InstallPrompt from '@/components/layout/InstallPrompt'
 import StructuredData from '@/components/seo/StructuredData'
 import { canonicalUrl, seoKeywords, siteConfig } from '@/lib/site-config'
 
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  manifest: '/manifest.webmanifest',
   keywords: seoKeywords,
   authors: [{ name: siteConfig.founderName }],
   creator: siteConfig.name,
@@ -79,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <Navbar />
         <main id="main-content">{children}</main>
+        <InstallPrompt />
         <Footer />
       </body>
     </html>

@@ -65,7 +65,7 @@ export default function Navbar() {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: '#fff',
+        background: 'var(--color-bg)',
         boxShadow: scrolled ? 'var(--shadow-sm)' : 'none',
       }}
     >
@@ -136,7 +136,13 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {menuOpen && (
-        <div className="lg:hidden bg-white border-t px-6 py-6 flex flex-col gap-4 shadow-lg" style={{ borderColor: 'var(--color-border)' }}>
+        <div
+          className="lg:hidden border-t px-6 py-6 flex flex-col gap-4 shadow-lg"
+          style={{
+            borderColor: 'var(--color-border)',
+            backgroundColor: 'var(--color-bg)',
+          }}
+        >
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}

@@ -27,10 +27,39 @@
   --font-display: var(--font-heading);
 }
 
+html {
+  color-scheme: light dark;
+  background: var(--color-surface);
+}
+
 body {
   font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #0f6a57;
+    --color-accent: #fcee21;
+    --color-bg: #0d1211;
+    --color-surface: #111a18;
+    --color-text: #e8f2ef;
+    --color-text-muted: #b8c8c3;
+    --color-muted: #98ada6;
+    --color-primary-light: #16806b;
+    --color-primary-muted: #17352f;
+    --color-accent-dark: #d9cc22;
+    --color-border: #2b403a;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  body {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
 }
 
 h1, h2, h3, h4, h5 {
@@ -113,7 +142,7 @@ h1, h2, h3 { letter-spacing: 0; }
   font-family: var(--font-body);
   font-size: 0.875rem;
   color: var(--color-text);
-  background: white;
+  background: var(--color-bg);
   outline: none;
   transition: border-color 0.15s;
 }
@@ -162,6 +191,17 @@ h1, h2, h3 { letter-spacing: 0; }
 .upload-progress__bar--indeterminate {
   animation: upload-progress-slide 1.2s ease-in-out infinite;
   width: 42%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .upload-progress {
+    border-color: rgba(232, 242, 239, 0.12);
+    background: linear-gradient(180deg, #16211f 0%, var(--color-primary-muted) 100%);
+  }
+
+  .upload-progress__track {
+    background: rgba(232, 242, 239, 0.16);
+  }
 }
 
 @keyframes upload-progress-slide {
