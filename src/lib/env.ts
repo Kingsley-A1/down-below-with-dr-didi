@@ -15,11 +15,16 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional().default(''),
   R2_BUCKET: z.string().optional().default(''),
   R2_PUBLIC_URL: z.string().optional().default(''),
-  // No defaults — the app must not run with placeholder secrets.
-  ADMIN_SESSION_SECRET: z.string().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
-  ADMIN_ACCESS_CODE: z.string().min(12, 'ADMIN_ACCESS_CODE must be at least 12 characters'),
+  // Admin secrets are validated lazily via getAdminEnv().
+  ADMIN_SESSION_SECRET: z.string().optional().default(''),
+  ADMIN_ACCESS_CODE: z.string().optional().default(''),
   ADMIN_ALLOWED_USERS: z.string().default('admin@down-below.com:super_admin'),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com'),
+})
+
+const adminEnvSchema = z.object({
+  ADMIN_SESSION_SECRET: z.string().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
+  ADMIN_ACCESS_CODE: z.string().min(12, 'ADMIN_ACCESS_CODE must be at least 12 characters'),
 })
 
 const parsed = envSchema.parse({
@@ -37,20 +42,35 @@ const parsed = envSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
 })
 
-// Fail fast on known-insecure placeholder values in any environment.
-if (KNOWN_INSECURE_SECRETS.has(parsed.ADMIN_SESSION_SECRET)) {
-  throw new Error(
-    '[env] ADMIN_SESSION_SECRET is set to a placeholder value. Set a real secret (≥32 random bytes) in your .env file.'
-  )
-}
-
-if (KNOWN_INSECURE_SECRETS.has(parsed.ADMIN_ACCESS_CODE)) {
-  throw new Error(
-    '[env] ADMIN_ACCESS_CODE is set to a placeholder value. Set a real access code in your .env file.'
-  )
-}
-
 export const env = parsed
+
+let adminEnvCache: z.infer<typeof adminEnvSchema> | null = null
+
+export function getAdminEnv() {
+  if (adminEnvCache) {
+    return adminEnvCache
+  }
+
+  const adminEnv = adminEnvSchema.parse({
+    ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
+    ADMIN_ACCESS_CODE: process.env.ADMIN_ACCESS_CODE,
+  })
+
+  if (KNOWN_INSECURE_SECRETS.has(adminEnv.ADMIN_SESSION_SECRET)) {
+    throw new Error(
+      '[env] ADMIN_SESSION_SECRET is set to a placeholder value. Set a real secret (≥32 random bytes) in your .env file.'
+    )
+  }
+
+  if (KNOWN_INSECURE_SECRETS.has(adminEnv.ADMIN_ACCESS_CODE)) {
+    throw new Error(
+      '[env] ADMIN_ACCESS_CODE is set to a placeholder value. Set a real access code in your .env file.'
+    )
+  }
+
+  adminEnvCache = adminEnv
+  return adminEnvCache
+}
 
 export function hasDatabaseConfig() {
   return Boolean(env.DATABASE_URL)

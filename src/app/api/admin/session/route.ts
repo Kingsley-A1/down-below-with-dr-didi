@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminSignInSchema } from '@/lib/validations'
 import { createAdminSessionToken, getAllowedAdminUser, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
 import { upsertAdminUserRecord, writeAuditLog } from '@/lib/admin/repository'
-import { env } from '@/lib/env'
+import { env, getAdminEnv } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,8 +15,9 @@ export async function POST(request: NextRequest) {
 
     const email = parsed.data.email.trim().toLowerCase()
     const allowedUser = getAllowedAdminUser(email)
+    const adminEnv = getAdminEnv()
 
-    if (!allowedUser || parsed.data.accessCode !== env.ADMIN_ACCESS_CODE) {
+    if (!allowedUser || parsed.data.accessCode !== adminEnv.ADMIN_ACCESS_CODE) {
       return NextResponse.json({ error: 'Admin access denied' }, { status: 401 })
     }
 

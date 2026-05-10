@@ -1,4 +1,4 @@
-import { env } from '@/lib/env'
+import { env, getAdminEnv } from '@/lib/env'
 import { normaliseAdminRole, type AdminRole } from '@/lib/admin/rbac'
 
 export const ADMIN_SESSION_COOKIE = 'dbfh_admin_session'
@@ -59,9 +59,10 @@ function textToBytes(value: string) {
 }
 
 async function signPayload(payload: string) {
+  const adminEnv = getAdminEnv()
   const secretKey = await crypto.subtle.importKey(
     'raw',
-    textToBytes(env.ADMIN_SESSION_SECRET),
+    textToBytes(adminEnv.ADMIN_SESSION_SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
