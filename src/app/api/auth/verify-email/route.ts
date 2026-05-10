@@ -14,7 +14,8 @@ import { verifyUserEmail } from '@/lib/admin/user-repository'
  * Response:
  * {
  *   success: boolean
- *   message: string
+ *   message?: string
+ *   error?: string
  * }
  */
 export async function POST(request: NextRequest) {
@@ -27,8 +28,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid verification token',
-          errors: validationResult.error.flatten().fieldErrors,
+          error: 'Invalid verification token format',
+          details: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 }
       )
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid or expired verification token',
+          error: 'Invalid or expired verification token',
         },
         { status: 400 }
       )
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: 'An error occurred while verifying your email',
+        error: 'An error occurred while verifying your email',
       },
       { status: 500 }
     )

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateUser } from '@/lib/admin/user-repository'
-import { createSession, updateLastActivity } from '@/lib/auth/session'
+import { authenticateUser, getUserByEmail } from '@/lib/admin/user-repository'
+import {
+  checkAccountLockout,
+  incrementFailedLoginAttempts,
+  resetFailedLoginAttempts,
+} from '@/lib/admin/user-repository-lockout'
+import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { createSession } from '@/lib/auth/session'
+import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userLoginSchema } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
@@ -21,10 +28,71 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password } = validation.data
+    const normalizedEmail = email.trim().toLowerCase()
+
+    const ip = extractClientIP({
+      'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
+      'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
+    })
+    const limiter = getRateLimiter()
+    const loginRateLimitKey = generateRateLimitKey('login', null, ip, normalizedEmail)
+
+    const rateResult = limiter.isAllowed(
+      loginRateLimitKey,
+      RATE_LIMIT_CONFIG.login.limit,
+      RATE_LIMIT_CONFIG.login.windowMs
+    )
+
+    if (!rateResult.allowed) {
+      const retryAfterSeconds = Math.ceil((rateResult.retryAfterMs ?? 0) / 1000)
+      const response = NextResponse.json(
+        {
+          success: false,
+          error: RATE_LIMIT_CONFIG.login.message,
+        },
+        { status: 429 }
+      )
+      response.headers.set('Retry-After', String(retryAfterSeconds))
+      return response
+    }
+
+    const candidateUser = await getUserByEmail(normalizedEmail)
+
+    if (candidateUser) {
+      const lockout = await checkAccountLockout(candidateUser.id)
+      if (lockout.locked) {
+        const retryAfterSeconds = Math.ceil((lockout.remainingMs ?? 0) / 1000)
+        const response = NextResponse.json(
+          {
+            success: false,
+            error: 'Account temporarily locked due to too many failed login attempts. Please try again later.',
+          },
+          { status: 429 }
+        )
+        response.headers.set('Retry-After', String(retryAfterSeconds))
+        return response
+      }
+    }
 
     // Authenticate user
-    const user = await authenticateUser(email, password)
+    const user = await authenticateUser(normalizedEmail, password)
     if (!user) {
+      if (candidateUser) {
+        const lockoutResult = await incrementFailedLoginAttempts(candidateUser.id)
+        if (lockoutResult.locked) {
+          const retryAfterSeconds = Math.ceil((lockoutResult.lockoutUntilMs ?? 0) / 1000)
+          const response = NextResponse.json(
+            {
+              success: false,
+              error: 'Account locked after multiple failed login attempts. Try again in 30 minutes.',
+            },
+            { status: 429 }
+          )
+          response.headers.set('Retry-After', String(retryAfterSeconds))
+          return response
+        }
+      }
+
       return NextResponse.json(
         { success: false, error: 'Invalid email or password' },
         { status: 401 }
@@ -41,6 +109,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    await resetFailedLoginAttempts(user.id)
+    limiter.reset(loginRateLimitKey)
+
     // Create session
     await createSession({
       userId: user.id,
@@ -51,9 +122,6 @@ export async function POST(request: NextRequest) {
       emailVerified: user.emailVerified,
       iat: Math.floor(Date.now() / 1000),
     })
-
-    // Update last activity
-    await updateLastActivity(user.id)
 
     return NextResponse.json(
       {

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import {
   generateEmailVerificationToken,
@@ -34,6 +35,7 @@ type UserDbRecord = {
   isActive: boolean
   emailVerified: boolean
   emailVerifyToken: string | null
+  emailVerifyTokenExpiry: Date | null
   resetToken: string | null
   resetTokenExpiry: Date | null
   phoneVerifyCode: string | null
@@ -121,6 +123,7 @@ export async function createUser(
 
     const passwordHash = await hashPassword(password)
     const { token: emailVerifyToken } = generateEmailVerificationToken()
+    const emailVerifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     const user = (await prisma.user.create({
       data: {
@@ -128,6 +131,7 @@ export async function createUser(
         displayName,
         passwordHash,
         emailVerifyToken,
+        emailVerifyTokenExpiry,
         phone: phone || null,
         role: 'member',
       },
@@ -155,6 +159,7 @@ export async function createUser(
 
 /**
  * Verify user email with token
+ * Checks if token exists and has not expired (24h validity)
  */
 export async function verifyUserEmail(token: string): Promise<boolean> {
   try {
@@ -167,12 +172,20 @@ export async function verifyUserEmail(token: string): Promise<boolean> {
       return false
     }
 
+    // Check if token has expired (24-hour window)
+    const now = new Date()
+    if (user.emailVerifyTokenExpiry && now > user.emailVerifyTokenExpiry) {
+      console.error('Email verification token expired')
+      return false
+    }
+
     // Token check happens implicitly - unique constraint ensures one match
     await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
         emailVerifyToken: null,
+        emailVerifyTokenExpiry: null,
       },
     })
 
@@ -417,33 +430,67 @@ export async function updateUserProfile(
     })
 
     return mapToPublicRecord(user)
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating user profile:', error)
     throw error
   }
 }
 
 /**
- * List all users (admin only)
+ * List users with optional filtering (admin only)
+ * Filters are applied at database level for scalability
+ * @param limit - Number of users to return (default: 50)
+ * @param offset - Number of users to skip (default: 0)
+ * @param filters - Optional filters: search (email/displayName), status (active/inactive), role (member/admin)
  */
-export async function listUsers(limit: number = 50, offset: number = 0): Promise<{
+export async function listUsers(
+  limit: number = 50,
+  offset: number = 0,
+  filters?: {
+    search?: string
+    status?: 'active' | 'inactive'
+    role?: string
+  }
+): Promise<{
   users: PublicUserRecord[]
   total: number
 }> {
   try {
+    // Build Prisma where clause from filters
+    const where: Record<string, unknown> = {}
+
+    if (filters?.search) {
+      const searchTerm = filters.search.trim().toLowerCase()
+      where.OR = [
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+        { displayName: { contains: searchTerm, mode: 'insensitive' } },
+      ] as unknown[]
+    }
+
+    if (filters?.status) {
+      where.isActive = filters.status === 'active'
+    }
+
+    if (filters?.role) {
+      where.role = filters.role
+    }
+
     const users = (await prisma.user.findMany({
+      where: Object.keys(where).length > 0 ? where : undefined,
       take: limit,
       skip: offset,
       orderBy: { createdAt: 'desc' },
     })) as UserDbRecord[]
 
-    const total = await prisma.user.count()
+    const total = await prisma.user.count({
+      where: Object.keys(where).length > 0 ? where : undefined,
+    })
 
     return {
       users: users.map(mapToPublicRecord),
       total,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error listing users:', error)
     throw error
   }
@@ -452,24 +499,38 @@ export async function listUsers(limit: number = 50, offset: number = 0): Promise
 /**
  * Deactivate user (admin only)
  */
-export async function deactivateUser(userId: string, adminEmail: string): Promise<boolean> {
+export async function deactivateUser(
+  userId: string,
+  adminEmail: string,
+  adminRole: string = 'moderator',
+  auditMetadata?: { ipAddress?: string; userAgent?: string }
+): Promise<boolean> {
   try {
     const user = (await prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
     })) as UserDbRecord
 
-    // Audit: user deactivated
+    // Audit: user deactivated with full metadata
     await logAuditEvent({
       action: 'user.deactivated',
       entityType: 'User',
       entityId: userId,
       actorEmail: adminEmail,
+      actorRole: adminRole,
       summary: `User deactivated: ${user.email}`,
+      ipAddress: auditMetadata?.ipAddress,
+      userAgent: auditMetadata?.userAgent,
+      metadata: {
+        userId,
+        email: user.email,
+        displayName: user.displayName,
+        deactivatedAt: new Date().toISOString(),
+      },
     })
 
     return true
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deactivating user:', error)
     throw error
   }
@@ -478,24 +539,38 @@ export async function deactivateUser(userId: string, adminEmail: string): Promis
 /**
  * Activate user (admin only)
  */
-export async function activateUser(userId: string, adminEmail: string): Promise<boolean> {
+export async function activateUser(
+  userId: string,
+  adminEmail: string,
+  adminRole: string = 'moderator',
+  auditMetadata?: { ipAddress?: string; userAgent?: string }
+): Promise<boolean> {
   try {
     const user = (await prisma.user.update({
       where: { id: userId },
       data: { isActive: true },
     })) as UserDbRecord
 
-    // Audit: user activated
+    // Audit: user activated with full metadata
     await logAuditEvent({
       action: 'user.activated',
       entityType: 'User',
       entityId: userId,
       actorEmail: adminEmail,
+      actorRole: adminRole,
       summary: `User activated: ${user.email}`,
+      ipAddress: auditMetadata?.ipAddress,
+      userAgent: auditMetadata?.userAgent,
+      metadata: {
+        userId,
+        email: user.email,
+        displayName: user.displayName,
+        activatedAt: new Date().toISOString(),
+      },
     })
 
     return true
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error activating user:', error)
     throw error
   }
@@ -552,8 +627,20 @@ interface AuditEventData {
   entityId?: string
   userId?: string
   actorEmail: string
+  actorRole?: string // 'super_admin', 'editor', 'moderator', or user-initiated actions
   summary: string
   success?: boolean
+  ipAddress?: string // IP address of the actor
+  userAgent?: string // User-Agent of the actor
+  metadata?: Record<string, unknown> // Structured metadata for investigations
+}
+
+function toAuditMetadataValue(metadata?: Record<string, unknown>): Prisma.InputJsonValue | undefined {
+  if (!metadata) {
+    return undefined
+  }
+
+  return JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonValue
 }
 
 async function logAuditEvent({
@@ -562,13 +649,14 @@ async function logAuditEvent({
   entityId,
   userId,
   actorEmail,
+  actorRole = 'moderator', // Default to moderator for user-initiated actions
   summary,
   success = true,
+  ipAddress,
+  userAgent,
+  metadata,
 }: AuditEventData): Promise<void> {
   try {
-    // Determine admin role - for user-initiated actions, use 'moderator'
-    const actorRole = userId ? 'moderator' : 'moderator'
-
     await prisma.auditLog.create({
       data: {
         action,
@@ -576,13 +664,18 @@ async function logAuditEvent({
         entityId: entityId || undefined,
         userId: userId || undefined,
         actorEmail,
-        actorRole,
+        actorRole: (actorRole === 'super_admin' || actorRole === 'editor' || actorRole === 'moderator'
+          ? actorRole
+          : 'moderator') as 'super_admin' | 'editor' | 'moderator',
         summary,
         success,
+        ipAddress,
+        userAgent,
+        metadata: toAuditMetadataValue(metadata),
         createdAt: new Date(),
       },
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error logging audit event:', error)
     // Don't throw - audit logging shouldn't block operations
   }

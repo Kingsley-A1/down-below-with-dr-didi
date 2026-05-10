@@ -9,7 +9,7 @@ import { getUserById, getUserAuditLogs } from '@/lib/admin/user-repository'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and admin role
@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
-    const userId = params.id
+    const { id: userId } = await params
 
     // Validate user ID format
     if (!userId || userId.trim() === '') {

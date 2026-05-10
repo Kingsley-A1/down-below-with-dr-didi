@@ -4,7 +4,8 @@ import { listUsers } from '@/lib/admin/user-repository'
 
 /**
  * GET /api/admin/users
- * List all users with pagination and filtering
+ * List users with DB-level pagination and filtering
+ * Filters applied at database level for optimal scalability
  * Admin only
  */
 export async function GET(request: NextRequest) {
@@ -19,47 +20,29 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100) // Max 100 per request
     const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0)
-    const search = searchParams.get('search') || ''
-    const status = searchParams.get('status') || '' // 'active', 'inactive', or empty for all
-    const role = searchParams.get('role') || '' // Filter by role
+    const search = searchParams.get('search') || undefined
+    const status = searchParams.get('status') || undefined // 'active' or 'inactive'
+    const role = searchParams.get('role') || undefined
 
-    // Fetch users
-    const result = await listUsers(limit + 100, 0) // Fetch extra for filtering
-    let users = result.users
-
-    // Apply filters
-    if (search) {
-      const searchLower = search.toLowerCase()
-      users = users.filter(
-        (user) =>
-          user.email.toLowerCase().includes(searchLower) ||
-          user.displayName.toLowerCase().includes(searchLower)
-      )
+    // Build filters object for database-level filtering
+    const filters = {
+      ...(search && { search }),
+      ...(status && { status: status as 'active' | 'inactive' }),
+      ...(role && { role }),
     }
 
-    if (status === 'active') {
-      users = users.filter((user) => user.isActive)
-    } else if (status === 'inactive') {
-      users = users.filter((user) => !user.isActive)
-    }
-
-    if (role) {
-      users = users.filter((user) => user.role === role)
-    }
-
-    // Apply pagination to filtered results
-    const total = users.length
-    users = users.slice(offset, offset + limit)
+    // Fetch users with DB-level filtering and pagination
+    const result = await listUsers(limit, offset, Object.keys(filters).length > 0 ? filters : undefined)
 
     return NextResponse.json(
       {
         success: true,
-        users,
+        users: result.users,
         pagination: {
           limit,
           offset,
-          total,
-          hasMore: offset + limit < total,
+          total: result.total,
+          hasMore: offset + limit < result.total,
         },
       },
       { status: 200 }

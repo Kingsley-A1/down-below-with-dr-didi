@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userPhoneVerificationSchema } from '@/lib/validations'
 import { generatePhoneVerificationCode } from '@/lib/admin/user-repository'
+import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 
 /**
  * POST /api/auth/request-phone-reset
@@ -29,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid email or phone number',
+          error: 'Invalid email or phone number',
           errors: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -37,9 +39,35 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, phone } = validationResult.data
+    const normalizedEmail = email.trim().toLowerCase()
+
+    const limiter = getRateLimiter()
+    const ip = extractClientIP({
+      'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
+      'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
+    })
+    const rateKey = generateRateLimitKey('phone-reset-request', null, ip, normalizedEmail)
+    const rateResult = limiter.isAllowed(
+      rateKey,
+      RATE_LIMIT_CONFIG.phoneVerification.limit,
+      RATE_LIMIT_CONFIG.phoneVerification.windowMs
+    )
+
+    if (!rateResult.allowed) {
+      const retryAfterSeconds = Math.ceil((rateResult.retryAfterMs ?? 0) / 1000)
+      const response = NextResponse.json(
+        {
+          success: false,
+          error: RATE_LIMIT_CONFIG.phoneVerification.message,
+        },
+        { status: 429 }
+      )
+      response.headers.set('Retry-After', String(retryAfterSeconds))
+      return response
+    }
 
     // Generate and send phone verification code
-    const verificationCode = await generatePhoneVerificationCode(email, phone)
+    const verificationCode = await generatePhoneVerificationCode(normalizedEmail, phone)
 
     if (!verificationCode) {
       // Don't reveal if email or phone is invalid - security best practice
@@ -69,7 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: 'An error occurred while processing your request',
+        error: 'An error occurred while processing your request',
       },
       { status: 500 }
     )

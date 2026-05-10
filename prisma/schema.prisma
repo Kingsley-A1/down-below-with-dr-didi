@@ -107,14 +107,22 @@ model User {
   isActive          Boolean     @default(true)
   emailVerified     Boolean     @default(false)
   emailVerifyToken  String?     @unique
+  emailVerifyTokenExpiry DateTime? // Expires in 24 hours
   resetToken        String?     @unique
   resetTokenExpiry  DateTime?
   phoneVerifyCode   String?     // For password reset verification (6-digit code)
   phoneVerifyExpiry DateTime?   // Expires in 10 minutes
   lastActivityAt    DateTime    @default(now()) // Track for session timeout
+  failedLoginAttempts Int       @default(0)
+  lockoutUntil      DateTime?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   auditLogs         AuditLog[]
+
+  // Indexes to optimize session queries and reduce contention
+  @@index([isActive])
+  @@index([role])
+  @@index([lastActivityAt])
 }
 
 model AuditLog {

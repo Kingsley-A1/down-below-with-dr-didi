@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userPhoneVerifyCodeSchema } from '@/lib/validations'
-import { verifyPhoneCodeAndGenerateReset } from '@/lib/admin/user-repository'
+import { verifyPhoneCodeAndGenerateReset, getUserByEmail } from '@/lib/admin/user-repository'
+import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { extractClientIP, generateRateLimitKey } from '@/lib/security'
+import { getResetSessionManager } from '@/lib/auth/reset-session'
 
 /**
  * POST /api/auth/verify-phone-code
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid email, phone, or verification code',
+          error: 'Invalid email, phone, or verification code',
           errors: validationResult.error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -38,25 +41,68 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, phone, code } = validationResult.data
+    const normalizedEmail = email.trim().toLowerCase()
+
+    const limiter = getRateLimiter()
+    const ip = extractClientIP({
+      'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
+      'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
+    })
+    const rateKey = generateRateLimitKey('phone-reset-verify', null, ip, normalizedEmail)
+    const rateResult = limiter.isAllowed(
+      rateKey,
+      RATE_LIMIT_CONFIG.verifyCode.limit,
+      RATE_LIMIT_CONFIG.verifyCode.windowMs
+    )
+
+    if (!rateResult.allowed) {
+      const retryAfterSeconds = Math.ceil((rateResult.retryAfterMs ?? 0) / 1000)
+      const response = NextResponse.json(
+        {
+          success: false,
+          error: RATE_LIMIT_CONFIG.verifyCode.message,
+        },
+        { status: 429 }
+      )
+      response.headers.set('Retry-After', String(retryAfterSeconds))
+      return response
+    }
 
     // Verify phone code and get reset token
-    const resetToken = await verifyPhoneCodeAndGenerateReset(email, phone, code)
+    const resetToken = await verifyPhoneCodeAndGenerateReset(normalizedEmail, phone, code)
 
     if (!resetToken) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Invalid or expired verification code',
+          error: 'Invalid or expired verification code',
         },
         { status: 400 }
       )
     }
 
+    // Get user ID for session validation
+    const user = await getUserByEmail(normalizedEmail)
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'User not found',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Create temporary reset session (token stays server-side)
+    const sessionManager = getResetSessionManager()
+    const resetSessionId = sessionManager.create(resetToken, user.id)
+
     return NextResponse.json(
       {
         success: true,
         message: 'Phone verification successful. You can now reset your password.',
-        resetToken,
+        resetSessionId,
+        userId: user.id,
       },
       { status: 200 }
     )
@@ -65,7 +111,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: 'An error occurred while verifying your phone code',
+        error: 'An error occurred while verifying your phone code',
       },
       { status: 500 }
     )

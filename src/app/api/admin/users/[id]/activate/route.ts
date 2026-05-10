@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/session'
 import { activateUser, getUserById } from '@/lib/admin/user-repository'
+import { extractClientIP } from '@/lib/security'
 
 /**
  * POST /api/admin/users/[id]/activate
- * Activate a user
- * Admin only
+ * Activate a user (admin only)
+ * Logs activation action with IP and User-Agent for audit trail
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Require authentication and admin role
@@ -18,7 +19,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
     }
 
-    const userId = params.id
+    const { id: userId } = await params
 
     // Validate user ID format
     if (!userId || userId.trim() === '') {
@@ -39,8 +40,18 @@ export async function POST(
       )
     }
 
-    // Activate user
-    const success = await activateUser(userId, session.email)
+    // Capture IP and User-Agent for audit trail
+    const ipAddress = extractClientIP({
+      'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
+      'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
+    })
+    const userAgent = request.headers.get('user-agent') ?? undefined
+
+    // Activate user with audit metadata
+    const success = await activateUser(userId, session.email, session.role, {
+      ipAddress,
+      userAgent,
+    })
 
     if (!success) {
       return NextResponse.json(
