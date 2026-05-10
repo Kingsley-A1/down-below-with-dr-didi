@@ -12,12 +12,12 @@ export const siteConfig = {
     'Down Below women health platform',
   ],
   tagline: 'Non-profit and non-denominational Christian ministry preserving the family unit for God.',
-  motto: 'Expose Love. Educate. Heal.',
+  motto: 'Expose In Love. Educate. Heal.',
   description:
     'DownBelow Family and Health Initiatives with Dr. Didi provides accessible and reliable information on family, sexuality, and health through open discussions, medical lectures, community outreach, and supportive engagement.',
   primaryWhatsapp: 'https://wa.me/2340000000000',
   contactEmail: 'hello@down-below.com',
-  heroHeadline: 'Expose Love. Educate. Heal.',
+  heroHeadline: 'Expose In Love. Educate. Heal.',
   heroBody: 'A safe and non-judgmental space for individuals, couples, and families to ask, learn, and grow.',
   footerBlurb:
     'We promote holistic well-being, healthy relationships, and informed decision-making for individuals and families worldwide.',

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
-const INTRO_DURATION_MS = 1450
-const REDUCED_MOTION_DURATION_MS = 650
+const INTRO_DURATION_MS = 3500
+const REDUCED_MOTION_DURATION_MS = 1500
 const SESSION_KEY = 'dbwd-intro-seen'
 
 export default function WelcomeIntro() {
