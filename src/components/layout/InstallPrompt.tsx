@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Download, X } from 'lucide-react'
 
 type BeforeInstallPromptEvent = Event & {
@@ -9,14 +10,22 @@ type BeforeInstallPromptEvent = Event & {
 }
 
 const INSTALL_PROMPT_DISMISSED_KEY = 'dbfh-install-prompt-dismissed'
+const SITE_VISIT_COUNT_KEY = 'dbfh-site-visit-count'
+const MIN_VISITS_BEFORE_PROMPT = 2
+const PROMPT_DELAY_MS = 15000
 
 export default function InstallPrompt() {
+  const pathname = usePathname()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isVisible, setIsVisible] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      return
+    }
+
+    if (pathname.startsWith('/admin')) {
       return
     }
 
@@ -31,10 +40,22 @@ export default function InstallPrompt() {
       return
     }
 
+    const currentVisitCount = Number(window.localStorage.getItem(SITE_VISIT_COUNT_KEY) || '0') + 1
+    window.localStorage.setItem(SITE_VISIT_COUNT_KEY, String(currentVisitCount))
+
+    let showTimer: ReturnType<typeof setTimeout> | null = null
+
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault()
       setDeferredPrompt(event as BeforeInstallPromptEvent)
-      setIsVisible(true)
+
+      if (currentVisitCount < MIN_VISITS_BEFORE_PROMPT) {
+        return
+      }
+
+      showTimer = setTimeout(() => {
+        setIsVisible(true)
+      }, PROMPT_DELAY_MS)
     }
 
     const onAppInstalled = () => {
@@ -47,10 +68,13 @@ export default function InstallPrompt() {
     window.addEventListener('appinstalled', onAppInstalled)
 
     return () => {
+      if (showTimer) {
+        clearTimeout(showTimer)
+      }
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
       window.removeEventListener('appinstalled', onAppInstalled)
     }
-  }, [])
+  }, [pathname])
 
   async function handleInstall() {
     if (!deferredPrompt) {
