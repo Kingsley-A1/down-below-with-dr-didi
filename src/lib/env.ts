@@ -27,6 +27,34 @@ const adminEnvSchema = z.object({
   ADMIN_ACCESS_CODE: z.string().min(12, 'ADMIN_ACCESS_CODE must be at least 12 characters'),
 })
 
+function normalizeSiteUrl(value: string | undefined) {
+  const fallback = 'https://down-below.com'
+
+  if (!value) {
+    return fallback
+  }
+
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return fallback
+  }
+
+  try {
+    return new URL(trimmed).toString()
+  } catch {
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(trimmed)) {
+      try {
+        return new URL(`https://${trimmed}`).toString()
+      } catch {
+        return fallback
+      }
+    }
+
+    return fallback
+  }
+}
+
 const parsed = envSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   DATABASE_URL: process.env.DATABASE_URL,
@@ -39,7 +67,7 @@ const parsed = envSchema.parse({
   ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
   ADMIN_ACCESS_CODE: process.env.ADMIN_ACCESS_CODE,
   ADMIN_ALLOWED_USERS: process.env.ADMIN_ALLOWED_USERS,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
+  NEXT_PUBLIC_SITE_URL: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
 })
 
 export const env = parsed
