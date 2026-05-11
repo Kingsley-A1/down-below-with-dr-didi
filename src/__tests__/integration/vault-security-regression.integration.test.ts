@@ -1,0 +1,141 @@
+/**
+ * V-Vault Security Regression Integration Tests
+ * Covers rate limit, validation, and unauthorized access regressions.
+ */
+
+import { afterEach, describe, expect, it, jest } from '@jest/globals'
+import * as authSession from '@/lib/auth/session'
+import * as envLib from '@/lib/env'
+import { ADMIN_SESSION_COOKIE, createAdminSessionToken } from '@/lib/admin/session'
+import { createMockNextRequest, parseResponseBody } from './setup'
+
+describe('V-Vault security regressions', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('blocks vault submission after per-IP burst limit is exceeded', async () => {
+    jest.spyOn(envLib, 'isVaultSubmissionsEnabled').mockReturnValue(true)
+    jest.spyOn(authSession, 'getSession').mockResolvedValue(null)
+
+    const { POST } = await import('@/app/api/vault/route')
+
+    const ipSuffix = Math.floor(Math.random() * 200) + 20
+    const ip = `198.51.100.${ipSuffix}`
+
+    const responses = []
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      const req = createMockNextRequest(
+        'POST',
+        '/api/vault',
+        {
+          category: 'Sexual Wellness',
+          question: 'This question body is intentionally long enough to satisfy schema limits before auth checks.',
+        },
+        {
+          'x-forwarded-for': ip,
+        }
+      )
+
+      responses.push(await POST(req))
+    }
+
+    const last = responses[responses.length - 1]
+    expect(last.status).toBe(429)
+    expect(last.headers.get('Retry-After')).toBeTruthy()
+
+    const body = await parseResponseBody(last)
+    expect(String(body.error || '')).toContain('Too many requests')
+  })
+
+  it('rejects unauthenticated access to admin response endpoint', async () => {
+    const request = createMockNextRequest('POST', '/api/admin/vault/submission-1/respond', {
+      responseBody: 'This should never be accepted because there is no authenticated admin session.',
+    })
+
+    const { POST } = await import('@/app/api/admin/vault/[id]/respond/route')
+    const response = await POST(request, { params: Promise.resolve({ id: 'submission-1' }) })
+
+    expect(response.status).toBe(401)
+    const body = await parseResponseBody(response)
+    expect(body.error).toBe('Unauthorized')
+  })
+
+  it('rejects non-privileged admin role for response endpoint', async () => {
+    const editorToken = await createAdminSessionToken({
+      email: 'editor-regression@example.com',
+      role: 'editor',
+    })
+
+    const request = createMockNextRequest(
+      'POST',
+      '/api/admin/vault/submission-2/respond',
+      {
+        responseBody: 'This should be rejected because editor role lacks super_admin-level moderation authority.',
+      },
+      {
+        cookie: `${ADMIN_SESSION_COOKIE}=${editorToken}`,
+      }
+    )
+
+    const { POST } = await import('@/app/api/admin/vault/[id]/respond/route')
+    const response = await POST(request, { params: Promise.resolve({ id: 'submission-2' }) })
+
+    expect(response.status).toBe(403)
+    const body = await parseResponseBody(response)
+    expect(String(body.error || '')).toContain('Insufficient permissions')
+  })
+
+  it('rejects invalid response payload with schema validation', async () => {
+    const superAdminToken = await createAdminSessionToken({
+      email: 'super-regression@example.com',
+      role: 'super_admin',
+    })
+
+    const request = createMockNextRequest(
+      'POST',
+      '/api/admin/vault/submission-3/respond',
+      {
+        responseBody: 'too short',
+      },
+      {
+        cookie: `${ADMIN_SESSION_COOKIE}=${superAdminToken}`,
+      }
+    )
+
+    const { POST } = await import('@/app/api/admin/vault/[id]/respond/route')
+    const response = await POST(request, { params: Promise.resolve({ id: 'submission-3' }) })
+
+    expect(response.status).toBe(400)
+    const body = await parseResponseBody(response)
+    expect(body.error).toBe('Validation failed')
+    expect(Array.isArray(body.issues)).toBe(true)
+    expect(body.issues.length).toBeGreaterThan(0)
+  })
+
+  it('rejects invalid vault submission payload when authenticated', async () => {
+    jest.spyOn(envLib, 'isVaultSubmissionsEnabled').mockReturnValue(true)
+    jest.spyOn(authSession, 'getSession').mockResolvedValue({
+      userId: 'member-1',
+      email: 'member1@example.com',
+      displayName: 'Member One',
+      role: 'member',
+      isActive: true,
+      emailVerified: true,
+      iat: Math.floor(Date.now() / 1000),
+    })
+
+    const request = createMockNextRequest('POST', '/api/vault', {
+      category: 'Sexual Wellness',
+      question: 'too short',
+    })
+
+    const { POST } = await import('@/app/api/vault/route')
+    const response = await POST(request)
+
+    expect(response.status).toBe(400)
+    const body = await parseResponseBody(response)
+    expect(body.error).toBe('Validation failed')
+    expect(Array.isArray(body.issues)).toBe(true)
+  })
+})

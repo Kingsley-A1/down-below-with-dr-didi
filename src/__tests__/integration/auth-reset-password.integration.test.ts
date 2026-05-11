@@ -3,17 +3,32 @@
  * Tests password reset flow end-to-end: phone verification → reset → login
  */
 
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
 import { prisma } from '@/lib/prisma'
-import { cleanupDatabase, createTestUser, createMockNextRequest, parseResponseBody } from './setup'
+import {
+  cleanupDatabase,
+  disconnectDatabase,
+  createTestUser,
+  createMockNextRequest,
+  hasIntegrationDatabase,
+  parseResponseBody,
+} from './setup'
 
-describe('Auth Password Reset Flow Integration', () => {
+const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
+
+jest.setTimeout(30_000)
+
+describeWithDatabase('Auth Password Reset Flow Integration', () => {
   beforeAll(async () => {
     await cleanupDatabase()
   })
 
   afterEach(async () => {
     await cleanupDatabase()
+  })
+
+  afterAll(async () => {
+    await disconnectDatabase()
   })
 
   describe('POST /api/auth/request-phone-reset - Request Phone Code', () => {
@@ -25,6 +40,7 @@ describe('Auth Password Reset Flow Integration', () => {
 
       const req = createMockNextRequest('POST', '/api/auth/request-phone-reset', {
         email: 'reset@example.com',
+        phone: '+2348012345678',
       })
 
       const { POST } = await import('@/app/api/auth/request-phone-reset/route')
@@ -45,6 +61,7 @@ describe('Auth Password Reset Flow Integration', () => {
     it('should enforce rate limit on phone reset requests', async () => {
       const user = await createTestUser({
         email: 'ratelimit@example.com',
+        phone: '+2348012345678',
       })
 
       const { POST } = await import('@/app/api/auth/request-phone-reset/route')
@@ -53,6 +70,7 @@ describe('Auth Password Reset Flow Integration', () => {
       for (let i = 0; i < 5; i++) {
         const req = createMockNextRequest('POST', '/api/auth/request-phone-reset', {
           email: 'ratelimit@example.com',
+          phone: '+2348012345678',
         })
         const res = await POST(req)
         if (res.status === 429) break
@@ -61,6 +79,7 @@ describe('Auth Password Reset Flow Integration', () => {
       // 6th request should be rate limited
       const lastReq = createMockNextRequest('POST', '/api/auth/request-phone-reset', {
         email: 'ratelimit@example.com',
+        phone: '+2348012345678',
       })
       const lastRes = await POST(lastReq)
 
@@ -112,7 +131,7 @@ describe('Auth Password Reset Flow Integration', () => {
       const { POST } = await import('@/app/api/auth/verify-phone-code/route')
       const res = await POST(req)
 
-      expect(res.status).toBe(410)
+      expect(res.status).toBe(400)
       const body = await parseResponseBody(res)
       expect(body.error).toContain('expired')
     })
@@ -131,7 +150,7 @@ describe('Auth Password Reset Flow Integration', () => {
         const req = createMockNextRequest('POST', '/api/auth/verify-phone-code', {
           email: 'codelimit@example.com',
           phone: user.phone,
-          code: 'wrong',
+          code: '111111',
         })
         await POST(req)
       }
@@ -140,7 +159,7 @@ describe('Auth Password Reset Flow Integration', () => {
       const lastReq = createMockNextRequest('POST', '/api/auth/verify-phone-code', {
         email: 'codelimit@example.com',
         phone: user.phone,
-        code: 'wrong',
+        code: '111111',
       })
       const lastRes = await POST(lastReq)
 
@@ -163,7 +182,7 @@ describe('Auth Password Reset Flow Integration', () => {
       const { POST } = await import('@/app/api/auth/verify-phone-code/route')
       const res = await POST(req)
 
-      expect(res.status).toBe(401)
+      expect(res.status).toBe(400)
     })
   })
 

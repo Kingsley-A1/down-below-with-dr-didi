@@ -3,24 +3,34 @@
  * Tests registration flow with validation, rate limiting, and email verification
  */
 
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
 import { prisma } from '@/lib/prisma'
 import {
   cleanupDatabase,
+  disconnectDatabase,
   createTestUser,
   createMockNextRequest,
+  hasIntegrationDatabase,
   parseResponseBody,
   validRegistrationPayload,
   invalidPayloads,
 } from './setup'
 
-describe('Auth Registration Integration', () => {
+const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
+
+jest.setTimeout(30_000)
+
+describeWithDatabase('Auth Registration Integration', () => {
   beforeAll(async () => {
     await cleanupDatabase()
   })
 
   afterEach(async () => {
     await cleanupDatabase()
+  })
+
+  afterAll(async () => {
+    await disconnectDatabase()
   })
 
   describe('POST /api/auth/register - Success Path', () => {
@@ -34,8 +44,8 @@ describe('Auth Registration Integration', () => {
 
       expect(res.status).toBe(201)
       expect(body.success).toBe(true)
-      expect(body.message).toContain('verification')
-      expect(body.userId).toBeTruthy()
+      expect(String(body.message).toLowerCase()).toContain('verify')
+      expect(body.user?.id).toBeTruthy()
 
       // Verify user created in database
       const user = await prisma.user.findUnique({
@@ -107,7 +117,8 @@ describe('Auth Registration Integration', () => {
       expect(res.status).toBe(400)
       const body = await parseResponseBody(res)
       expect(body.success).toBe(false)
-      expect(body.error).toContain('password')
+      expect(body.error).toBe('Validation failed')
+      expect(body.details?.fieldErrors?.password?.length || 0).toBeGreaterThan(0)
     })
 
     it('should reject mismatched passwords', async () => {
@@ -146,7 +157,7 @@ describe('Auth Registration Integration', () => {
       // 4th should be rate limited
       expect(responses[3].status).toBe(429)
       const body = await parseResponseBody(responses[3])
-      expect(body.error).toContain('rate limit')
+      expect(String(body.error).toLowerCase()).toContain('too many registration attempts')
 
       // Verify Retry-After header
       const retryAfter = responses[3].headers.get('Retry-After')

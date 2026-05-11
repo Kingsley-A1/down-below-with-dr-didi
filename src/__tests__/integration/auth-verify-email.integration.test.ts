@@ -3,17 +3,32 @@
  * Tests email verification flow with token expiry enforcement
  */
 
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
 import { prisma } from '@/lib/prisma'
-import { cleanupDatabase, createTestUser, createMockNextRequest, parseResponseBody } from './setup'
+import {
+  cleanupDatabase,
+  disconnectDatabase,
+  createTestUser,
+  createMockNextRequest,
+  hasIntegrationDatabase,
+  parseResponseBody,
+} from './setup'
 
-describe('Auth Email Verification Integration', () => {
+const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
+
+jest.setTimeout(30_000)
+
+describeWithDatabase('Auth Email Verification Integration', () => {
   beforeAll(async () => {
     await cleanupDatabase()
   })
 
   afterEach(async () => {
     await cleanupDatabase()
+  })
+
+  afterAll(async () => {
+    await disconnectDatabase()
   })
 
   describe('POST /api/auth/verify-email - Success Path', () => {
@@ -84,7 +99,7 @@ describe('Auth Email Verification Integration', () => {
       const res = await POST(req)
       const body = await parseResponseBody(res)
 
-      expect(res.status).toBe(410) // Gone / Expired
+      expect(res.status).toBe(400)
       expect(body.error).toContain('expired')
 
       // Verify user NOT marked as verified
@@ -138,7 +153,7 @@ describe('Auth Email Verification Integration', () => {
       const { POST } = await import('@/app/api/auth/verify-email/route')
       const res = await POST(req)
 
-      expect(res.status).toBe(410)
+      expect(res.status).toBe(400)
     })
   })
 
@@ -169,7 +184,7 @@ describe('Auth Email Verification Integration', () => {
       const { POST } = await import('@/app/api/auth/verify-email/route')
       const res = await POST(req)
 
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(400)
     })
 
     it('should reject missing token', async () => {

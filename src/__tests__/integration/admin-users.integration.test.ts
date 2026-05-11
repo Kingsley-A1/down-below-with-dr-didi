@@ -3,23 +3,49 @@
  * Tests admin endpoints: list, detail, deactivate, activate with audit logging
  */
 
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_SESSION_COOKIE, createAdminSessionToken } from '@/lib/admin/session'
 import {
   cleanupDatabase,
+  disconnectDatabase,
   createTestUser,
   createAdminUser,
   createMockNextRequest,
+  hasIntegrationDatabase,
   parseResponseBody,
 } from './setup'
 
-describe('Admin Users Integration', () => {
+const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
+
+jest.setTimeout(30_000)
+
+async function createAdminRequest(
+  method: string,
+  url: string,
+  body?: Record<string, unknown>,
+  headers?: Record<string, string>,
+  email: string = 'admin@example.com'
+) {
+  const token = await createAdminSessionToken({ email, role: 'super_admin' })
+
+  return createMockNextRequest(method, url, body, {
+    cookie: `${ADMIN_SESSION_COOKIE}=${token}`,
+    ...headers,
+  })
+}
+
+describeWithDatabase('Admin Users Integration', () => {
   beforeAll(async () => {
     await cleanupDatabase()
   })
 
   afterEach(async () => {
     await cleanupDatabase()
+  })
+
+  afterAll(async () => {
+    await disconnectDatabase()
   })
 
   describe('GET /api/admin/users - List Users', () => {
@@ -33,7 +59,7 @@ describe('Admin Users Integration', () => {
         })
       }
 
-      const req = createMockNextRequest('GET', '/api/admin/users?limit=10&offset=0')
+      const req = await createAdminRequest('GET', '/api/admin/users?limit=10&offset=0', undefined, undefined, admin.email)
 
       const { GET } = await import('@/app/api/admin/users/route')
       const res = await GET(req)
@@ -59,7 +85,7 @@ describe('Admin Users Integration', () => {
         displayName: 'Jane Smith',
       })
 
-      const req = createMockNextRequest('/api/admin/users?search=john')
+      const req = await createAdminRequest('GET', '/api/admin/users?search=john')
 
       const { GET } = await import('@/app/api/admin/users/route')
       const res = await GET(req)
@@ -85,7 +111,7 @@ describe('Admin Users Integration', () => {
         isActive: false,
       })
 
-      const req = createMockNextRequest('/api/admin/users?status=active')
+      const req = await createAdminRequest('GET', '/api/admin/users?status=active')
 
       const { GET } = await import('@/app/api/admin/users/route')
       const res = await GET(req)
@@ -107,7 +133,7 @@ describe('Admin Users Integration', () => {
         role: 'contributor',
       })
 
-      const req = createMockNextRequest('/api/admin/users?role=member')
+      const req = await createAdminRequest('GET', '/api/admin/users?role=member')
 
       const { GET } = await import('@/app/api/admin/users/route')
       const res = await GET(req)
@@ -127,7 +153,7 @@ describe('Admin Users Integration', () => {
         })
       }
 
-      const req1 = createMockNextRequest('/api/admin/users?limit=5&offset=0')
+      const req1 = await createAdminRequest('GET', '/api/admin/users?limit=5&offset=0')
       const { GET } = await import('@/app/api/admin/users/route')
       const res1 = await GET(req1)
       const body1 = await parseResponseBody(res1)
@@ -136,7 +162,7 @@ describe('Admin Users Integration', () => {
       expect(body1.pagination.hasMore).toBe(true)
 
       // Second page
-      const req2 = createMockNextRequest('/api/admin/users?limit=5&offset=5')
+      const req2 = await createAdminRequest('GET', '/api/admin/users?limit=5&offset=5')
       const res2 = await GET(req2)
       const body2 = await parseResponseBody(res2)
 
@@ -156,13 +182,18 @@ describe('Admin Users Integration', () => {
         data: {
           userId: user.id,
           action: 'user.created',
+          entityType: 'User',
+          entityId: user.id,
+          actorEmail: admin.email,
+          actorRole: 'super_admin',
+          summary: `User created: ${user.email}`,
           success: true,
           ipAddress: '192.168.1.1',
           userAgent: 'Mozilla/5.0',
         },
       })
 
-      const req = createMockNextRequest(`/api/admin/users/${user.id}`)
+      const req = await createAdminRequest('GET', `/api/admin/users/${user.id}`, undefined, undefined, admin.email)
 
       const { GET } = await import('@/app/api/admin/users/[id]/route')
       const res = await GET(req, { params: { id: user.id } } as any)
@@ -184,14 +215,15 @@ describe('Admin Users Integration', () => {
         isActive: true,
       })
 
-      const req = createMockNextRequest(
-        `POST /api/admin/users/${user.id}/deactivate`,
+      const req = await createAdminRequest(
+        'POST',
         `/api/admin/users/${user.id}/deactivate`,
         {},
         {
           'x-forwarded-for': '192.168.1.100',
           'user-agent': 'Test Browser/1.0',
         },
+        admin.email,
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
@@ -209,9 +241,9 @@ describe('Admin Users Integration', () => {
 
       // Verify audit log created with IP and User-Agent
       const auditLogs = await prisma.auditLog.findMany({
-        where: { userId: user.id },
+        where: { entityId: user.id, entityType: 'User' },
       })
-      const deactivateLog = auditLogs.find((log) => log.action.includes('deactivate'))
+      const deactivateLog = auditLogs.find((log: { action: string }) => log.action.includes('deactivate'))
       expect(deactivateLog).toBeTruthy()
       expect(deactivateLog?.ipAddress).toBe('192.168.1.100')
       expect(deactivateLog?.userAgent).toContain('Test Browser')
@@ -220,10 +252,12 @@ describe('Admin Users Integration', () => {
     it('should prevent self-deactivation', async () => {
       const admin = await createAdminUser({ email: 'admin@example.com' })
 
-      const req = createMockNextRequest(
-        `POST /api/admin/users/${admin.id}/deactivate`,
+      const req = await createAdminRequest(
+        'POST',
         `/api/admin/users/${admin.id}/deactivate`,
         {},
+        undefined,
+        admin.email,
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
@@ -231,7 +265,7 @@ describe('Admin Users Integration', () => {
 
       expect(res.status).toBe(400)
       const body = await parseResponseBody(res)
-      expect(body.error).toContain('cannot')
+      expect(body.error.toLowerCase()).toContain('cannot')
     })
   })
 
@@ -243,14 +277,15 @@ describe('Admin Users Integration', () => {
         isActive: false,
       })
 
-      const req = createMockNextRequest(
-        `POST /api/admin/users/${user.id}/activate`,
+      const req = await createAdminRequest(
+        'POST',
         `/api/admin/users/${user.id}/activate`,
         {},
         {
           'x-forwarded-for': '192.168.1.101',
           'user-agent': 'Admin Console/2.0',
         },
+        admin.email,
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/activate/route')
@@ -268,9 +303,9 @@ describe('Admin Users Integration', () => {
 
       // Verify audit log created with metadata
       const auditLogs = await prisma.auditLog.findMany({
-        where: { userId: user.id },
+        where: { entityId: user.id, entityType: 'User' },
       })
-      const activateLog = auditLogs.find((log) => log.action.includes('activate'))
+      const activateLog = auditLogs.find((log: { action: string }) => log.action.includes('activate'))
       expect(activateLog).toBeTruthy()
       expect(activateLog?.ipAddress).toBe('192.168.1.101')
     })
@@ -281,17 +316,20 @@ describe('Admin Users Integration', () => {
       const admin = await createAdminUser()
       const user = await createTestUser()
 
-      const req = createMockNextRequest(
-        `POST /api/admin/users/${user.id}/deactivate`,
+      const req = await createAdminRequest(
+        'POST',
         `/api/admin/users/${user.id}/deactivate`,
         {},
+        undefined,
+        admin.email,
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
       await POST(req, { params: { id: user.id } } as any)
 
       const auditLog = await prisma.auditLog.findFirst({
-        where: { userId: user.id },
+        where: { entityId: user.id, entityType: 'User' },
+        orderBy: { createdAt: 'desc' },
       })
 
       expect(auditLog?.actorRole).toBeTruthy()
@@ -304,17 +342,20 @@ describe('Admin Users Integration', () => {
         displayName: 'Metadata Test',
       })
 
-      const req = createMockNextRequest(
-        `POST /api/admin/users/${user.id}/deactivate`,
+      const req = await createAdminRequest(
+        'POST',
         `/api/admin/users/${user.id}/deactivate`,
         {},
+        undefined,
+        admin.email,
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
       await POST(req, { params: { id: user.id } } as any)
 
       const auditLog = await prisma.auditLog.findFirst({
-        where: { userId: user.id },
+        where: { entityId: user.id, entityType: 'User' },
+        orderBy: { createdAt: 'desc' },
       })
 
       // Metadata should contain user details

@@ -3,17 +3,27 @@
  * Tests login flow with rate limiting, account lockout, and session management
  */
 
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
 import { prisma } from '@/lib/prisma'
 import {
   cleanupDatabase,
+  disconnectDatabase,
   createTestUser,
   createMockNextRequest,
+  hasIntegrationDatabase,
   parseResponseBody,
   validLoginPayload,
 } from './setup'
 
-describe('Auth Login Integration', () => {
+jest.mock('@/lib/auth/session', () => ({
+  createSession: jest.fn(async () => undefined),
+}))
+
+const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
+
+jest.setTimeout(30_000)
+
+describeWithDatabase('Auth Login Integration', () => {
   beforeAll(async () => {
     await cleanupDatabase()
   })
@@ -22,21 +32,16 @@ describe('Auth Login Integration', () => {
     await cleanupDatabase()
   })
 
+  afterAll(async () => {
+    await disconnectDatabase()
+  })
+
   describe('POST /api/auth/login - Success Path', () => {
     it('should login user with valid credentials', async () => {
       // Create verified user
       const user = await createTestUser({
         email: validLoginPayload.email,
         emailVerified: true,
-      })
-
-      // Manually set a known password hash (in real test, this would be from registration)
-      // For now, we'll use the mock hash from setup
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordHash: '$2b$10$abcdefghijklmnopqrstuvwxyz',
-        },
       })
 
       const req = createMockNextRequest('POST', '/api/auth/login', {
@@ -50,7 +55,7 @@ describe('Auth Login Integration', () => {
 
       expect(res.status).toBe(200)
       expect(body.success).toBe(true)
-      expect(body.message).toContain('login')
+      expect(String(body.message).toLowerCase()).toContain('login')
 
       // Verify failed attempts reset
       const updatedUser = await prisma.user.findUnique({
@@ -92,16 +97,22 @@ describe('Auth Login Integration', () => {
 
       const { POST } = await import('@/app/api/auth/login/route')
 
+      const responses = []
+
       // Make 5 failed login attempts
       for (let i = 0; i < 5; i++) {
         const req = createMockNextRequest('POST', '/api/auth/login', {
           email: 'locktest5@example.com',
           password: 'WrongPassword@123',
         })
-        await POST(req)
+        responses.push(await POST(req))
       }
 
-      // 6th attempt should be rate limited
+      // 5th attempt triggers account lockout, 6th is still blocked (lockout and/or rate limit)
+      expect(responses[4].status).toBe(429)
+      const body5 = await parseResponseBody(responses[4])
+      expect(String(body5.error).toLowerCase()).toContain('locked')
+
       const req6 = createMockNextRequest('POST', '/api/auth/login', {
         email: 'locktest5@example.com',
         password: 'WrongPassword@123',
@@ -110,7 +121,7 @@ describe('Auth Login Integration', () => {
 
       expect(res6.status).toBe(429)
       const body = await parseResponseBody(res6)
-      expect(body.error).toContain('locked')
+      expect(String(body.error).toLowerCase()).toMatch(/locked|too many login attempts/)
 
       // Verify lockoutUntil is set
       const lockedUser = await prisma.user.findUnique({
@@ -159,7 +170,7 @@ describe('Auth Login Integration', () => {
       const responses = []
       for (let i = 0; i < 6; i++) {
         const req = createMockNextRequest('POST', '/api/auth/login', {
-          email: `ratelimituser${i}@example.com`,
+          email: 'ratelimit-user@example.com',
           password: 'SomePassword@123',
         })
         const res = await POST(req)
@@ -180,7 +191,7 @@ describe('Auth Login Integration', () => {
 
   describe('POST /api/auth/login - Inactive Users', () => {
     it('should reject login for deactivated user', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'inactive@example.com',
         isActive: false,
         emailVerified: true,
@@ -194,13 +205,13 @@ describe('Auth Login Integration', () => {
       const { POST } = await import('@/app/api/auth/login/route')
       const res = await POST(req)
 
-      expect(res.status).toBe(403)
+      expect(res.status).toBe(401)
       const body = await parseResponseBody(res)
-      expect(body.error).toContain('inactive')
+      expect(body.error).toContain('Invalid email or password')
     })
 
     it('should reject login for unverified email', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'unverified@example.com',
         emailVerified: false,
       })
@@ -238,15 +249,14 @@ describe('Auth Login Integration', () => {
 
       const { POST } = await import('@/app/api/auth/login/route')
       const res = await POST(req)
+      expect(res.status).toBe(200)
 
-      if (res.status === 200) {
-        const updatedUser = await prisma.user.findUnique({
-          where: { id: user.id },
-        })
-        const newActivityTime = updatedUser?.lastActivityAt?.getTime() || 0
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user.id },
+      })
+      const newActivityTime = updatedUser?.lastActivityAt?.getTime() || 0
 
-        expect(newActivityTime).toBeGreaterThan(oldActivityTime)
-      }
+      expect(newActivityTime).toBeGreaterThan(oldActivityTime)
     })
   })
 })

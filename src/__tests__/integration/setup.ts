@@ -4,20 +4,32 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { getRateLimiter } from '@/lib/auth/rate-limiter'
 import { NextRequest, NextResponse } from 'next/server'
+
+export const hasIntegrationDatabase = Boolean(process.env.DATABASE_URL)
+
+const TEST_PASSWORD_HASH = '$2b$10$eJu50XvCLWvA14C6.G38FuXn8WZiQgvW7rp58QHXixraKtHQDRcN6'
 
 /**
  * Database cleanup - truncate all tables
  */
 export async function cleanupDatabase() {
-  try {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog" CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE')
-  } catch (error) {
-    // Handle foreign key constraints
-    await prisma.auditLog.deleteMany({})
-    await prisma.user.deleteMany({})
-  }
+  getRateLimiter().destroy()
+
+  // CockroachDB does not support all PostgreSQL TRUNCATE semantics with dropping indexes,
+  // so we use ordered deleteMany calls for deterministic cleanup in tests.
+  await prisma.vaultSubmissionEvent.deleteMany({}).catch(() => undefined)
+  await prisma.userNotification.deleteMany({}).catch(() => undefined)
+  await prisma.vaultResponse.deleteMany({}).catch(() => undefined)
+  await prisma.vaultSubmission.deleteMany({}).catch(() => undefined)
+  await prisma.auditLog.deleteMany({})
+  await prisma.adminUser.deleteMany({}).catch(() => undefined)
+  await prisma.user.deleteMany({})
+}
+
+export async function disconnectDatabase() {
+  await prisma.$disconnect()
 }
 
 /**
@@ -28,9 +40,14 @@ export async function createTestUser(
     email: string
     displayName: string
     phone: string
+    passwordHash: string
     role: string
     isActive: boolean
     emailVerified: boolean
+    emailVerifyToken: string | null
+    emailVerifyTokenExpiry: Date | null
+    phoneVerifyCode: string | null
+    phoneVerifyExpiry: Date | null
   }>,
 ) {
   return prisma.user.create({
@@ -38,12 +55,20 @@ export async function createTestUser(
       email: overrides?.email || 'testuser@example.com',
       displayName: overrides?.displayName || 'Test User',
       phone: overrides?.phone || '+2348012345678',
-      passwordHash: '$2b$10$abcdefghijklmnopqrstuvwxyz', // Mock bcrypt hash
+      passwordHash: overrides?.passwordHash || TEST_PASSWORD_HASH,
       role: overrides?.role || 'member',
       isActive: overrides?.isActive ?? true,
       emailVerified: overrides?.emailVerified ?? false,
-      emailVerifyToken: 'test-token-' + Math.random(),
-      emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      emailVerifyToken:
+        overrides?.emailVerifyToken !== undefined
+          ? overrides.emailVerifyToken
+          : 'test-token-' + Math.random(),
+      emailVerifyTokenExpiry:
+        overrides?.emailVerifyTokenExpiry !== undefined
+          ? overrides.emailVerifyTokenExpiry
+          : new Date(Date.now() + 24 * 60 * 60 * 1000),
+      phoneVerifyCode: overrides?.phoneVerifyCode,
+      phoneVerifyExpiry: overrides?.phoneVerifyExpiry,
     },
   })
 }
@@ -65,23 +90,37 @@ export async function createAdminUser(
  * Helper to mock NextRequest with auth headers
  */
 export function createMockNextRequest(
+  url: string,
+  body?: Record<string, unknown>,
+  headers?: Record<string, string>,
+): NextRequest
+export function createMockNextRequest(
   method: string,
   url: string,
   body?: Record<string, unknown>,
   headers?: Record<string, string>,
-) {
-  const mockHeaders = new Map(
-    Object.entries({
+) : NextRequest
+export function createMockNextRequest(
+  methodOrUrl: string,
+  urlOrBody?: string | Record<string, unknown>,
+  bodyOrHeaders?: Record<string, unknown> | Record<string, string>,
+  headersMaybe?: Record<string, string>,
+): NextRequest {
+  const hasExplicitMethod = typeof urlOrBody === 'string'
+
+  const method = hasExplicitMethod ? methodOrUrl : 'GET'
+  const url = hasExplicitMethod ? (urlOrBody as string) : methodOrUrl
+  const body = (hasExplicitMethod ? bodyOrHeaders : urlOrBody) as Record<string, unknown> | undefined
+  const headers = (hasExplicitMethod ? headersMaybe : bodyOrHeaders) as Record<string, string> | undefined
+
+  const init: ConstructorParameters<typeof NextRequest>[1] = {
+    method,
+    headers: {
       'content-type': 'application/json',
       'x-forwarded-for': '192.168.1.1',
       'user-agent': 'Mozilla/5.0 (Test)',
       ...headers,
-    }),
-  )
-
-  const init: RequestInit = {
-    method,
-    headers: mockHeaders as HeadersInit,
+    },
   }
 
   if (body) {
@@ -165,6 +204,7 @@ export function createMockDate(offsetMs: number = 0) {
 
 export default {
   cleanupDatabase,
+  disconnectDatabase,
   createTestUser,
   createAdminUser,
   createMockNextRequest,
