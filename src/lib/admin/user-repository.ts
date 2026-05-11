@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import {
-  generateEmailVerificationToken,
   generatePasswordResetToken,
   isTokenExpired,
 } from '@/lib/auth/token'
@@ -110,7 +109,7 @@ export async function createUser(
   displayName: string,
   password: string,
   phone?: string
-): Promise<{ user: PublicUserRecord; verificationToken: string } | null> {
+): Promise<{ user: PublicUserRecord } | null> {
   try {
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -121,16 +120,15 @@ export async function createUser(
     }
 
     const passwordHash = await hashPassword(password)
-    const { token: emailVerifyToken } = generateEmailVerificationToken()
-    const emailVerifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     const user = (await prisma.user.create({
       data: {
         email,
         displayName,
         passwordHash,
-        emailVerifyToken,
-        emailVerifyTokenExpiry,
+        emailVerified: true,
+        emailVerifyToken: null,
+        emailVerifyTokenExpiry: null,
         phone: phone || null,
         role: 'member',
       },
@@ -148,7 +146,6 @@ export async function createUser(
 
     return {
       user: mapToPublicRecord(user),
-      verificationToken: emailVerifyToken,
     }
   } catch (error) {
     console.error('Error creating user:', error)

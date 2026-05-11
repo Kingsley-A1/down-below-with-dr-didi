@@ -38,7 +38,6 @@ describeWithDatabase('Auth Login Integration', () => {
 
   describe('POST /api/auth/login - Success Path', () => {
     it('should login user with valid credentials', async () => {
-      // Create verified user
       const user = await createTestUser({
         email: validLoginPayload.email,
         emailVerified: true,
@@ -210,24 +209,6 @@ describeWithDatabase('Auth Login Integration', () => {
       expect(body.error).toContain('Invalid email or password')
     })
 
-    it('should reject login for unverified email', async () => {
-      await createTestUser({
-        email: 'unverified@example.com',
-        emailVerified: false,
-      })
-
-      const req = createMockNextRequest('POST', '/api/auth/login', {
-        email: 'unverified@example.com',
-        password: 'TestPassword@123',
-      })
-
-      const { POST } = await import('@/app/api/auth/login/route')
-      const res = await POST(req)
-
-      expect(res.status).toBe(403)
-      const body = await parseResponseBody(res)
-      expect(body.error).toContain('verify')
-    })
   })
 
   describe('POST /api/auth/login - Session Updates Activity', () => {

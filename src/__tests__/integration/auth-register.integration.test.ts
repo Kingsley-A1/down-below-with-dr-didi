@@ -44,7 +44,7 @@ describeWithDatabase('Auth Registration Integration', () => {
 
       expect(res.status).toBe(201)
       expect(body.success).toBe(true)
-      expect(String(body.message).toLowerCase()).toContain('verify')
+      expect(String(body.message).toLowerCase()).toContain('sign in')
       expect(body.user?.id).toBeTruthy()
 
       // Verify user created in database
@@ -52,8 +52,8 @@ describeWithDatabase('Auth Registration Integration', () => {
         where: { email: validRegistrationPayload.email },
       })
       expect(user).toBeTruthy()
-      expect(user?.emailVerified).toBe(false)
-      expect(user?.emailVerifyToken).toBeTruthy()
+      expect(user?.emailVerified).toBe(true)
+      expect(user?.emailVerifyToken).toBeNull()
     })
 
     it('should accept registration without phone', async () => {
@@ -166,8 +166,8 @@ describeWithDatabase('Auth Registration Integration', () => {
     })
   })
 
-  describe('POST /api/auth/register - Email Verification Expiry', () => {
-    it('should set email verification token expiry to 24 hours', async () => {
+  describe('POST /api/auth/register - Immediate Access', () => {
+    it('should keep verification fields cleared for immediate login', async () => {
       const req = createMockNextRequest('POST', '/api/auth/register', validRegistrationPayload)
       const { POST } = await import('@/app/api/auth/register/route')
       await POST(req)
@@ -176,14 +176,9 @@ describeWithDatabase('Auth Registration Integration', () => {
         where: { email: validRegistrationPayload.email },
       })
 
-      expect(user?.emailVerifyTokenExpiry).toBeTruthy()
-      const expiryTime = user?.emailVerifyTokenExpiry?.getTime() || 0
-      const createdTime = user?.createdAt?.getTime() || 0
-      const diffHours = (expiryTime - createdTime) / (60 * 60 * 1000)
-
-      // Should be approximately 24 hours (allow ±1 hour for execution time)
-      expect(diffHours).toBeGreaterThanOrEqual(23)
-      expect(diffHours).toBeLessThanOrEqual(25)
+      expect(user?.emailVerified).toBe(true)
+      expect(user?.emailVerifyToken).toBeNull()
+      expect(user?.emailVerifyTokenExpiry).toBeNull()
     })
   })
 })

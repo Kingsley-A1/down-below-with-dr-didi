@@ -47,7 +47,7 @@ export function RegisterForm() {
       }
 
       // Registration successful
-      router.push('/verify-email?message=Check your email for verification link')
+      router.push('/home')
     } catch (err) {
       setError('An unexpected error occurred')
       console.error(err)

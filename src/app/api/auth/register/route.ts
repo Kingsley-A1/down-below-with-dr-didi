@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUser } from '@/lib/admin/user-repository'
-import { sendEmailVerification } from '@/lib/auth/email'
 import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
 import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userRegisterSchema } from '@/lib/validations'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 function isMissingUserTableError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -70,18 +67,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send verification email
-    const verificationUrl = `${API_URL}/verify-email?token=${result.verificationToken}`
-    const emailResult = await sendEmailVerification(normalizedEmail, verificationUrl)
-
-    if (!emailResult.success) {
-      console.warn('Email verification send failed, but user created:', emailResult.error)
-    }
-
     return NextResponse.json(
       {
         success: true,
-        message: 'Registration successful. Please check your email to verify your account.',
+        message: 'Registration successful. You can now sign in immediately.',
         user: result.user,
       },
       { status: 201 }
