@@ -3,6 +3,7 @@ import { hasDatabaseConfig } from '@/lib/env'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
 import { canViewVaultIdentity, type AdminRole } from '@/lib/admin/rbac'
+import { gallerySeedItems } from '@/data/gallery'
 
 export type DashboardSummary = {
   adminUsers: number
@@ -1708,63 +1709,106 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
   }
 }
 
+function getSeedGalleryImages(category?: GalleryImageCategory): PublicGalleryImage[] {
+  const filtered = category
+    ? gallerySeedItems.filter((item) => item.category === category)
+    : gallerySeedItems
+
+  return filtered.map((item, index) => ({
+    id: `seed-${item.slug}`,
+    slug: item.slug,
+    title: item.title,
+    description: item.description,
+    caption: item.caption || null,
+    imageUrl: normalizePublicImageUrl(item.imageUrl),
+    imageAlt: item.imageAlt,
+    category: item.category as GalleryImageCategory,
+    eventName: item.eventName || null,
+    location: item.location || null,
+    capturedAt: null,
+    sortOrder: index,
+  }))
+}
+
 export async function getPublishedGalleryImages(
   category?: GalleryImageCategory
 ): Promise<PublicGalleryImage[]> {
+  const fallbackImages = getSeedGalleryImages(category)
+
   if (!hasDatabaseConfig()) {
-    return []
+    return fallbackImages
   }
 
-  const records = await prisma.galleryImage.findMany({
-    where: {
-      status: 'published',
-      ...(category ? { category } : {}),
-    },
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-  })
+  try {
+    const records = await prisma.galleryImage.findMany({
+      where: {
+        status: 'published',
+        ...(category ? { category } : {}),
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    })
 
-  return records.map((r: GalleryImageDbRecord) => ({
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    description: r.description,
-    caption: r.caption,
-    imageUrl: normalizePublicImageUrl(r.imageUrl),
-    imageAlt: r.imageAlt,
-    category: r.category as GalleryImageCategory,
-    eventName: r.eventName,
-    location: r.location,
-    capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
-    sortOrder: r.sortOrder,
-  }))
+    if (records.length === 0) {
+      return fallbackImages
+    }
+
+    return records.map((r: GalleryImageDbRecord) => ({
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      description: r.description,
+      caption: r.caption,
+      imageUrl: normalizePublicImageUrl(r.imageUrl),
+      imageAlt: r.imageAlt,
+      category: r.category as GalleryImageCategory,
+      eventName: r.eventName,
+      location: r.location,
+      capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
+      sortOrder: r.sortOrder,
+    }))
+  } catch {
+    return fallbackImages
+  }
 }
 
 export async function getGalleryImageBySlug(
   slug: string
 ): Promise<PublicGalleryImage | null> {
+  const fallbackImage = getSeedGalleryImages().find((item) => item.slug === slug) || null
+
   if (!hasDatabaseConfig()) {
-    return null
+    return fallbackImage
   }
 
-  const r = await prisma.galleryImage.findUnique({
-    where: { slug, status: 'published' },
-  })
+  try {
+    const r = await prisma.galleryImage.findUnique({
+      where: { slug },
+    })
 
-  if (!r) return null
+    if (!r) {
+      return fallbackImage
+    }
 
-  return {
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    description: r.description,
-    caption: r.caption,
-    imageUrl: normalizePublicImageUrl(r.imageUrl),
-    imageAlt: r.imageAlt,
-    category: r.category as GalleryImageCategory,
-    eventName: r.eventName,
-    location: r.location,
-    capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
-    sortOrder: r.sortOrder,
+    if (r.status !== 'published') {
+      return null
+    }
+
+    return {
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      description: r.description,
+      caption: r.caption,
+      imageUrl: normalizePublicImageUrl(r.imageUrl),
+      imageAlt: r.imageAlt,
+      category: r.category as GalleryImageCategory,
+      eventName: r.eventName,
+      location: r.location,
+      capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
+      sortOrder: r.sortOrder,
+    }
+  } catch {
+    return fallbackImage
   }
 }
 
