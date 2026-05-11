@@ -15,6 +15,11 @@ This document is no longer just a roadmap. It is the live execution reference fo
 - Admin session secrets and allowed users are now available in the local environment.
 - The site now has a first-pass admin shell, settings layer, and media upload foundation.
 - The homepage hero and public contact surfaces have already been wired to the managed site settings layer.
+- The latest release gate run is green (`pnpm run verify:release`): 11/11 suites, 141/141 tests.
+
+### Canonical launch checklist
+
+Use `ADMIN-LAUNCH-CHECKLIST.md` as the single source of truth for launch readiness tracking.
 
 ### What changed because credentials are now available
 
