@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type UserNotification = {
   id: string
@@ -53,6 +53,7 @@ export function VaultNotificationsWidget() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
+  const [activePanel, setActivePanel] = useState<'inbox' | 'history'>('inbox')
 
   const vaultNotifications = useMemo(
     () => notifications.filter((item) => item.type === 'vault_response'),
@@ -64,61 +65,65 @@ export function VaultNotificationsWidget() {
     [threads]
   )
 
+  const hasResponses = vaultNotifications.length > 0 || vaultThreadsWithResponses.length > 0
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const [notificationsResponse, threadsResponse] = await Promise.all([
+        fetch('/api/users/notifications?limit=20', {
+          method: 'GET',
+          cache: 'no-store',
+        }),
+        fetch('/api/vault/me?limit=20', {
+          method: 'GET',
+          cache: 'no-store',
+        }),
+      ])
+
+      const notificationsResult = (await notificationsResponse.json()) as NotificationsResponse
+      const threadsResult = (await threadsResponse.json()) as ThreadsResponse
+
+      if (!notificationsResponse.ok || !notificationsResult.success) {
+        throw new Error(notificationsResult.error || 'Failed to load notifications')
+      }
+
+      if (!threadsResponse.ok || !threadsResult.success) {
+        throw new Error(threadsResult.error || 'Failed to load response history')
+      }
+
+      setNotifications(notificationsResult.notifications || [])
+      setUnreadCount(notificationsResult.unreadCount || 0)
+      setThreads(threadsResult.threads || [])
+      setError(null)
+      setLastUpdatedAt(new Date())
+    } catch {
+      setError('Failed to load notifications')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
 
-    async function fetchNotifications() {
-      try {
-        const [notificationsResponse, threadsResponse] = await Promise.all([
-          fetch('/api/users/notifications?limit=20', {
-            method: 'GET',
-            cache: 'no-store',
-          }),
-          fetch('/api/vault/me?limit=20', {
-            method: 'GET',
-            cache: 'no-store',
-          }),
-        ])
-
-        const notificationsResult = (await notificationsResponse.json()) as NotificationsResponse
-        const threadsResult = (await threadsResponse.json()) as ThreadsResponse
-
-        if (!notificationsResponse.ok || !notificationsResult.success) {
-          throw new Error(notificationsResult.error || 'Failed to load notifications')
-        }
-
-        if (!threadsResponse.ok || !threadsResult.success) {
-          throw new Error(threadsResult.error || 'Failed to load response history')
-        }
-
-        if (!cancelled) {
-          setNotifications(notificationsResult.notifications || [])
-          setUnreadCount(notificationsResult.unreadCount || 0)
-          setThreads(threadsResult.threads || [])
-          setError(null)
-          setLastUpdatedAt(new Date())
-        }
-      } catch {
-        if (!cancelled) {
-          setError('Failed to load notifications')
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
+    async function safeFetch() {
+      if (cancelled) {
+        return
       }
+
+      await fetchNotifications()
     }
 
-    void fetchNotifications()
+    void safeFetch()
     const intervalId = setInterval(() => {
-      void fetchNotifications()
+      void safeFetch()
     }, POLL_INTERVAL_MS)
 
     return () => {
       cancelled = true
       clearInterval(intervalId)
     }
-  }, [])
+  }, [fetchNotifications])
 
   async function markAsRead(notificationId: string) {
     try {
@@ -144,7 +149,7 @@ export function VaultNotificationsWidget() {
   }
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6">
+    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-medium text-gray-900">V-Vault Inbox</h3>
@@ -154,23 +159,63 @@ export function VaultNotificationsWidget() {
               : `${unreadCount} unread response${unreadCount === 1 ? '' : 's'}${lastUpdatedAt ? ` • updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}`}
           </p>
         </div>
-        {unreadCount > 0 ? (
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
-            New response
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 ? (
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
+              New response
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            onClick={() => {
+              void fetchNotifications()
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error ? <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
-      {!isLoading && vaultNotifications.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">No V-Vault responses yet. We will notify you here as soon as one arrives.</p>
-      ) : (
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => setActivePanel('inbox')}
+          className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+            activePanel === 'inbox'
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Latest Responses ({vaultNotifications.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePanel('history')}
+          className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+            activePanel === 'history'
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Conversation History ({vaultThreadsWithResponses.length})
+        </button>
+      </div>
+
+      {!isLoading && !hasResponses ? (
+        <p className="mt-4 rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          No V-Vault responses yet. Once Dr. Didi replies, your anonymous response thread will show up here.
+        </p>
+      ) : null}
+
+      {activePanel === 'inbox' ? (
         <ul className="mt-4 space-y-3">
-          {vaultNotifications.slice(0, 5).map((notification) => (
+          {vaultNotifications.slice(0, 6).map((notification) => (
             <li
               key={notification.id}
-              className={`rounded-md border p-3 ${notification.isRead ? 'border-gray-200 bg-gray-50' : 'border-emerald-200 bg-emerald-50'}`}
+              className={`rounded-lg border p-3 ${notification.isRead ? 'border-gray-200 bg-gray-50' : 'border-emerald-200 bg-emerald-50'}`}
             >
               <p className="text-sm font-semibold text-gray-900">{notification.title}</p>
               <p className="mt-1 text-sm text-gray-700">{notification.body}</p>
@@ -193,34 +238,31 @@ export function VaultNotificationsWidget() {
             </li>
           ))}
         </ul>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {vaultThreadsWithResponses.slice(0, 6).map((thread) => {
+            const latestResponse = thread.responses[thread.responses.length - 1]
+
+            return (
+              <li key={thread.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {thread.category}
+                  </p>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                    {thread.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm text-gray-900">{thread.question}</p>
+                <p className="mt-2 line-clamp-3 text-sm text-gray-700">{latestResponse?.responseBody}</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {latestResponse ? new Date(latestResponse.createdAt).toLocaleString() : ''}
+                </p>
+              </li>
+            )
+          })}
+        </ul>
       )}
-
-      <div className="mt-6 border-t border-gray-100 pt-4">
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Response History</h4>
-        {!isLoading && vaultThreadsWithResponses.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">No response history yet.</p>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {vaultThreadsWithResponses.slice(0, 5).map((thread) => {
-              const latestResponse = thread.responses[thread.responses.length - 1]
-
-              return (
-                <li key={thread.id} className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{thread.category}</p>
-                  <p className="mt-1 text-sm text-gray-900">{thread.question}</p>
-                  <p className="mt-2 text-sm text-gray-700">{latestResponse?.responseBody}</p>
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500">
-                    <span>{latestResponse ? new Date(latestResponse.createdAt).toLocaleString() : ''}</span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
-                      {thread.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
     </section>
   )
 }

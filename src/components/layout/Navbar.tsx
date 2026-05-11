@@ -62,6 +62,9 @@ export default function Navbar() {
 
   const ctaHref = isAuthenticated ? '/contact' : '/register'
   const ctaLabel = isAuthenticated ? 'Book Now' : 'Register'
+  const navigationLinks = isAuthenticated
+    ? [...navLinks, { href: '/me', label: 'My Space' }]
+    : navLinks
 
   if (isAdminRoute) {
     return null
@@ -99,7 +102,7 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <ul className="hidden lg:flex items-center gap-5 xl:gap-8">
-          {navLinks.map(({ href, label }) => (
+          {navigationLinks.map(({ href, label }) => (
             <li key={href}>
               <Link
                 href={href}
@@ -149,7 +152,7 @@ export default function Navbar() {
             backgroundColor: 'var(--color-bg)',
           }}
         >
-          {navLinks.map(({ href, label }) => (
+          {navigationLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
