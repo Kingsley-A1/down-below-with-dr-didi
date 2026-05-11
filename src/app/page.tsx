@@ -152,22 +152,6 @@ export default async function HomePage() {
                 }}
               />
 
-              {/* Floating badge */}
-              <div
-                className="pointer-events-none absolute left-3 bottom-3 sm:left-4 sm:bottom-4 lg:left-5 lg:bottom-5 bg-white rounded-2xl shadow-xl px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3 max-w-[calc(100%-1.5rem)]"
-                style={{ boxShadow: 'var(--shadow-lg)' }}
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--color-primary-muted)' }}
-                >
-                  <Shield size={20} style={{ color: 'var(--color-primary)' }} />
-                </div>
-                <div>
-                  <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>Safe Space</p>
-                  <p className="font-body text-xs text-gray-500">Faith + Medicine + Community</p>
-                </div>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 lg:mt-7">

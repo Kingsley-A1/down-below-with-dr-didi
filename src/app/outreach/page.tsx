@@ -37,17 +37,33 @@ export default function OutreachPage() {
       {/* Impact Metrics */}
       <section className="py-14 border-t" style={{ backgroundColor: 'var(--color-primary)', borderColor: 'rgba(255,255,255,0.1)' }}>
         <div className="max-w-container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {impactMetrics.map((metric) => (
-              <div key={metric.label} className="text-center text-white">
-                <div className="text-4xl mb-2">{metric.icon}</div>
-                <div className="font-heading font-bold mb-1" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--color-accent)' }}>
+              <article
+                key={metric.label}
+                className="rounded-2xl border px-4 py-5 md:px-5 md:py-6 text-center text-white"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderColor: 'rgba(255,255,255,0.14)',
+                }}
+              >
+                <div className="text-3xl md:text-4xl mb-2 md:mb-3">{metric.icon}</div>
+                <div
+                  className="font-heading font-bold mb-1 leading-tight"
+                  style={{ fontSize: 'clamp(1.65rem, 3vw, 2.5rem)', color: 'var(--color-accent)' }}
+                >
                   {metric.value}
                 </div>
-                <div className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                <div
+                  className="font-body leading-snug"
+                  style={{
+                    color: 'rgba(255,255,255,0.72)',
+                    fontSize: 'clamp(0.78rem, 1.4vw, 0.95rem)',
+                  }}
+                >
                   {metric.label}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </div>
