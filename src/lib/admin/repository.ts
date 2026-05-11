@@ -1,20 +1,28 @@
 import { prisma } from '@/lib/prisma'
 import { hasDatabaseConfig } from '@/lib/env'
+import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
-import type { AdminRole } from '@/lib/admin/rbac'
+import { canViewVaultIdentity, type AdminRole } from '@/lib/admin/rbac'
 
 export type DashboardSummary = {
   adminUsers: number
+  platformUsers: number
   mediaAssets: number
   auditLogs: number
   vaultSubmissions: number
+  contactSubmissions: number
+  teamMembers: number
+  galleryImages: number
   podcastEpisodes: number
+  activeAlerts: number
   databaseReady: boolean
 }
 
 export type MediaAssetRecord = {
   id: string
   label: string
+  storageKey: string
+  bucket: string
   url: string
   mimeType: string
   sizeBytes: number
@@ -26,6 +34,8 @@ export type MediaAssetRecord = {
 type MediaAssetDbRecord = {
   id: string
   label: string
+  storageKey: string
+  bucket: string
   url: string
   mimeType: string
   sizeBytes: number
@@ -34,13 +44,70 @@ type MediaAssetDbRecord = {
   createdAt: Date
 }
 
+export type MediaAssetUsageRecord = {
+  entityType: 'site_settings' | 'team_member' | 'gallery_image' | 'podcast_episode'
+  entityId: string
+  entityLabel: string
+  field: 'heroImageUrl' | 'imageUrl' | 'audioUrl' | 'coverImage'
+}
+
 export type VaultSubmissionRecord = {
   id: string
   category: string
   question: string
   status: 'new' | 'reviewed' | 'answered_privately' | 'approved_for_faq' | 'archived'
+  source: 'app_authenticated' | 'whatsapp_import' | 'manual_admin'
   moderationNotes: string | null
   approvedFaqTitle: string | null
+  submitter: {
+    hasLinkedAccount: boolean
+    displayName: string | null
+    email: string | null
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type VaultResponseRecord = {
+  id: string
+  submissionId: string
+  responseBody: string
+  responderRole: AdminRole
+  deliveredAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type UserNotificationRecord = {
+  id: string
+  type: string
+  title: string
+  body: string
+  entityType: string | null
+  entityId: string | null
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+export type UserVaultThreadRecord = {
+  id: string
+  category: string
+  question: string
+  status: VaultSubmissionRecord['status']
+  createdAt: string
+  updatedAt: string
+  responses: VaultResponseRecord[]
+}
+
+export type AdminAccountRecord = {
+  id: string
+  email: string
+  name: string | null
+  phone: string | null
+  role: AdminRole
+  isActive: boolean
+  lastLoginAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -50,10 +117,149 @@ type VaultSubmissionDbRecord = {
   category: string
   question: string
   status: VaultSubmissionRecord['status']
+  source: VaultSubmissionRecord['source']
   moderationNotes: string | null
   approvedFaqTitle: string | null
+  userId: string | null
+  user: {
+    id: string
+    displayName: string
+    email: string
+  } | null
   createdAt: Date
   updatedAt: Date
+}
+
+type VaultResponseDbRecord = {
+  id: string
+  submissionId: string
+  responseBody: string
+  responderRole: AdminRole
+  deliveredAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+type UserNotificationDbRecord = {
+  id: string
+  type: string
+  title: string
+  body: string
+  entityType: string | null
+  entityId: string | null
+  isRead: boolean
+  readAt: Date | null
+  createdAt: Date
+}
+
+type AdminAccountDbRecord = {
+  id: string
+  email: string
+  name: string | null
+  phone: string | null
+  passwordHash: string | null
+  role: AdminRole
+  isActive: boolean
+  lastLoginAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+function mapVaultSubmissionRecord(
+  record: VaultSubmissionDbRecord,
+  options?: { includeIdentity?: boolean }
+): VaultSubmissionRecord {
+  const includeIdentity = options?.includeIdentity === true
+
+  return {
+    id: record.id,
+    category: record.category,
+    question: record.question,
+    status: record.status,
+    source: record.source,
+    moderationNotes: record.moderationNotes,
+    approvedFaqTitle: record.approvedFaqTitle,
+    submitter: {
+      hasLinkedAccount: record.userId !== null,
+      displayName: includeIdentity ? (record.user?.displayName ?? null) : null,
+      email: includeIdentity ? (record.user?.email ?? null) : null,
+    },
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function mapVaultResponseRecord(record: VaultResponseDbRecord): VaultResponseRecord {
+  return {
+    id: record.id,
+    submissionId: record.submissionId,
+    responseBody: record.responseBody,
+    responderRole: record.responderRole,
+    deliveredAt: record.deliveredAt ? record.deliveredAt.toISOString() : null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function mapUserNotificationRecord(record: UserNotificationDbRecord): UserNotificationRecord {
+  return {
+    id: record.id,
+    type: record.type,
+    title: record.title,
+    body: record.body,
+    entityType: record.entityType,
+    entityId: record.entityId,
+    isRead: record.isRead,
+    readAt: record.readAt ? record.readAt.toISOString() : null,
+    createdAt: record.createdAt.toISOString(),
+  }
+}
+
+function mapAdminAccountRecord(record: AdminAccountDbRecord): AdminAccountRecord {
+  return {
+    id: record.id,
+    email: record.email,
+    name: record.name,
+    phone: record.phone,
+    role: record.role,
+    isActive: record.isActive,
+    lastLoginAt: record.lastLoginAt ? record.lastLoginAt.toISOString() : null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function normalizeAdminIdentity(input: { email: string; name?: string; phone?: string }) {
+  return {
+    email: input.email.trim().toLowerCase(),
+    name: input.name?.trim() || null,
+    phone: input.phone?.trim() || null,
+  }
+}
+
+function supportsAdminUserField(fieldName: string): boolean {
+  const runtimeDataModel = (prisma as unknown as {
+    _runtimeDataModel?: {
+      models?: Record<string, { fields?: Array<{ name?: string }> }>
+    }
+  })._runtimeDataModel
+
+  const fields = runtimeDataModel?.models?.AdminUser?.fields
+
+  // If runtime metadata is unavailable, preserve current behavior.
+  if (!Array.isArray(fields)) {
+    return true
+  }
+
+  return fields.some((field) => field?.name === fieldName)
+}
+
+function isUnknownPrismaArgumentError(error: unknown, argumentName: string): boolean {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  return error.message.includes(`Unknown argument \`${argumentName}\``)
 }
 
 export async function upsertAdminUserRecord(email: string, role: AdminRole) {
@@ -66,6 +272,96 @@ export async function upsertAdminUserRecord(email: string, role: AdminRole) {
     update: { role, isActive: true },
     create: { email: email.trim().toLowerCase(), role },
   })
+}
+
+export async function registerAdminUserAccount(input: {
+  name: string
+  email: string
+  phone: string
+  password: string
+  role: AdminRole
+}) {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const normalized = normalizeAdminIdentity(input)
+  const existing = (await prisma.adminUser.findUnique({
+    where: { email: normalized.email },
+  })) as AdminAccountDbRecord | null
+
+  if (existing?.passwordHash) {
+    throw new Error('ADMIN_ACCOUNT_ALREADY_REGISTERED')
+  }
+
+  const passwordHash = await hashPassword(input.password)
+  const includePhone = supportsAdminUserField('phone')
+
+  const writeAccount = async (withPhone: boolean) => {
+    return existing
+      ? ((await prisma.adminUser.update({
+          where: { email: normalized.email },
+          data: {
+            name: normalized.name,
+            ...(withPhone ? { phone: normalized.phone } : {}),
+            passwordHash,
+            role: input.role,
+            isActive: true,
+          },
+        })) as AdminAccountDbRecord)
+      : ((await prisma.adminUser.create({
+          data: {
+            email: normalized.email,
+            name: normalized.name,
+            ...(withPhone ? { phone: normalized.phone } : {}),
+            passwordHash,
+            role: input.role,
+            isActive: true,
+          },
+        })) as AdminAccountDbRecord)
+  }
+
+  let account: AdminAccountDbRecord
+
+  try {
+    account = await writeAccount(includePhone)
+  } catch (error) {
+    if (includePhone && isUnknownPrismaArgumentError(error, 'phone')) {
+      account = await writeAccount(false)
+    } else {
+      throw error
+    }
+  }
+
+  return mapAdminAccountRecord(account)
+}
+
+export async function authenticateAdminUser(email: string, password: string) {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const account = (await prisma.adminUser.findUnique({
+    where: { email: normalizedEmail },
+  })) as AdminAccountDbRecord | null
+
+  if (!account || !account.isActive || !account.passwordHash) {
+    return null
+  }
+
+  const passwordValid = await verifyPassword(password, account.passwordHash)
+
+  if (!passwordValid) {
+    return null
+  }
+
+  const updated = (await prisma.adminUser.update({
+    where: { email: normalizedEmail },
+    data: { lastLoginAt: new Date() },
+  })) as AdminAccountDbRecord
+
+  return mapAdminAccountRecord(updated)
 }
 
 export async function writeAuditLog(entry: {
@@ -186,6 +482,243 @@ export async function saveSiteSettings(input: SiteSettingsState, actor: { email:
   return record
 }
 
+type SiteAlertDbRecord = {
+  id: string
+  text: string
+  speed: number
+  durationSeconds: number
+  isActive: boolean
+  startsAt: Date
+  endsAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type SiteAlertRecord = {
+  id: string
+  text: string
+  speed: number
+  durationSeconds: number
+  isActive: boolean
+  isCurrentlyActive: boolean
+  startsAt: string
+  endsAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type PublicSiteAlertRecord = Pick<
+  SiteAlertRecord,
+  'id' | 'text' | 'speed' | 'durationSeconds' | 'startsAt' | 'endsAt'
+>
+
+function isAlertActiveNow(alert: {
+  isActive: boolean
+  startsAt: Date
+  endsAt: Date | null
+}, at: Date = new Date()) {
+  if (!alert.isActive) {
+    return false
+  }
+
+  if (alert.startsAt > at) {
+    return false
+  }
+
+  if (alert.endsAt && alert.endsAt <= at) {
+    return false
+  }
+
+  return true
+}
+
+function mapSiteAlert(record: SiteAlertDbRecord): SiteAlertRecord {
+  return {
+    id: record.id,
+    text: record.text,
+    speed: record.speed,
+    durationSeconds: record.durationSeconds,
+    isActive: record.isActive,
+    isCurrentlyActive: isAlertActiveNow(record),
+    startsAt: record.startsAt.toISOString(),
+    endsAt: record.endsAt ? record.endsAt.toISOString() : null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function assertAlertWindow(startsAt: Date, endsAt: Date | null) {
+  if (endsAt && endsAt <= startsAt) {
+    throw new Error('Alert end time must be after start time')
+  }
+}
+
+export async function listSiteAlerts(): Promise<SiteAlertRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = await prisma.siteAlert.findMany({
+    orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+  })
+
+  return records.map((record: SiteAlertDbRecord) => mapSiteAlert(record))
+}
+
+export async function listPublicActiveSiteAlerts(): Promise<PublicSiteAlertRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const now = new Date()
+
+  const records = await prisma.siteAlert.findMany({
+    where: {
+      isActive: true,
+      startsAt: { lte: now },
+      OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+    },
+    orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
+    take: 6,
+  })
+
+  return records.map((record: SiteAlertDbRecord) => ({
+    id: record.id,
+    text: record.text,
+    speed: record.speed,
+    durationSeconds: record.durationSeconds,
+    startsAt: record.startsAt.toISOString(),
+    endsAt: record.endsAt ? record.endsAt.toISOString() : null,
+  }))
+}
+
+export async function createSiteAlert(
+  input: {
+    text: string
+    speed?: number
+    durationSeconds?: number
+    isActive?: boolean
+    startsAt?: string
+    endsAt?: string
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<SiteAlertRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const startsAt = input.startsAt ? new Date(input.startsAt) : new Date()
+  const endsAt = input.endsAt ? new Date(input.endsAt) : null
+
+  assertAlertWindow(startsAt, endsAt)
+
+  const record = await prisma.siteAlert.create({
+    data: {
+      text: input.text.trim(),
+      speed: input.speed ?? 100,
+      durationSeconds: input.durationSeconds ?? 22,
+      isActive: input.isActive ?? true,
+      startsAt,
+      endsAt,
+    },
+  })
+
+  await writeAuditLog({
+    action: 'site_alert.created',
+    entityType: 'site_alert',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: 'Created site alert',
+    metadata: {
+      isActive: record.isActive,
+      startsAt: record.startsAt.toISOString(),
+      endsAt: record.endsAt ? record.endsAt.toISOString() : null,
+    },
+  })
+
+  return mapSiteAlert(record as SiteAlertDbRecord)
+}
+
+export async function updateSiteAlert(
+  id: string,
+  input: {
+    text?: string
+    speed?: number
+    durationSeconds?: number
+    isActive?: boolean
+    startsAt?: string
+    endsAt?: string | null
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<SiteAlertRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const existing = await prisma.siteAlert.findUnique({ where: { id } })
+
+  if (!existing) {
+    throw new Error('Site alert not found')
+  }
+
+  const startsAt = input.startsAt ? new Date(input.startsAt) : existing.startsAt
+  const endsAt = input.endsAt === undefined ? existing.endsAt : input.endsAt ? new Date(input.endsAt) : null
+
+  assertAlertWindow(startsAt, endsAt)
+
+  const record = await prisma.siteAlert.update({
+    where: { id },
+    data: {
+      ...(input.text !== undefined && { text: input.text.trim() }),
+      ...(input.speed !== undefined && { speed: input.speed }),
+      ...(input.durationSeconds !== undefined && { durationSeconds: input.durationSeconds }),
+      ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.startsAt !== undefined && { startsAt }),
+      ...(input.endsAt !== undefined && { endsAt }),
+    },
+  })
+
+  await writeAuditLog({
+    action: 'site_alert.updated',
+    entityType: 'site_alert',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: 'Updated site alert',
+    metadata: {
+      isActive: record.isActive,
+      startsAt: record.startsAt.toISOString(),
+      endsAt: record.endsAt ? record.endsAt.toISOString() : null,
+    },
+  })
+
+  return mapSiteAlert(record as SiteAlertDbRecord)
+}
+
+export async function deleteSiteAlert(id: string, actor: { email: string; role: AdminRole }) {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.siteAlert.delete({ where: { id } })
+
+  await writeAuditLog({
+    action: 'site_alert.deleted',
+    entityType: 'site_alert',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: 'Deleted site alert',
+    metadata: {
+      startsAt: record.startsAt.toISOString(),
+      endsAt: record.endsAt ? record.endsAt.toISOString() : null,
+    },
+  })
+
+  return true
+}
+
 export async function listMediaAssets(): Promise<MediaAssetRecord[]> {
   if (!hasDatabaseConfig()) {
     return []
@@ -199,6 +732,8 @@ export async function listMediaAssets(): Promise<MediaAssetRecord[]> {
   return records.map((record: MediaAssetDbRecord) => ({
     id: record.id,
     label: record.label,
+    storageKey: record.storageKey,
+    bucket: record.bucket,
     url: record.url,
     mimeType: record.mimeType,
     sizeBytes: record.sizeBytes,
@@ -257,39 +792,227 @@ export async function createMediaAssetRecord(input: {
   return record
 }
 
-export async function createVaultSubmission(input: { category: string; question: string }) {
+export async function getMediaAssetDeletePreview(id: string): Promise<{
+  asset: Pick<MediaAssetRecord, 'id' | 'label' | 'storageKey' | 'bucket' | 'url'>
+  usages: MediaAssetUsageRecord[]
+}> {
   if (!hasDatabaseConfig()) {
     throw new Error('Database is not configured')
   }
 
-  return prisma.vaultSubmission.create({
-    data: {
-      category: input.category,
-      question: input.question,
+  const asset = await prisma.mediaAsset.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      label: true,
+      storageKey: true,
+      bucket: true,
+      url: true,
+    },
+  })
+
+  if (!asset) {
+    throw new Error('Media asset not found')
+  }
+
+  const [heroRef, teamRefs, galleryRefs, podcastRefs] = await Promise.all([
+    prisma.siteSettings.findFirst({
+      where: { heroImageUrl: asset.url },
+      select: { id: true, scope: true },
+    }),
+    prisma.teamMember.findMany({
+      where: { imageUrl: asset.url },
+      select: { id: true, name: true },
+      take: 10,
+    }),
+    prisma.galleryImage.findMany({
+      where: { imageUrl: asset.url },
+      select: { id: true, title: true },
+      take: 10,
+    }),
+    prisma.podcastEpisode.findMany({
+      where: {
+        OR: [{ audioUrl: asset.url }, { coverImage: asset.url }],
+      },
+      select: { id: true, title: true, audioUrl: true, coverImage: true },
+      take: 10,
+    }),
+  ])
+
+  const usages: MediaAssetUsageRecord[] = []
+
+  if (heroRef) {
+    usages.push({
+      entityType: 'site_settings',
+      entityId: heroRef.id,
+      entityLabel: heroRef.scope,
+      field: 'heroImageUrl',
+    })
+  }
+
+  usages.push(
+    ...teamRefs.map((member: { id: string; name: string }) => ({
+      entityType: 'team_member' as const,
+      entityId: member.id,
+      entityLabel: member.name,
+      field: 'imageUrl' as const,
+    }))
+  )
+
+  usages.push(
+    ...galleryRefs.map((image: { id: string; title: string }) => ({
+      entityType: 'gallery_image' as const,
+      entityId: image.id,
+      entityLabel: image.title,
+      field: 'imageUrl' as const,
+    }))
+  )
+
+  usages.push(
+    ...podcastRefs.map((episode: { id: string; title: string; audioUrl: string; coverImage: string | null }) => ({
+      entityType: 'podcast_episode' as const,
+      entityId: episode.id,
+      entityLabel: episode.title,
+      field: (episode.audioUrl === asset.url ? 'audioUrl' : 'coverImage') as 'audioUrl' | 'coverImage',
+    }))
+  )
+
+  return { asset, usages }
+}
+
+export async function deleteMediaAssetRecord(id: string, actor: { email: string; role: AdminRole }): Promise<void> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.mediaAsset.delete({ where: { id } })
+
+  await writeAuditLog({
+    action: 'media_asset.deleted',
+    entityType: 'media_asset',
+    entityId: id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Deleted media asset ${record.label}`,
+    metadata: {
+      storageKey: record.storageKey,
+      bucket: record.bucket,
+      url: record.url,
     },
   })
 }
 
-export async function listVaultSubmissions(): Promise<VaultSubmissionRecord[]> {
+async function createVaultSubmissionEvent(input: {
+  submissionId: string
+  actorType: 'user' | 'admin' | 'system'
+  actorUserId?: string | null
+  actorAdminEmail?: string | null
+  eventType: string
+  metadata?: Record<string, unknown>
+}) {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const actorEmail = input.actorAdminEmail?.trim().toLowerCase() || null
+  const actorAdmin = actorEmail
+    ? await prisma.adminUser.findUnique({ where: { email: actorEmail } })
+    : null
+
+  return prisma.vaultSubmissionEvent.create({
+    data: {
+      submissionId: input.submissionId,
+      actorType: input.actorType,
+      actorUserId: input.actorUserId ?? null,
+      actorAdminId: actorAdmin?.id ?? null,
+      eventType: input.eventType,
+      metadata: input.metadata ? JSON.parse(JSON.stringify(input.metadata)) : undefined,
+    },
+  })
+}
+
+export async function createVaultSubmission(input: {
+  category: string
+  question: string
+  userId?: string | null
+  source?: VaultSubmissionRecord['source']
+}) {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = await prisma.vaultSubmission.create({
+    data: {
+      category: input.category,
+      question: input.question,
+      userId: input.userId ?? null,
+      source: input.source ?? 'app_authenticated',
+    },
+  })
+
+  await createVaultSubmissionEvent({
+    submissionId: record.id,
+    actorType: input.userId ? 'user' : 'system',
+    actorUserId: input.userId ?? null,
+    eventType: 'submission.created',
+    metadata: {
+      category: record.category,
+      source: record.source,
+    },
+  })
+
+  return record
+}
+
+export async function listVaultSubmissions(actor?: {
+  email: string
+  role: AdminRole
+}, options?: { includeIdentity?: boolean }): Promise<VaultSubmissionRecord[]> {
   if (!hasDatabaseConfig()) {
     return []
   }
 
+  const includeIdentity = actor
+    ? canViewVaultIdentity(actor.role) && options?.includeIdentity === true
+    : false
+
   const records = await prisma.vaultSubmission.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' },
     take: 100,
   })
 
-  return records.map((record: VaultSubmissionDbRecord) => ({
-    id: record.id,
-    category: record.category,
-    question: record.question,
-    status: record.status,
-    moderationNotes: record.moderationNotes,
-    approvedFaqTitle: record.approvedFaqTitle,
-    createdAt: record.createdAt.toISOString(),
-    updatedAt: record.updatedAt.toISOString(),
-  }))
+  if (actor && includeIdentity) {
+    const revealedCount = records.reduce(
+      (count: number, record: VaultSubmissionDbRecord) => count + (record.userId ? 1 : 0),
+      0
+    )
+
+    if (revealedCount > 0) {
+      await writeAuditLog({
+        action: 'vault_submission.identity_viewed',
+        entityType: 'vault_submission',
+        actorEmail: actor.email,
+        actorRole: actor.role,
+        summary: `Viewed vault submission identities (${revealedCount} linked accounts)`,
+        metadata: {
+          revealedCount,
+        },
+      })
+    }
+  }
+
+  return records.map((record: VaultSubmissionDbRecord) =>
+    mapVaultSubmissionRecord(record, { includeIdentity })
+  )
 }
 
 export async function updateVaultSubmissionModeration(
@@ -327,35 +1050,306 @@ export async function updateVaultSubmissionModeration(
     },
   })
 
+  await createVaultSubmissionEvent({
+    submissionId: record.id,
+    actorType: 'admin',
+    actorAdminEmail: actor.email,
+    eventType: 'submission.moderated',
+    metadata: {
+      status: input.status,
+      approvedFaqTitle: record.approvedFaqTitle,
+    },
+  })
+
   return record
+}
+
+export async function createVaultResponse(
+  input: {
+    submissionId: string
+    responseBody: string
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<{
+  response: VaultResponseRecord
+  notificationCreated: boolean
+}> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const responseBody = input.responseBody.trim()
+
+  if (!responseBody) {
+    throw new Error('Response body is required')
+  }
+
+  const adminUser = await upsertAdminUserRecord(actor.email, actor.role)
+
+  if (!adminUser) {
+    throw new Error('Admin actor could not be resolved')
+  }
+
+  const now = new Date()
+
+  const result = await prisma.$transaction(async (tx) => {
+    const submission = await tx.vaultSubmission.findUnique({
+      where: { id: input.submissionId },
+      select: {
+        id: true,
+        userId: true,
+        category: true,
+      },
+    })
+
+    if (!submission) {
+      throw new Error('Vault submission not found')
+    }
+
+    const notificationCreated = submission.userId !== null
+
+    const response = await tx.vaultResponse.create({
+      data: {
+        submissionId: submission.id,
+        responseBody,
+        responderAdminId: adminUser.id,
+        responderRole: actor.role,
+        deliveredAt: notificationCreated ? now : null,
+      },
+    })
+
+    await tx.vaultSubmission.update({
+      where: { id: submission.id },
+      data: {
+        status: 'answered_privately',
+      },
+    })
+
+    await tx.vaultSubmissionEvent.create({
+      data: {
+        submissionId: submission.id,
+        actorType: 'admin',
+        actorAdminId: adminUser.id,
+        eventType: 'submission.responded',
+        metadata: {
+          responseId: response.id,
+          responderRole: actor.role,
+        },
+      },
+    })
+
+    if (submission.userId) {
+      await tx.userNotification.create({
+        data: {
+          userId: submission.userId,
+          type: 'vault_response',
+          title: 'You have a new V-Vault response',
+          body: 'Dr. Didi has replied to your anonymous V-Vault submission.',
+          entityType: 'vault_submission',
+          entityId: submission.id,
+        },
+      })
+
+      await tx.vaultSubmissionEvent.create({
+        data: {
+          submissionId: submission.id,
+          actorType: 'system',
+          eventType: 'submission.user_notified',
+          metadata: {
+            responseId: response.id,
+            notificationType: 'vault_response',
+          },
+        },
+      })
+    }
+
+    return {
+      response,
+      notificationCreated,
+    }
+  })
+
+  await writeAuditLog({
+    action: 'vault_submission.responded',
+    entityType: 'vault_submission',
+    entityId: input.submissionId,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: 'Responded to V-Vault submission',
+    metadata: {
+      responseId: result.response.id,
+      notificationCreated: result.notificationCreated,
+    },
+  })
+
+  return {
+    response: mapVaultResponseRecord(result.response as VaultResponseDbRecord),
+    notificationCreated: result.notificationCreated,
+  }
+}
+
+export async function listUserVaultThreads(
+  userId: string,
+  options?: { take?: number }
+): Promise<UserVaultThreadRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const take = options?.take ?? 30
+
+  const records = await prisma.vaultSubmission.findMany({
+    where: { userId },
+    include: {
+      responses: {
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take,
+  })
+
+  return (records as Array<{
+    id: string
+    category: string
+    question: string
+    status: VaultSubmissionRecord['status']
+    createdAt: Date
+    updatedAt: Date
+    responses: VaultResponseDbRecord[]
+  }>).map((record) => ({
+    id: record.id,
+    category: record.category,
+    question: record.question,
+    status: record.status,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+    responses: record.responses.map((response: VaultResponseDbRecord) => mapVaultResponseRecord(response)),
+  }))
+}
+
+export async function listUserNotifications(
+  userId: string,
+  options?: { take?: number }
+): Promise<{
+  notifications: UserNotificationRecord[]
+  unreadCount: number
+}> {
+  if (!hasDatabaseConfig()) {
+    return { notifications: [], unreadCount: 0 }
+  }
+
+  const take = options?.take ?? 30
+
+  const [records, unreadCount] = await Promise.all([
+    prisma.userNotification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take,
+    }),
+    prisma.userNotification.count({ where: { userId, isRead: false } }),
+  ])
+
+  return {
+    notifications: (records as UserNotificationDbRecord[]).map((record: UserNotificationDbRecord) =>
+      mapUserNotificationRecord(record)
+    ),
+    unreadCount,
+  }
+}
+
+export async function markUserNotificationRead(
+  userId: string,
+  notificationId: string
+): Promise<UserNotificationRecord | null> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const existing = await prisma.userNotification.findFirst({
+    where: {
+      id: notificationId,
+      userId,
+    },
+  })
+
+  if (!existing) {
+    return null
+  }
+
+  const record = existing.isRead
+    ? existing
+    : await prisma.userNotification.update({
+        where: { id: existing.id },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      })
+
+  return mapUserNotificationRecord(record as UserNotificationDbRecord)
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   if (!hasDatabaseConfig()) {
     return {
       adminUsers: 0,
+      platformUsers: 0,
       mediaAssets: 0,
       auditLogs: 0,
       vaultSubmissions: 0,
+      contactSubmissions: 0,
+      teamMembers: 0,
+      galleryImages: 0,
       podcastEpisodes: 0,
+      activeAlerts: 0,
       databaseReady: false,
     }
   }
 
-  const [adminUsers, mediaAssets, auditLogs, vaultSubmissions, podcastEpisodes] = await Promise.all([
+  const [
+    adminUsers,
+    platformUsers,
+    mediaAssets,
+    auditLogs,
+    vaultSubmissions,
+    contactSubmissions,
+    teamMembers,
+    galleryImages,
+    podcastEpisodes,
+    activeAlerts,
+  ] = await Promise.all([
     prisma.adminUser.count(),
+    prisma.user.count(),
     prisma.mediaAsset.count(),
     prisma.auditLog.count(),
     prisma.vaultSubmission.count(),
+    prisma.contactSubmission.count(),
+    prisma.teamMember.count().catch(() => 0),
+    prisma.galleryImage.count().catch(() => 0),
     prisma.podcastEpisode.count().catch(() => 0),
+    prisma.siteAlert
+      .count({
+        where: {
+          isActive: true,
+          startsAt: { lte: new Date() },
+          OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }],
+        },
+      })
+      .catch(() => 0),
   ])
 
   return {
     adminUsers,
+    platformUsers,
     mediaAssets,
     auditLogs,
     vaultSubmissions,
+    contactSubmissions,
+    teamMembers,
+    galleryImages,
     podcastEpisodes,
+    activeAlerts,
     databaseReady: true,
   }
 }
