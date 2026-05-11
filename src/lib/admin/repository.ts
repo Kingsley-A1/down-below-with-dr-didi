@@ -237,6 +237,47 @@ function normalizeAdminIdentity(input: { email: string; name?: string; phone?: s
   }
 }
 
+function normalizePublicImageUrl(imageUrl: string): string {
+  const trimmed = imageUrl.trim()
+  if (!trimmed) {
+    return trimmed
+  }
+
+  if (trimmed.startsWith('/')) {
+    return trimmed
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    const hostname = parsed.hostname.toLowerCase()
+    const pathWithQuery = `${parsed.pathname}${parsed.search}${parsed.hash}`
+
+    // Normalize known local/site-hosted URLs to relative paths so they stay portable.
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === 'down-below-with-dr-didi.vercel.app' ||
+      hostname === 'downbelowwithdrdidi.com' ||
+      hostname === 'www.downbelowwithdrdidi.com'
+    ) {
+      return pathWithQuery || '/'
+    }
+
+    // Ensure remote object storage links use https for image optimization compatibility.
+    if (
+      (hostname.endsWith('.r2.dev') || hostname.endsWith('.r2.cloudflarestorage.com')) &&
+      parsed.protocol === 'http:'
+    ) {
+      parsed.protocol = 'https:'
+      return parsed.toString()
+    }
+  } catch {
+    return trimmed
+  }
+
+  return trimmed
+}
+
 function supportsAdminUserField(fieldName: string): boolean {
   const runtimeDataModel = (prisma as unknown as {
     _runtimeDataModel?: {
@@ -1654,7 +1695,7 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
     title: r.title,
     description: r.description,
     caption: r.caption,
-    imageUrl: r.imageUrl,
+    imageUrl: normalizePublicImageUrl(r.imageUrl),
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
     eventName: r.eventName,
@@ -1688,7 +1729,7 @@ export async function getPublishedGalleryImages(
     title: r.title,
     description: r.description,
     caption: r.caption,
-    imageUrl: r.imageUrl,
+    imageUrl: normalizePublicImageUrl(r.imageUrl),
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
     eventName: r.eventName,
@@ -1717,7 +1758,7 @@ export async function getGalleryImageBySlug(
     title: r.title,
     description: r.description,
     caption: r.caption,
-    imageUrl: r.imageUrl,
+    imageUrl: normalizePublicImageUrl(r.imageUrl),
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
     eventName: r.eventName,
