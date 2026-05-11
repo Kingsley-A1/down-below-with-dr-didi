@@ -27,8 +27,8 @@ const defaultSiteSettings = {
   tagline: 'Expose in Love, teach, heal, and win the world for God.',
   motto: 'Expose in Love, Teach, Heal, Win.',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
-  primaryWhatsapp: 'https://wa.me/2348034404652',
-  contactEmail: 'downbelowwithdrdidi@gmail.com',
+  primaryWhatsapp: 'https://wa.me/2340000000000',
+  contactEmail: 'hello@down-below.com',
   heroHeadline: 'Expose in Love. Teach. Heal. Win.',
   heroBody: 'Faith-based reproductive health education and support for women.',
   heroImageUrl: null,
@@ -55,7 +55,7 @@ const teamMembers = [
   {
     slug: 'dr-edidiong-ekereuke',
     name: 'Dr. Edidiong Ekereuke',
-    role: 'Founder &  Executive Director',
+    role: 'Founder & Lead Physician',
     tier: 'founder',
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
@@ -65,39 +65,51 @@ const teamMembers = [
     status: 'published',
   },
   {
-    slug: 'mrs-gift-bunchi-abang',
-    name: 'Mrs. Gift Bunchi Abang',
-    role: 'Public Relation Officer',
-    tier: 'core',
-    sortOrder: 3,
-    credentials: '',
-    bio: 'Public Relation Officer for Down Below Family Health Initiative.',
-    imageUrl: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
-    imageAlt: 'Mrs. Gift Bunchi Abang, Public Relation Officer',
-    status: 'published',
-  },
-  {
     slug: 'mrs-glory-victor-etienem',
     name: 'Mrs. Glory Victor Etienem',
-    role: 'Head of Adminstration',
+    role: 'Head of Administration',
     tier: 'core',
     sortOrder: 1,
     credentials: '',
-    bio: 'Head of Adminstration for Down Below Family Health Initiative.',
+    bio: 'Head of Administration for Down Below Family Health Initiative.',
     imageUrl: '/assets/Mrs-Glory-Victor-Etienem-Head-of-Adminstration.jpg',
-    imageAlt: 'Mrs. Glory Victor Etienem, Head of Adminstration',
+    imageAlt: 'Mrs. Glory Victor Etienem, Head of Administration',
+    status: 'published',
+  },
+  {
+    slug: 'mrs-gift-bunchi-abang',
+    name: 'Mrs. Gift Bunchi Abang',
+    role: 'Public Relations Officer',
+    tier: 'core',
+    sortOrder: 2,
+    credentials: '',
+    bio: 'Public Relations Officer for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
+    imageAlt: 'Mrs. Gift Bunchi Abang, Public Relations Officer',
     status: 'published',
   },
   {
     slug: 'mr-etoma-eugene',
     name: 'Mr. Etoma Eugene',
-    role: 'Secetrait',
+    role: 'Secretary',
     tier: 'core',
-    sortOrder: 2,
+    sortOrder: 3,
     credentials: '',
-    bio: 'Secetrait for Down Below Family Health Initiative.',
+    bio: 'Secretary for Down Below Family Health Initiative.',
     imageUrl: '/assets/Mr-Etoma-Eugene-Secetrait.jpg',
-    imageAlt: 'Mr. Etoma Eugene, Secetrait',
+    imageAlt: 'Mr. Etoma Eugene, Secretary',
+    status: 'published',
+  },
+  {
+    slug: 'mrs-ebani-clarkson-agbor',
+    name: 'Mrs. Ebani Clarkson Agbor',
+    role: 'Financial Secretary',
+    tier: 'core',
+    sortOrder: 4,
+    credentials: '',
+    bio: 'Financial Secretary for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mrs-Ebani-Carkson-Agbor-Financial-Secretary.jpg',
+    imageAlt: 'Mrs. Ebani Clarkson Agbor, Financial Secretary',
     status: 'published',
   },
 ]
@@ -186,12 +198,24 @@ const galleryImages = [
       "Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women's health. The event atmosphere captures the initiative's core approach: clinical clarity, compassionate communication, and strong community participation.",
     caption: 'Founder-led public health mobilization',
     status: 'published',
+  },
+]
 
+const siteAlerts = [
+  {
+    text:
+      'Work in Progress: The website is currently being improved. If you notice anything you dislike, please reach out on 09036826272.',
+    speed: 100,
+    durationSeconds: 24,
+    isActive: true,
+    startsAt: new Date('2026-05-11T00:00:00.000Z'),
+    endsAt: null,
   },
 ]
 
 async function seedTeamMembers() {
   console.log('Seeding team members...')
+
   for (const member of teamMembers) {
     await prisma.teamMember.upsert({
       where: { slug: member.slug },
@@ -210,11 +234,15 @@ async function seedTeamMembers() {
     })
   }
 
-  // Delete stale team members
-  const currentSlugs = teamMembers.map((m) => m.slug)
+  const currentSlugs = teamMembers.map((member) => member.slug)
   const deleteResult = await prisma.teamMember.deleteMany({
-    where: { slug: { notIn: currentSlugs } },
+    where: {
+      slug: {
+        notIn: currentSlugs,
+      },
+    },
   })
+
   console.log(`  ✓ ${deleteResult.count} stale team members deleted`)
   console.log(`  ✓ ${teamMembers.length} team members seeded`)
 }
@@ -242,6 +270,36 @@ async function seedGalleryImages() {
   console.log(`  ✓ ${galleryImages.length} gallery images seeded`)
 }
 
+async function seedSiteAlerts() {
+  console.log('Seeding site alerts...')
+
+  for (const alert of siteAlerts) {
+    const existing = await prisma.siteAlert.findFirst({
+      where: { text: alert.text },
+    })
+
+    if (existing) {
+      await prisma.siteAlert.update({
+        where: { id: existing.id },
+        data: {
+          speed: alert.speed,
+          durationSeconds: alert.durationSeconds,
+          isActive: alert.isActive,
+          startsAt: alert.startsAt,
+          endsAt: alert.endsAt,
+        },
+      })
+      continue
+    }
+
+    await prisma.siteAlert.create({
+      data: alert,
+    })
+  }
+
+  console.log(`  ✓ ${siteAlerts.length} site alert seeded`)
+}
+
 async function main() {
   await prisma.siteSettings.upsert({
     where: { scope: 'global' },
@@ -267,6 +325,7 @@ async function main() {
 
   await seedTeamMembers()
   await seedGalleryImages()
+  await seedSiteAlerts()
 }
 
 main()

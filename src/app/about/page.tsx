@@ -39,6 +39,22 @@ export default async function AboutPage() {
     }))
   }
 
+  const tierRank: Record<PublicTeamMember['tier'], number> = {
+    founder: 0,
+    leadership: 1,
+    core: 2,
+  }
+
+  const rankedTeamMembers = [...teamMembers].sort((a, b) => {
+    const tierDelta = tierRank[a.tier] - tierRank[b.tier]
+
+    if (tierDelta !== 0) {
+      return tierDelta
+    }
+
+    return a.sortOrder - b.sortOrder
+  })
+
   return (
     <>
       {/* Mission & Vision */}
@@ -160,7 +176,7 @@ export default async function AboutPage() {
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {teamMembers.map((member) => (
+            {rankedTeamMembers.map((member) => (
               <div
                 key={member.id}
                 className="rounded-2xl p-8 border text-center transition-all duration-300 hover:-translate-y-1"
@@ -179,7 +195,7 @@ export default async function AboutPage() {
                   <div
                     className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full"
                     style={{ backgroundColor: 'var(--color-primary-muted)' }}
-                    aria-label={`${member.name} profile image placeholder`}
+                    aria-label={`${member.name} profile image  placeholder`}
                   >
                     <Users size={34} style={{ color: 'var(--color-primary)' }} />
                   </div>
