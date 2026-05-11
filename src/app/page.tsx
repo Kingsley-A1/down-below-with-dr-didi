@@ -151,22 +151,22 @@ export default async function HomePage() {
                     'radial-gradient(circle at center, rgba(255,255,255,0) 56%, rgba(11,78,65,0.18) 100%)',
                 }}
               />
-            </div>
 
-            {/* Floating badge */}
-            <div
-              className="pointer-events-none absolute left-3 bottom-3 sm:left-4 sm:bottom-4 lg:-bottom-4 lg:-left-6 bg-white rounded-2xl shadow-xl px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3 max-w-[calc(100%-1.5rem)]"
-              style={{ boxShadow: 'var(--shadow-lg)' }}
-            >
+              {/* Floating badge */}
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'var(--color-primary-muted)' }}
+                className="pointer-events-none absolute left-3 bottom-3 sm:left-4 sm:bottom-4 lg:left-5 lg:bottom-5 bg-white rounded-2xl shadow-xl px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3 max-w-[calc(100%-1.5rem)]"
+                style={{ boxShadow: 'var(--shadow-lg)' }}
               >
-                <Shield size={20} style={{ color: 'var(--color-primary)' }} />
-              </div>
-              <div>
-                <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>Safe Space</p>
-                <p className="font-body text-xs text-gray-500">Faith + Medicine + Community</p>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--color-primary-muted)' }}
+                >
+                  <Shield size={20} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div>
+                  <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>Safe Space</p>
+                  <p className="font-body text-xs text-gray-500">Faith + Medicine + Community</p>
+                </div>
               </div>
             </div>
 

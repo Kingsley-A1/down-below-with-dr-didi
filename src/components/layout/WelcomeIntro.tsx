@@ -2,35 +2,33 @@
 
 import { useEffect, useState } from 'react'
 
-const INTRO_DURATION_MS = 3500
-const REDUCED_MOTION_DURATION_MS = 1500
+const INTRO_DURATION_MS = 5000
+const REDUCED_MOTION_DURATION_MS = 2200
 const SESSION_KEY = 'dbwd-intro-seen'
 
 export default function WelcomeIntro() {
-  const [visible, setVisible] = useState(false)
+  const [phase, setPhase] = useState<'checking' | 'visible' | 'hidden'>('checking')
 
   useEffect(() => {
     if (window.sessionStorage.getItem(SESSION_KEY) === '1') {
+      setPhase('hidden')
       return undefined
     }
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.sessionStorage.setItem(SESSION_KEY, '1')
-    const showTimer = window.setTimeout(() => {
-      setVisible(true)
-    }, 0)
+    setPhase('visible')
 
     const hideTimer = window.setTimeout(() => {
-      setVisible(false)
+      setPhase('hidden')
     }, reduceMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS)
 
     return () => {
-      window.clearTimeout(showTimer)
       window.clearTimeout(hideTimer)
     }
   }, [])
 
-  if (!visible) return null
+  if (phase === 'hidden') return null
 
   return (
     <div
@@ -39,7 +37,7 @@ export default function WelcomeIntro() {
       aria-live="polite"
       style={{ backgroundColor: 'var(--color-primary)' }}
     >
-      <div className="text-center text-white">
+      <div className="welcome-intro__content text-center text-white">
         <p className="font-body text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
           Welcome to
         </p>
@@ -53,7 +51,7 @@ export default function WelcomeIntro() {
       </div>
       <button
         type="button"
-        onClick={() => setVisible(false)}
+        onClick={() => setPhase('hidden')}
         className="absolute right-4 top-4 rounded-full px-4 py-2 font-body text-xs font-semibold"
         style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff' }}
       >
