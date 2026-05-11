@@ -121,16 +121,13 @@ export async function createUser(
     }
 
     const passwordHash = await hashPassword(password)
-    const { token: emailVerifyToken } = generateEmailVerificationToken()
-    const emailVerifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     const user = (await prisma.user.create({
       data: {
         email,
         displayName,
         passwordHash,
-        emailVerifyToken,
-        emailVerifyTokenExpiry,
+        emailVerified: true,
         phone: phone || null,
         role: 'member',
       },
@@ -148,7 +145,7 @@ export async function createUser(
 
     return {
       user: mapToPublicRecord(user),
-      verificationToken: emailVerifyToken,
+      verificationToken: '',
     }
   } catch (error) {
     console.error('Error creating user:', error)

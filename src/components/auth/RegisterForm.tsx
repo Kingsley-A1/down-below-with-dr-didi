@@ -27,6 +27,8 @@ export function RegisterForm() {
     }))
   }
 
+  const [isSuccess, setIsSuccess] = useState(false)
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
@@ -42,12 +44,26 @@ export function RegisterForm() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.error || 'Registration failed')
+        if (data.details && data.details.fieldErrors) {
+          // Format field errors into a single string or display the first error
+          const fieldErrorMessages = Object.entries(data.details.fieldErrors)
+            .map(([field, msgs]) => {
+              const messages = msgs as string[]
+              return `${field}: ${messages[0]}`
+            })
+            .join(' | ')
+          setError(`Validation Error: ${fieldErrorMessages}`)
+        } else {
+          setError(data.error || 'Registration failed')
+        }
         return
       }
 
-      // Registration successful
-      router.push('/verify-email?message=Check your email for verification link')
+      // Registration successful: bypass email verification and redirect to home
+      setIsSuccess(true)
+      setTimeout(() => {
+        router.push('/home')
+      }, 1500)
     } catch (err) {
       setError('An unexpected error occurred')
       console.error(err)
@@ -56,13 +72,35 @@ export function RegisterForm() {
     }
   }
 
+  if (isSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 space-y-6 animate-in fade-in zoom-in duration-500">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-2xl font-bold text-center text-text">Welcome to the Family!</h3>
+        <p className="text-center text-text-muted">Your account has been created successfully.</p>
+        <p className="text-sm text-primary font-medium mt-4 flex items-center gap-2">
+          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Redirecting to your dashboard...
+        </p>
+      </div>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-800 border border-red-100">
           {error}
         </div>
       )}
+
 
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700">

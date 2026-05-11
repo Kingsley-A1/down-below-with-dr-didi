@@ -27,8 +27,8 @@ const defaultSiteSettings = {
   tagline: 'Expose in Love, teach, heal, and win the world for God.',
   motto: 'Expose in Love, Teach, Heal, Win.',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
-  primaryWhatsapp: 'https://wa.me/2340000000000',
-  contactEmail: 'hello@down-below.com',
+  primaryWhatsapp: 'https://wa.me/2348034404652',
+  contactEmail: 'downbelowwithdrdidi@gmail.com',
   heroHeadline: 'Expose in Love. Teach. Heal. Win.',
   heroBody: 'Faith-based reproductive health education and support for women.',
   heroImageUrl: null,
@@ -55,7 +55,7 @@ const teamMembers = [
   {
     slug: 'dr-edidiong-ekereuke',
     name: 'Dr. Edidiong Ekereuke',
-    role: 'Founder & Lead Physician',
+    role: 'Founder &  Executive Director',
     tier: 'founder',
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
@@ -65,27 +65,39 @@ const teamMembers = [
     status: 'published',
   },
   {
-    slug: 'ngozi-eze',
-    name: 'Ngozi Eze',
-    role: 'Community Health Officer',
+    slug: 'mrs-gift-bunchi-abang',
+    name: 'Mrs. Gift Bunchi Abang',
+    role: 'Public Relation Officer',
     tier: 'core',
-    sortOrder: 1,
-    credentials: 'BSc Public Health',
-    bio: 'Leads outreach programs in underserved communities across Cross River State. Champions maternal health initiatives at grassroots level.',
-    imageUrl: '/assets/admin_1.jpg',
-    imageAlt: 'Ngozi Eze, Community Health Officer',
+    sortOrder: 3,
+    credentials: '',
+    bio: 'Public Relation Officer for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
+    imageAlt: 'Mrs. Gift Bunchi Abang, Public Relation Officer',
     status: 'published',
   },
   {
-    slug: 'amaka-obi',
-    name: 'Amaka Obi',
-    role: 'Health Communications Lead',
+    slug: 'mrs-glory-victor-etienem',
+    name: 'Mrs. Glory Victor Etienem',
+    role: 'Head of Adminstration',
+    tier: 'core',
+    sortOrder: 1,
+    credentials: '',
+    bio: 'Head of Adminstration for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mrs-Glory-Victor-Etienem-Head-of-Adminstration.jpg',
+    imageAlt: 'Mrs. Glory Victor Etienem, Head of Adminstration',
+    status: 'published',
+  },
+  {
+    slug: 'mr-etoma-eugene',
+    name: 'Mr. Etoma Eugene',
+    role: 'Secetrait',
     tier: 'core',
     sortOrder: 2,
-    credentials: 'BA Communications',
-    bio: 'Social media strategy and health literacy content for young women. Bridges the gap between clinical knowledge and everyday language.',
-    imageUrl: '/assets/IMG-20260508-WA0081.jpg',
-    imageAlt: 'Amaka Obi, Health Communications Lead',
+    credentials: '',
+    bio: 'Secetrait for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mr-Etoma-Eugene-Secetrait.jpg',
+    imageAlt: 'Mr. Etoma Eugene, Secetrait',
     status: 'published',
   },
 ]
@@ -174,6 +186,7 @@ const galleryImages = [
       "Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women's health. The event atmosphere captures the initiative's core approach: clinical clarity, compassionate communication, and strong community participation.",
     caption: 'Founder-led public health mobilization',
     status: 'published',
+
   },
 ]
 
@@ -196,6 +209,13 @@ async function seedTeamMembers() {
       create: member,
     })
   }
+
+  // Delete stale team members
+  const currentSlugs = teamMembers.map((m) => m.slug)
+  const deleteResult = await prisma.teamMember.deleteMany({
+    where: { slug: { notIn: currentSlugs } },
+  })
+  console.log(`  ✓ ${deleteResult.count} stale team members deleted`)
   console.log(`  ✓ ${teamMembers.length} team members seeded`)
 }
 

@@ -171,9 +171,10 @@ export type PodcastEpisodeUpdateData = z.infer<typeof podcastEpisodeUpdateSchema
 // ─────────────────────────────────────────────
 
 export const userRegisterSchema = z.object({
-  email: z.string().email('Please enter a valid email address').max(255),
+  email: z.string().trim().email('Please enter a valid email address').max(255),
   displayName: z
     .string()
+    .trim()
     .min(2, 'Display name must be at least 2 characters')
     .max(100, 'Display name may not exceed 100 characters'),
   phone: z

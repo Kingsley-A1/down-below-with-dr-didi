@@ -192,7 +192,7 @@ Seed rows:
 
 | slug | name | role | tier | sortOrder |
 |---|---|---|---|---|
-| `dr-edidiong-ekereuke` | Dr. Edidiong Ekereuke | Founder & Lead Physician | founder | 0 |
+| `dr-edidiong-ekereuke` | Dr. Edidiong Ekereuke | Founder &  Executive Director | founder | 0 |
 | `ngozi-eze` | Ngozi Eze | Community Health Officer | core | 1 |
 | `amaka-obi` | Amaka Obi | Health Communications Lead | core | 2 |
 
@@ -334,7 +334,7 @@ export const metadata: Metadata = {
 ┌─────────────────────────────────────────────────────┐
 │  FOUNDER CARD (full-width feature card)             │
 │  Large portrait (left, 40%) | Bio + credentials    │
-│  (right, 60%) | Badge: "Founder & Lead Physician"  │
+│  (right, 60%) | Badge: "Founder &  Executive Director"  │
 │  Slightly elevated with shadow + primary border    │
 └─────────────────────────────────────────────────────┘
 

@@ -162,7 +162,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Member Since</label>
-            <p className="mt-1 text-sm text-gray-900">
+            <p className="mt-1 text-sm text-gray-900" suppressHydrationWarning>
               {new Date(initialUser.createdAt).toLocaleDateString()}
             </p>
           </div>

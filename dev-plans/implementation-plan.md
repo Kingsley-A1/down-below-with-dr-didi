@@ -477,7 +477,7 @@ Each card:
 const team = [
   {
     name: "Dr. Didi",
-    role: "Founder & Lead Physician",
+    role: "Founder &  Executive Director",
     image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=300",
     bio: "MBBCH, MPH. SRH advocate and community health educator based in Calabar."
   },

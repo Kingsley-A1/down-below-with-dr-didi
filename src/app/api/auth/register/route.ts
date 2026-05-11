@@ -70,18 +70,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send verification email
-    const verificationUrl = `${API_URL}/verify-email?token=${result.verificationToken}`
-    const emailResult = await sendEmailVerification(normalizedEmail, verificationUrl)
-
-    if (!emailResult.success) {
-      console.warn('Email verification send failed, but user created:', emailResult.error)
-    }
+    // Bypass email verification - no email sent
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Registration successful. Please check your email to verify your account.',
+        message: 'Registration successful. Welcome to Down Below with Dr. Didi!',
         user: result.user,
       },
       { status: 201 }
