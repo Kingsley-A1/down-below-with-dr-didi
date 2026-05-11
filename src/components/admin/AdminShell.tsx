@@ -1,16 +1,150 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import {
+  ArrowUpRight,
+  Bell,
+  GalleryHorizontal,
+  ImageIcon,
+  LayoutDashboard,
+  Menu,
+  Mic2,
+  Plus,
+  Settings,
+  Shield,
+  Upload,
+  Users,
+  UserSquare2,
+  X,
+} from 'lucide-react'
 import AdminSignOutButton from '@/components/admin/AdminSignOutButton'
+import AdminUploadModal from '@/components/admin/AdminUploadModal'
 import type { AdminRole } from '@/lib/admin/rbac'
 
-const adminLinks = [
-  { href: '/admin', label: 'Overview' },
-  { href: '/admin/settings', label: 'Site Settings' },
-  { href: '/admin/media', label: 'Media Library' },
-  { href: '/admin/vault', label: 'V-Vault Moderation' },
-  { href: '/admin/podcast', label: 'Podcast Episodes' },
-  { href: '/admin/team', label: 'Team Members' },
-  { href: '/admin/gallery', label: 'Gallery Images' },
+type NavLinkItem = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+type NavSection = {
+  title: string
+  links: NavLinkItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Overview',
+    links: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }],
+  },
+  {
+    title: 'Content',
+    links: [
+      { href: '/admin/settings', label: 'Site Settings', icon: Settings },
+      { href: '/admin/team', label: 'Team Members', icon: UserSquare2 },
+      { href: '/admin/gallery', label: 'Gallery Images', icon: GalleryHorizontal },
+      { href: '/admin/podcast', label: 'Podcast Episodes', icon: Mic2 },
+    ],
+  },
+  {
+    title: 'Operations',
+    links: [
+      { href: '/admin/users', label: 'User Management', icon: Users },
+      { href: '/admin/vault', label: 'V-Vault Moderation', icon: Shield },
+      { href: '/admin/alerts', label: 'Site Alerts', icon: Bell },
+      { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
+    ],
+  },
 ]
+
+function getFocusableElements(root: HTMLElement) {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  )
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === '/admin') {
+    return pathname === '/admin'
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+function AdminNav({
+  pathname,
+  onNavigate,
+  onUpload,
+  showSignOut = true,
+}: {
+  pathname: string
+  onNavigate?: () => void
+  onUpload: () => void
+  showSignOut?: boolean
+}) {
+  return (
+    <nav className="space-y-5" aria-label="Admin navigation">
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.title} className="space-y-2">
+          <p className="px-3 font-body text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+            {section.title}
+          </p>
+          <div className="space-y-1.5">
+            {section.links.map((link) => {
+              const active = isActivePath(pathname, link.href)
+              const Icon = link.icon
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={onNavigate}
+                  className={`admin-interactive flex items-center gap-2.5 rounded-xl border px-3 py-2.5 font-body text-sm font-semibold transition-colors ${
+                    active
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                      : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{link.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div className="border-t border-slate-200 pt-4">
+        <button
+          type="button"
+          onClick={onUpload}
+          className="admin-interactive mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
+        >
+          <Upload className="h-4 w-4" />
+          <span>Upload Asset</span>
+        </button>
+
+        <Link
+          href="/"
+          onClick={onNavigate}
+          className="admin-interactive flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
+        >
+          <span>View Main Platform</span>
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
+
+        {showSignOut ? (
+          <AdminSignOutButton className="admin-interactive mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-center font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900" />
+        ) : null}
+      </div>
+    </nav>
+  )
+}
 
 export default function AdminShell({
   children,
@@ -21,42 +155,157 @@ export default function AdminShell({
   email: string
   role: AdminRole
 }) {
+  const pathname = usePathname() || '/admin'
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [desktopNavOpen, setDesktopNavOpen] = useState(true)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const mobilePanelRef = useRef<HTMLElement | null>(null)
+  const mobileCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null)
+
+  function handleNavToggle() {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      setDesktopNavOpen((previous) => !previous)
+      return
+    }
+
+    setMobileNavOpen(true)
+  }
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return
+    }
+
+    lastFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    mobileCloseButtonRef.current?.focus()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMobileNavOpen(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !mobilePanelRef.current) {
+        return
+      }
+
+      const focusable = getFocusableElements(mobilePanelRef.current)
+
+      if (focusable.length === 0) {
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      lastFocusedElementRef.current?.focus()
+    }
+  }, [mobileNavOpen])
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <header className="border-b bg-white" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="max-w-container mx-auto px-6 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
-              Admin Console
-            </p>
-            <p className="font-body text-sm text-gray-500">Production settings, assets, and governance for DownBelow Family.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>{email}</p>
-              <p className="font-body text-xs uppercase tracking-[0.2em] text-gray-400">{role.replace('_', ' ')}</p>
+    <div className="min-h-screen bg-(--color-surface) admin-fade-in">
+      <header className="sticky top-0 z-50 border-b border-(--color-border) bg-white/95 backdrop-blur">
+        <div className="max-w-container mx-auto flex items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleNavToggle}
+              className="admin-interactive inline-flex h-10 w-10 items-center justify-center text-slate-700"
+              aria-label={desktopNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileNavOpen}
+              aria-controls="admin-mobile-nav"
+            >
+              <Menu className="h-5 w-5 lg:hidden" />
+              {desktopNavOpen ? <X className="hidden h-5 w-5 lg:block" /> : <Menu className="hidden h-5 w-5 lg:block" />}
+            </button>
+            <div className="min-w-0">
+              <p className="truncate font-heading text-xl font-bold text-slate-900 md:text-2xl">Admin Console</p>
+              <p className="truncate font-body text-xs text-slate-500 md:text-sm">Global content and operations control</p>
             </div>
-            <AdminSignOutButton />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="font-body text-[11px] uppercase tracking-[0.18em] text-slate-400">{role.replace('_', ' ')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="admin-interactive hidden items-center gap-2 rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white lg:inline-flex"
+            >
+              <Upload className="h-4 w-4" />
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="admin-interactive inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white lg:hidden"
+              aria-label="Upload media"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </header>
-      <div className="max-w-container mx-auto px-6 py-8 grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="bg-white rounded-2xl border p-4 h-fit" style={{ borderColor: 'var(--color-border)' }}>
-          <nav className="space-y-2" aria-label="Admin navigation">
-            {adminLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="block rounded-xl px-4 py-3 font-body text-sm font-semibold transition-colors"
-                style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
+
+      {mobileNavOpen ? (
+        <div className="fixed inset-0 z-60 lg:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation menu">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/45"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation menu"
+          />
+          <aside id="admin-mobile-nav" ref={mobilePanelRef} className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs border-r border-slate-200 bg-white p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-heading text-lg font-bold text-slate-900">Admin Navigation</p>
+              <button
+                ref={mobileCloseButtonRef}
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                className="admin-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+                aria-label="Close menu"
               >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </aside>
-        <div>{children}</div>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <AdminNav pathname={pathname} onNavigate={() => setMobileNavOpen(false)} onUpload={() => setUploadOpen(true)} />
+          </aside>
+        </div>
+      ) : null}
+
+      <div className={`max-w-container mx-auto grid gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8 ${desktopNavOpen ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
+        {desktopNavOpen ? (
+          <aside className="hidden lg:block">
+            <div className="admin-surface sticky top-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <AdminNav pathname={pathname} onUpload={() => setUploadOpen(true)} />
+            </div>
+          </aside>
+        ) : null}
+        <div className="min-w-0">{children}</div>
       </div>
+
+      <AdminUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
     </div>
   )
 }
