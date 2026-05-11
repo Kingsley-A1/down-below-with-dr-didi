@@ -126,7 +126,9 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
+      window.dispatchEvent(new Event('auth-state-changed'))
       router.push('/login')
+      router.refresh()
     } catch (err) {
       console.error('Logout error:', err)
     }
@@ -134,187 +136,212 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <article className="rounded-2xl border bg-slate-50 p-4" style={{ borderColor: 'var(--color-border)' }}>
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Email</p>
+          <p className="mt-2 break-words font-body text-sm font-semibold text-slate-900">{initialUser.email}</p>
+        </article>
+        <article className="rounded-2xl border bg-slate-50 p-4" style={{ borderColor: 'var(--color-border)' }}>
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Membership</p>
+          <p className="mt-2 font-body text-sm font-semibold text-slate-900 capitalize">{initialUser.role}</p>
+        </article>
+        <article className="rounded-2xl border bg-slate-50 p-4" style={{ borderColor: 'var(--color-border)' }}>
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Member Since</p>
+          <p className="mt-2 font-body text-sm font-semibold text-slate-900" suppressHydrationWarning>
+            {new Date(initialUser.createdAt).toLocaleDateString()}
+          </p>
+        </article>
+      </div>
+
       <VaultNotificationsWidget />
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
           {success}
         </div>
       )}
 
-      {/* Profile Information */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="text-lg font-medium text-gray-900">Profile Information</h3>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="space-y-4 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+          <h3 className="font-heading text-xl font-bold text-slate-900">Profile Information</h3>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="mt-1 text-sm text-gray-900">{initialUser.email}</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <p className="mt-1 text-sm capitalize text-gray-900">{initialUser.role}</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Member Since</label>
-            <p className="mt-1 text-sm text-gray-900" suppressHydrationWarning>
-              {new Date(initialUser.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-
-        {!isEditingProfile ? (
-          <button
-            onClick={() => setIsEditingProfile(true)}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Edit Profile
-          </button>
-        ) : (
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
-                Display Name
-              </label>
-              <input
-                type="text"
-                id="displayName"
-                name="displayName"
-                value={formData.displayName}
-                onChange={handleProfileChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone (Optional)
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleProfileChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="+234 or 0... (Nigerian numbers)"
-              />
-            </div>
-
-            <div className="flex gap-2">
+          {!isEditingProfile ? (
+            <div className="space-y-4">
+              <div>
+                <p className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Display Name</p>
+                <p className="mt-1 font-body text-sm text-slate-900">{formData.displayName}</p>
+              </div>
+              <div>
+                <p className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Phone</p>
+                <p className="mt-1 font-body text-sm text-slate-900">{formData.phone || 'Not added yet'}</p>
+              </div>
               <button
-                type="submit"
-                disabled={isLoading}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                onClick={() => setIsEditingProfile(true)}
+                className="rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {isLoading ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300"
-              >
-                Cancel
+                Edit Profile
               </button>
             </div>
-          </form>
-        )}
-      </div>
+          ) : (
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label htmlFor="displayName" className="mb-2 block font-body text-sm font-semibold text-slate-700">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  id="displayName"
+                  name="displayName"
+                  value={formData.displayName}
+                  onChange={handleProfileChange}
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+              </div>
 
-      {/* Change Password */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="text-lg font-medium text-gray-900">Security</h3>
+              <div>
+                <label htmlFor="phone" className="mb-2 block font-body text-sm font-semibold text-slate-700">
+                  Phone (Optional)
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleProfileChange}
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  placeholder="+234 or 0... (Nigerian numbers)"
+                />
+              </div>
 
-        {!isChangingPassword ? (
-          <button
-            onClick={() => setIsChangingPassword(true)}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Change Password
-          </button>
-        ) : (
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-                Current Password
-              </label>
-              <input
-                type="password"
-                id="currentPassword"
-                name="currentPassword"
-                value={passwordData.currentPassword}
-                onChange={handlePasswordChange}
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  {isLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(false)}
+                  className="rounded-full border px-5 py-2.5 text-sm font-semibold text-slate-700"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
 
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                New Password
-              </label>
-              <input
-                type="password"
-                id="newPassword"
-                name="newPassword"
-                value={passwordData.newPassword}
-                onChange={handlePasswordChange}
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Must contain uppercase, lowercase, number, and special character. 8-128 characters.
+        <section className="space-y-4 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+          <h3 className="font-heading text-xl font-bold text-slate-900">Security</h3>
+
+          {!isChangingPassword ? (
+            <div className="space-y-3">
+              <p className="font-body text-sm text-slate-600">
+                Keep your account secure by setting a strong password you do not use elsewhere.
               </p>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={passwordData.confirmPassword}
-                onChange={handlePasswordChange}
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-              />
-            </div>
-
-            <div className="flex gap-2">
               <button
-                type="submit"
-                disabled={isLoading}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                onClick={() => setIsChangingPassword(true)}
+                className="rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {isLoading ? 'Updating...' : 'Update Password'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsChangingPassword(false)}
-                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300"
-              >
-                Cancel
+                Change Password
               </button>
             </div>
-          </form>
-        )}
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label htmlFor="currentPassword" className="mb-2 block font-body text-sm font-semibold text-slate-700">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  id="currentPassword"
+                  name="currentPassword"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="newPassword" className="mb-2 block font-body text-sm font-semibold text-slate-700">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Must contain uppercase, lowercase, number, and special character. 8-128 characters.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="mb-2 block font-body text-sm font-semibold text-slate-700">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
+                  style={{ borderColor: 'var(--color-border)' }}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  {isLoading ? 'Updating...' : 'Update Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsChangingPassword(false)}
+                  className="rounded-full border px-5 py-2.5 text-sm font-semibold text-slate-700"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
       </div>
 
-      {/* Logout */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+        <h3 className="font-heading text-lg font-bold text-slate-900">Session</h3>
+        <p className="mt-1 font-body text-sm text-slate-600">Sign out securely from this device when you are done.</p>
         <button
           onClick={handleLogout}
-          className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          className="mt-4 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
         >
           Log Out
         </button>

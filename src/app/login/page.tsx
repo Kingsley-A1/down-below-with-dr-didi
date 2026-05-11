@@ -1,23 +1,35 @@
+import Link from 'next/link'
 import { LoginForm } from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8" style={{ backgroundColor: 'var(--color-surface)' }}>
+    <main className="min-h-screen px-4 py-10 md:px-6 md:py-14" style={{ backgroundColor: 'var(--color-surface)' }}>
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(circle at 78% 18%, rgba(11,78,65,0.1) 0%, rgba(11,78,65,0) 38%), radial-gradient(circle at 14% 84%, rgba(252,238,33,0.13) 0%, rgba(252,238,33,0) 35%)',
-        }}
-      />
-      <div className="relative w-full max-w-md">
-        <div className="bg-white px-4 py-8 shadow-sm sm:rounded-2xl sm:px-10 border" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 className="mb-3 text-center text-3xl font-bold text-gray-900">
-            Log in
-          </h2>
-          <p className="mb-8 text-center text-sm text-gray-600 leading-relaxed">
-            Access your Down Below with Dr. Didi account
+        className="mx-auto w-full max-w-xl overflow-hidden rounded-[28px] border bg-white"
+        style={{ borderColor: 'var(--color-border)', boxShadow: '0 12px 30px rgba(2, 12, 27, 0.08)' }}
+      >
+        <div
+          className="border-b px-8 py-7"
+          style={{ borderColor: 'rgba(11, 78, 65, 0.14)', background: 'linear-gradient(120deg, rgba(11,78,65,0.06), rgba(255,255,255,0.96))' }}
+        >
+          <p className="font-body text-xs uppercase tracking-[0.25em] text-emerald-700">Member Access</p>
+          <h1 className="mt-2 font-heading text-3xl font-bold text-slate-900 md:text-4xl">Welcome back</h1>
+          <p className="mt-2 font-body text-sm text-slate-600">
+            Sign in to continue your private health journey and access your V-Vault inbox.
           </p>
+        </div>
+
+        <div className="space-y-6 px-8 py-8">
           <LoginForm />
+          <p className="font-body text-sm text-slate-600">
+            New here?{' '}
+            <Link
+              href="/register"
+              className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4"
+            >
+              Create your account
+            </Link>
+          </p>
         </div>
       </div>
     </main>

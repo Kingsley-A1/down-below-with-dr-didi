@@ -65,7 +65,11 @@ export function VaultNotificationsWidget() {
     [threads]
   )
 
-  const hasResponses = vaultNotifications.length > 0 || vaultThreadsWithResponses.length > 0
+  const totalThreadCount = threads.length
+  const respondedThreadCount = vaultThreadsWithResponses.length
+  const pendingThreadCount = Math.max(totalThreadCount - respondedThreadCount, 0)
+
+  const hasActivity = vaultNotifications.length > 0 || totalThreadCount > 0
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -156,7 +160,7 @@ export function VaultNotificationsWidget() {
           <p className="text-sm text-gray-600">
             {isLoading
               ? 'Checking for responses...'
-              : `${unreadCount} unread response${unreadCount === 1 ? '' : 's'}${lastUpdatedAt ? ` • updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}`}
+              : `${unreadCount} unread response${unreadCount === 1 ? '' : 's'} • ${totalThreadCount} submission${totalThreadCount === 1 ? '' : 's'}${lastUpdatedAt ? ` • updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -200,13 +204,24 @@ export function VaultNotificationsWidget() {
               : 'border-gray-200 text-gray-700 hover:bg-gray-50'
           }`}
         >
-          Conversation History ({vaultThreadsWithResponses.length})
+          Conversation History ({totalThreadCount})
         </button>
       </div>
 
-      {!isLoading && !hasResponses ? (
+      {!isLoading ? (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700">
+            Responded threads: {respondedThreadCount}
+          </p>
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            Awaiting response: {pendingThreadCount}
+          </p>
+        </div>
+      ) : null}
+
+      {!isLoading && !hasActivity ? (
         <p className="mt-4 rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-          No V-Vault responses yet. Once Dr. Didi replies, your anonymous response thread will show up here.
+          No V-Vault activity yet. Once you submit an anonymous message, your thread will appear here immediately.
         </p>
       ) : null}
 
@@ -240,8 +255,9 @@ export function VaultNotificationsWidget() {
         </ul>
       ) : (
         <ul className="mt-4 space-y-3">
-          {vaultThreadsWithResponses.slice(0, 6).map((thread) => {
+          {threads.slice(0, 6).map((thread) => {
             const latestResponse = thread.responses[thread.responses.length - 1]
+            const isPending = !latestResponse
 
             return (
               <li key={thread.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -254,9 +270,13 @@ export function VaultNotificationsWidget() {
                   </span>
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm text-gray-900">{thread.question}</p>
-                <p className="mt-2 line-clamp-3 text-sm text-gray-700">{latestResponse?.responseBody}</p>
+                <p className="mt-2 line-clamp-3 text-sm text-gray-700">
+                  {latestResponse?.responseBody || 'Awaiting response from Dr. Didi. You will be notified as soon as a reply is available.'}
+                </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  {latestResponse ? new Date(latestResponse.createdAt).toLocaleString() : ''}
+                  {isPending
+                    ? `Submitted ${new Date(thread.createdAt).toLocaleString()}`
+                    : `Responded ${new Date(latestResponse.createdAt).toLocaleString()}`}
                 </p>
               </li>
             )

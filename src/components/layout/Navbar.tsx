@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Menu, X } from 'lucide-react'
 import { siteConfig } from '@/lib/site-config'
 import SiteAlertTicker from '@/components/layout/SiteAlertTicker'
@@ -31,34 +31,47 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const loadSessionState = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/session', {
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        setIsAuthenticated(false)
+        return
+      }
+
+      const data = (await response.json()) as { authenticated?: boolean }
+      setIsAuthenticated(Boolean(data.authenticated))
+    } catch {
+      setIsAuthenticated(false)
+    }
+  }, [])
+
   useEffect(() => {
-    let mounted = true
+    void loadSessionState()
 
-    async function loadSessionState() {
-      try {
-        const response = await fetch('/api/auth/session', {
-          cache: 'no-store',
-        })
+    const handleAuthChange = () => {
+      void loadSessionState()
+    }
 
-        if (!response.ok) {
-          return
-        }
-
-        const data = (await response.json()) as { authenticated?: boolean }
-        if (mounted) {
-          setIsAuthenticated(Boolean(data.authenticated))
-        }
-      } catch {
-        // Keep unauthenticated CTA fallback on network errors.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadSessionState()
       }
     }
 
-    void loadSessionState()
+    window.addEventListener('focus', handleAuthChange)
+    window.addEventListener('auth-state-changed', handleAuthChange)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      mounted = false
+      window.removeEventListener('focus', handleAuthChange)
+      window.removeEventListener('auth-state-changed', handleAuthChange)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [])
+  }, [loadSessionState, pathname])
 
   const ctaHref = isAuthenticated ? '/contact' : '/register'
   const ctaLabel = isAuthenticated ? 'Book Now' : 'Register'
