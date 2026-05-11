@@ -30,9 +30,30 @@ export const contactSchema = z.object({
   message: z.string().min(10, 'Message must be at least 10 characters').max(1000),
 })
 
-export const adminSignInSchema = z.object({
-  email: z.string().email('Enter a valid admin email address'),
-  accessCode: z.string().min(12, 'Admin access code must be at least 12 characters'),
+const adminPasswordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password may not exceed 128 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/\d/, 'Password must contain at least one digit')
+  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Password must contain at least one special character')
+
+export const adminRegisterSchema = z.object({
+  name: z.string().trim().min(2, 'Enter the admin name').max(100, 'Name may not exceed 100 characters'),
+  email: z.string().trim().email('Enter a valid admin email address').max(255),
+  phone: z.string().regex(/^(\+234|0)[789][01]\d{8}$/, 'Enter a valid Nigerian phone number'),
+  password: adminPasswordSchema,
+  confirmPassword: z.string(),
+  accessCode: z.string().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+})
+
+export const adminLoginSchema = z.object({
+  email: z.string().trim().email('Enter a valid admin email address').max(255),
+  password: z.string().min(1, 'Password is required'),
 })
 
 export const vaultModerationSchema = z.object({
@@ -40,6 +61,18 @@ export const vaultModerationSchema = z.object({
   status: z.enum(['new', 'reviewed', 'answered_privately', 'approved_for_faq', 'archived']),
   moderationNotes: z.string().max(600).optional().or(z.literal('')),
   approvedFaqTitle: z.string().max(180).optional().or(z.literal('')),
+})
+
+export const vaultResponseSchema = z.object({
+  responseBody: z
+    .string()
+    .trim()
+    .min(20, 'Response must be at least 20 characters')
+    .max(4000, 'Response must not exceed 4000 characters'),
+})
+
+export const notificationMarkReadSchema = z.object({
+  id: z.string().trim().min(1, 'Notification id is required'),
 })
 
 export const siteSettingsSchema = z.object({
@@ -56,11 +89,54 @@ export const siteSettingsSchema = z.object({
   footerBlurb: z.string().min(20).max(280),
 })
 
+const siteAlertSchemaBase = z.object({
+  text: z.string().trim().min(10, 'Alert text must be at least 10 characters').max(500),
+  speed: z.number().int().min(40).max(220).optional().default(100),
+  durationSeconds: z.number().int().min(8).max(180).optional().default(22),
+  isActive: z.boolean().optional().default(true),
+  startsAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+  endsAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+})
+
+function validateSiteAlertWindow(
+  data: { startsAt?: string | undefined; endsAt?: string | undefined },
+  ctx: z.RefinementCtx
+) {
+  if (!data.startsAt || !data.endsAt) {
+    return
+  }
+
+  const startsAt = new Date(data.startsAt)
+  const endsAt = new Date(data.endsAt)
+
+  if (endsAt <= startsAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endsAt'],
+      message: 'End date must be after the start date',
+    })
+  }
+}
+
+export const siteAlertSchema = siteAlertSchemaBase.superRefine(validateSiteAlertWindow)
+
+export const siteAlertUpdateSchema = siteAlertSchemaBase
+  .partial()
+  .extend({
+    id: z.string().min(1, 'Alert id is required'),
+  })
+  .superRefine(validateSiteAlertWindow)
+
 export type VaultFormData = z.infer<typeof vaultSchema>
 export type ContactFormData = z.infer<typeof contactSchema>
-export type AdminSignInData = z.infer<typeof adminSignInSchema>
+export type AdminRegisterData = z.infer<typeof adminRegisterSchema>
+export type AdminLoginData = z.infer<typeof adminLoginSchema>
 export type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>
 export type VaultModerationData = z.infer<typeof vaultModerationSchema>
+export type VaultResponseData = z.infer<typeof vaultResponseSchema>
+export type NotificationMarkReadData = z.infer<typeof notificationMarkReadSchema>
+export type SiteAlertFormData = z.infer<typeof siteAlertSchema>
+export type SiteAlertUpdateData = z.infer<typeof siteAlertUpdateSchema>
 
 // ─────────────────────────────────────────────
 // TEAM MEMBER VALIDATION

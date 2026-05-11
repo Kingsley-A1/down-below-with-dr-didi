@@ -1,29 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 import { listVaultSubmissions, updateVaultSubmissionModeration } from '@/lib/admin/repository'
 import { vaultModerationSchema } from '@/lib/validations'
-
-async function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
-  return verifyAdminSession(token)
-}
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { canViewVaultIdentity } from '@/lib/admin/rbac'
 
 export async function GET(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const submissions = await listVaultSubmissions()
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
+  }
+
+  const includeIdentityParam = request.nextUrl.searchParams.get('includeIdentity')
+  const includeIdentity = includeIdentityParam === '1' || includeIdentityParam === 'true'
+
+  if (includeIdentity && !canViewVaultIdentity(session.role)) {
+    return NextResponse.json({ error: 'Insufficient permissions to reveal identities.' }, { status: 403 })
+  }
+
+  const submissions = await listVaultSubmissions({
+    email: session.email,
+    role: session.role,
+  }, {
+    includeIdentity,
+  })
   return NextResponse.json({ submissions })
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
   }
 
   try {
@@ -41,7 +59,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, submission: record })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update V-Vault submission'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return mapApiError(error, 'Failed to update V-Vault submission')
   }
 }

@@ -1,0 +1,8 @@
+ALTER TABLE "AdminUser"
+ADD COLUMN "phone" STRING;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN "passwordHash" STRING;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN "lastLoginAt" TIMESTAMP(3);

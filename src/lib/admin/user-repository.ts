@@ -121,13 +121,16 @@ export async function createUser(
     }
 
     const passwordHash = await hashPassword(password)
+    const { token: emailVerifyToken } = generateEmailVerificationToken()
+    const emailVerifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     const user = (await prisma.user.create({
       data: {
         email,
         displayName,
         passwordHash,
-        emailVerified: true,
+        emailVerifyToken,
+        emailVerifyTokenExpiry,
         phone: phone || null,
         role: 'member',
       },
@@ -145,7 +148,7 @@ export async function createUser(
 
     return {
       user: mapToPublicRecord(user),
-      verificationToken: '',
+      verificationToken: emailVerifyToken,
     }
   } catch (error) {
     console.error('Error creating user:', error)
@@ -255,6 +258,11 @@ export async function authenticateUser(
       })
       return null
     }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastActivityAt: new Date() },
+    })
 
     // Audit: successful login
     await logAuditEvent({
@@ -623,7 +631,7 @@ interface AuditEventData {
   entityId?: string
   userId?: string
   actorEmail: string
-  actorRole?: string // 'super_admin', 'editor', 'moderator', or user-initiated actions
+  actorRole?: string // 'super_admin', 'founder_admin', 'editor', 'moderator', or user-initiated actions
   summary: string
   success?: boolean
   ipAddress?: string // IP address of the actor
@@ -655,9 +663,9 @@ async function logAuditEvent({
       entityId: entityId || undefined,
       userId: userId || undefined,
       actorEmail,
-      actorRole: (actorRole === 'super_admin' || actorRole === 'editor' || actorRole === 'moderator'
+      actorRole: (actorRole === 'super_admin' || actorRole === 'founder_admin' || actorRole === 'editor' || actorRole === 'moderator'
         ? actorRole
-        : 'moderator') as 'super_admin' | 'editor' | 'moderator',
+        : 'moderator') as 'super_admin' | 'founder_admin' | 'editor' | 'moderator',
       summary,
       success,
       ipAddress,

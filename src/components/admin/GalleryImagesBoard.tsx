@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { GalleryImageRecord, GalleryImageCategory } from '@/lib/admin/repository'
+import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
 type Status = 'draft' | 'published' | 'archived'
 
@@ -34,7 +36,23 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM
 
-export default function GalleryImagesBoard({ initialImages }: { initialImages: GalleryImageRecord[] }) {
+function getTone(message: string) {
+  const value = message.toLowerCase()
+
+  if (value.includes('failed') || value.includes('required') || value.includes('cannot')) {
+    return 'error' as const
+  }
+
+  return 'success' as const
+}
+
+export default function GalleryImagesBoard({
+  initialImages,
+  hideHeader = false,
+}: {
+  initialImages: GalleryImageRecord[]
+  hideHeader?: boolean
+}) {
   const [images, setImages] = useState(initialImages)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -42,6 +60,8 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   async function refresh() {
     const res = await fetch('/api/admin/gallery', { cache: 'no-store' })
@@ -52,6 +72,7 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
   function startCreate() {
     setEditId(null)
     setForm(EMPTY_FORM)
+    setImageFile(null)
     setShowForm(true)
     setMsg('')
   }
@@ -72,6 +93,7 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
       sortOrder: img.sortOrder,
       status: img.status as Status,
     })
+    setImageFile(null)
     setShowForm(true)
     setMsg('')
   }
@@ -80,6 +102,7 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
+    setImageFile(null)
   }
 
   function set(field: keyof FormState, value: string | number) {
@@ -91,10 +114,45 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
     setBusy(true)
     setMsg('')
 
+    if (!editId && !imageFile) {
+      setBusy(false)
+      setMsg('Image upload is required for new gallery records.')
+      return
+    }
+
+    let nextImageUrl = form.imageUrl
+
+    if (imageFile) {
+      setUploadingImage(true)
+
+      try {
+        const upload = await uploadAdminMediaAsset(
+          imageFile,
+          `${form.title || 'Gallery image'} upload`,
+          form.imageAlt || form.title
+        )
+        nextImageUrl = upload.url
+      } catch (error) {
+        setBusy(false)
+        setUploadingImage(false)
+        setMsg(error instanceof Error ? error.message : 'Image upload failed')
+        return
+      }
+
+      setUploadingImage(false)
+    }
+
+    if (!nextImageUrl) {
+      setBusy(false)
+      setMsg('A gallery image is required before saving.')
+      return
+    }
+
     const url = editId ? `/api/admin/gallery/${editId}` : '/api/admin/gallery'
     const method = editId ? 'PUT' : 'POST'
     const payload = {
       ...form,
+      imageUrl: nextImageUrl,
       capturedAt: form.capturedAt ? new Date(form.capturedAt).toISOString() : undefined,
     }
     const body = editId ? { ...payload, id: editId } : payload
@@ -140,24 +198,35 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
 
   return (
     <section className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between" style={{ borderColor: 'var(--color-border)' }}>
-        <div>
-          <h1 className="font-heading text-3xl font-bold mb-1" style={{ color: 'var(--color-primary)' }}>Gallery Images</h1>
-          <p className="font-body text-sm text-gray-500">Manage the public gallery. Add images, assign categories, and control visibility.</p>
+      {!hideHeader ? (
+        <div className="flex flex-col justify-between gap-4 rounded-2xl border bg-white p-6 sm:flex-row sm:items-center" style={{ borderColor: 'var(--color-border)' }}>
+          <div>
+            <h1 className="mb-1 font-heading text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>Gallery Images</h1>
+            <p className="font-body text-sm text-gray-500">Manage public gallery images, categories, and publication status.</p>
+          </div>
+          <button
+            type="button"
+            onClick={startCreate}
+            className="self-start whitespace-nowrap rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90 sm:self-auto"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            + Add Image
+          </button>
         </div>
-        <button
-          onClick={startCreate}
-          className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90 whitespace-nowrap self-start sm:self-auto"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-        >
-          + Add Image
-        </button>
-      </div>
-
-      {msg && (
-        <p className="font-body text-sm px-4 py-2 rounded-lg bg-blue-50 text-blue-700">{msg}</p>
+      ) : (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={startCreate}
+            className="rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            + Add Image
+          </button>
+        </div>
       )}
+
+      {msg ? <AdminInlineStatus tone={getTone(msg)} message={msg} /> : null}
 
       {/* Add/Edit Form */}
       {showForm && (
@@ -172,8 +241,20 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
             <Field label="Slug *">
               <input value={form.slug} onChange={(e) => set('slug', e.target.value)} required pattern="[a-z0-9-]+" className="input-field" />
             </Field>
-            <Field label="Image URL *">
-              <input value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} required className="input-field" />
+            <Field label="Upload Image">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="input-field"
+              />
+              <p className="font-body text-xs text-gray-400 mt-1">
+                {imageFile
+                  ? `Selected: ${imageFile.name}`
+                  : editId
+                    ? 'Upload a new file to replace the current gallery image.'
+                    : 'Required: upload image from media pipeline.'}
+              </p>
             </Field>
             <Field label="Image Alt *">
               <input value={form.imageAlt} onChange={(e) => set('imageAlt', e.target.value)} required minLength={5} className="input-field" />
@@ -221,11 +302,11 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
               </button>
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || uploadingImage}
                 className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {busy ? 'Saving…' : editId ? 'Update Image' : 'Add Image'}
+                {uploadingImage ? 'Uploading image…' : busy ? 'Saving…' : editId ? 'Update Image' : 'Add Image'}
               </button>
             </div>
           </form>
@@ -237,6 +318,7 @@ export default function GalleryImagesBoard({ initialImages }: { initialImages: G
         {(['all', ...CATEGORIES] as const).map((cat) => (
           <button
             key={cat}
+            type="button"
             onClick={() => setFilter(cat)}
             className="font-body text-sm font-medium px-4 py-1.5 rounded-full transition-colors capitalize"
             style={{

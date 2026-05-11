@@ -1,15 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 const INTRO_DURATION_MS = 5000
 const REDUCED_MOTION_DURATION_MS = 2200
 const SESSION_KEY = 'dbwd-intro-seen'
 
 export default function WelcomeIntro() {
+  const pathname = usePathname() || ''
   const [phase, setPhase] = useState<'checking' | 'visible' | 'hidden'>('checking')
 
   useEffect(() => {
+    if (pathname.startsWith('/admin')) {
+      setPhase('hidden')
+      return undefined
+    }
+
     if (window.sessionStorage.getItem(SESSION_KEY) === '1') {
       setPhase('hidden')
       return undefined
@@ -26,9 +33,9 @@ export default function WelcomeIntro() {
     return () => {
       window.clearTimeout(hideTimer)
     }
-  }, [])
+  }, [pathname])
 
-  if (phase === 'hidden') return null
+  if (pathname.startsWith('/admin') || phase === 'hidden') return null
 
   return (
     <div

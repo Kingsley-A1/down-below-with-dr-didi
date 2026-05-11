@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { env, hasR2Config } from '@/lib/env'
 
@@ -56,4 +56,15 @@ export async function uploadAssetToR2(input: {
     bucket: env.R2_BUCKET,
     url: buildPublicAssetUrl(storageKey),
   }
+}
+
+export async function deleteAssetFromR2(input: { storageKey: string; bucket?: string }) {
+  const client = getR2Client()
+
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: input.bucket || env.R2_BUCKET,
+      Key: input.storageKey,
+    })
+  )
 }

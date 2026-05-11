@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-export default function AdminSignOutButton() {
+export default function AdminSignOutButton({ className }: { className?: string }) {
   const router = useRouter()
 
   async function handleSignOut() {
@@ -18,8 +18,7 @@ export default function AdminSignOutButton() {
     <button
       type="button"
       onClick={handleSignOut}
-      className="font-body text-sm font-semibold px-4 py-2 rounded-full border"
-      style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+      className={className || "font-body text-sm font-semibold px-4 py-2 rounded-full border border-[var(--color-border)] text-[var(--color-primary)] transition-colors hover:bg-black/5"}
     >
       Sign Out
     </button>

@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 import { getAllGalleryImages, createGalleryImage } from '@/lib/admin/repository'
 import { galleryImageSchema } from '@/lib/validations'
-
-async function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
-  return verifyAdminSession(token)
-}
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 
 export async function GET(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'moderator')
+  if (roleError) {
+    return roleError
   }
 
   const images = await getAllGalleryImages()
@@ -20,10 +20,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'editor')
+  if (roleError) {
+    return roleError
   }
 
   try {
@@ -50,7 +55,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, image }, { status: 201 })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create gallery image'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return mapApiError(error, 'Failed to create gallery image')
   }
 }

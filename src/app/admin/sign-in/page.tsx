@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AdminSignInForm from '@/components/admin/AdminSignInForm'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
+import { env } from '@/lib/env'
 
 export const metadata: Metadata = {
   title: 'Admin Sign In',
@@ -22,14 +24,23 @@ export default async function AdminSignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-16" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <div className="w-full max-w-lg bg-white rounded-[28px] border p-8" style={{ borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
-        <div className="mb-8">
-          <p className="font-body text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">Protected Access</p>
-          <h1 className="font-heading text-4xl font-bold mb-3" style={{ color: 'var(--color-primary)' }}>Admin sign in</h1>
-          <p className="font-body text-sm text-gray-600">Use an allowlisted email and the shared admin access code to open the production control plane.</p>
+    <div className="min-h-screen px-4 py-10 md:px-6 md:py-14" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <div className="mx-auto w-full max-w-xl overflow-hidden rounded-[28px] border bg-white" style={{ borderColor: 'var(--color-border)', boxShadow: '0 12px 30px rgba(2, 12, 27, 0.08)' }}>
+        <div className="border-b px-8 py-7" style={{ borderColor: 'rgba(11, 78, 65, 0.14)', background: 'linear-gradient(120deg, rgba(11,78,65,0.06), rgba(255,255,255,0.96))' }}>
+          <p className="font-body text-xs uppercase tracking-[0.25em] text-emerald-700">Protected Access</p>
+          <h1 className="mt-2 font-heading text-3xl font-bold text-slate-900 md:text-4xl">Admin sign in</h1>
+          <p className="mt-2 font-body text-sm text-slate-600">Use your registered admin email and password to continue.</p>
         </div>
-        <AdminSignInForm />
+
+        <div className="space-y-6 px-8 py-8">
+          <AdminSignInForm supportPhone={env.ADMIN_SUPPORT_PHONE} />
+          <p className="font-body text-sm text-slate-600">
+            New here?{' '}
+            <Link href="/admin/register" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
+              Create an admin account
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )

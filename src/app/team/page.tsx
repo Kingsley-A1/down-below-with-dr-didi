@@ -46,8 +46,8 @@ export default async function TeamPage() {
   }
 
   const founder = members.find((m) => m.tier === 'founder')
-  const leadership = members.filter((m) => m.tier === 'leadership').sort((a, b) => a.sortOrder - b.sortOrder)
-  const core = members.filter((m) => m.tier === 'core').sort((a, b) => a.sortOrder - b.sortOrder)
+  const leadership = members.filter((m) => m.tier === 'leadership')
+  const core = members.filter((m) => m.tier === 'core')
 
   return (
     <>
@@ -155,8 +155,8 @@ export default async function TeamPage() {
                 <div className="h-px flex-1" style={{ backgroundColor: 'var(--color-border)' }} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {leadership.map((member, index) => (
-                  <TeamMemberCard key={member.id} member={member} index={index} />
+                {leadership.map((member) => (
+                  <TeamMemberCard key={member.id} member={member} />
                 ))}
               </div>
             </section>
@@ -172,8 +172,8 @@ export default async function TeamPage() {
                 <div className="h-px flex-1" style={{ backgroundColor: 'var(--color-border)' }} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {core.map((member, index) => (
-                  <TeamMemberCard key={member.id} member={member} index={index} />
+                {core.map((member) => (
+                  <TeamMemberCard key={member.id} member={member} />
                 ))}
               </div>
             </section>
@@ -205,28 +205,14 @@ export default async function TeamPage() {
   )
 }
 
-function TeamMemberCard({ member, index = 0 }: { member: PublicTeamMember; index?: number }) {
-  const borderColors = [
-    '#3b82f6', // blue
-    '#10b981', // green
-    '#f59e0b', // yellow
-    '#8b5cf6', // purple
-    '#ec4899', // pink
-    '#14b8a6', // teal
-  ]
-  const cardBorderColor = borderColors[index % borderColors.length]
-
+function TeamMemberCard({ member }: { member: PublicTeamMember }) {
   return (
     <article
-      className="rounded-xl overflow-hidden shadow-md flex flex-col transition-transform hover:-translate-y-1"
-      style={{ 
-        backgroundColor: 'var(--color-bg)', 
-        border: '1px solid var(--color-border)',
-        borderTop: `4px solid ${cardBorderColor}` 
-      }}
+      className="rounded-xl overflow-hidden shadow-sm border flex flex-col"
+      style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
     >
       {/* Photo */}
-      <div className="relative w-full bg-gray-100" style={{ aspectRatio: '1/1', maxHeight: '320px' }}>
+      <div className="relative w-full" style={{ aspectRatio: '3/4', maxHeight: '260px' }}>
         {member.imageUrl ? (
           <Image
             src={member.imageUrl}

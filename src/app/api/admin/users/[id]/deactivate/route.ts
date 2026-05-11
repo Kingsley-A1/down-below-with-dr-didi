@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/session'
 import { deactivateUser, getUserById } from '@/lib/admin/user-repository'
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { extractClientIP } from '@/lib/security'
 
 /**
@@ -12,13 +12,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // Require authentication and admin role
-    const session = await requireAuth()
-    if (session.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
-    }
+  const session = await requireAdminSession(request)
 
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
+  }
+
+  try {
     const { id: userId } = await params
 
     // Validate user ID format
@@ -26,18 +31,18 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 })
     }
 
-    // Prevent admin from deactivating themselves
-    if (userId === session.userId) {
-      return NextResponse.json(
-        { error: 'Cannot deactivate your own account' },
-        { status: 400 }
-      )
-    }
-
     // Check if user exists
     const user = await getUserById(userId)
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Prevent admin from deactivating themselves.
+    if (user.email.trim().toLowerCase() === session.email.trim().toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Cannot deactivate your own account' },
+        { status: 400 }
+      )
     }
 
     // Check if already deactivated
@@ -80,10 +85,6 @@ export async function POST(
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error deactivating user:', error)
-    return NextResponse.json(
-      { error: 'Failed to deactivate user', details: (error as Error).message },
-      { status: 500 }
-    )
+    return mapApiError(error, 'Failed to deactivate user')
   }
 }

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
 import { siteConfig } from '@/lib/site-config'
+import SiteAlertTicker from '@/components/layout/SiteAlertTicker'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -19,6 +20,7 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const isAdminRoute = pathname?.startsWith('/admin')
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -60,6 +62,10 @@ export default function Navbar() {
 
   const ctaHref = isAuthenticated ? '/contact' : '/register'
   const ctaLabel = isAuthenticated ? 'Book Now' : 'Register'
+
+  if (isAdminRoute) {
+    return null
+  }
 
   return (
     <header
@@ -165,6 +171,8 @@ export default function Navbar() {
           </Link>
         </div>
       )}
+
+      <SiteAlertTicker />
     </header>
   )
 }

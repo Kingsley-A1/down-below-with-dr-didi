@@ -6,7 +6,7 @@ const LEGACY_SITE_NAMES = new Set([
   'Down Below Family Health Initiative',
 ])
 const LEGACY_SITE_URLS = new Set(['https://down-below.com'])
-const LEGACY_CONTACT_EMAILS = new Set(['downbelowwithdrdidi@gmail.com'])
+const LEGACY_CONTACT_EMAILS = new Set(['hello@down-below.com'])
 
 function normalizeLegacySettings(settings: SiteSettingsState): SiteSettingsState {
   return {

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
+import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 
@@ -20,7 +22,15 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [assets, setAssets] = useState(initialAssets)
   const [status, setStatus] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [pendingDeleteAsset, setPendingDeleteAsset] = useState<MediaAssetRecord | null>(null)
   const [uploadDetail, setUploadDetail] = useState('')
+
+  async function refreshAssets() {
+    const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
+    const refreshedResult = await refreshed.json()
+    setAssets(refreshedResult.assets || [])
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -46,9 +56,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
       }
 
       setUploadDetail('Refreshing media library')
-      const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
-      const refreshedResult = await refreshed.json()
-      setAssets(refreshedResult.assets || [])
+      await refreshAssets()
       setStatus('Asset uploaded successfully.')
       form.reset()
     } catch {
@@ -59,12 +67,56 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }
 
+  function requestDelete(asset: MediaAssetRecord) {
+    setPendingDeleteAsset(asset)
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteAsset) {
+      return
+    }
+
+    setStatus('')
+    setIsDeleting(true)
+
+    try {
+      const response = await fetch(`/api/admin/media/${pendingDeleteAsset.id}`, { method: 'DELETE' })
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 409 && Array.isArray(result.usages)) {
+          const usagePreview = result.usages
+            .slice(0, 3)
+            .map((usage: { entityType: string; field: string; entityLabel: string }) => `${usage.entityType}.${usage.field} (${usage.entityLabel})`)
+            .join(', ')
+          setStatus(`Cannot delete: asset is in use by ${usagePreview}.`)
+          return
+        }
+
+        setStatus(result.error || 'Delete failed')
+        return
+      }
+
+      await refreshAssets()
+      setStatus('Asset deleted successfully.')
+      setPendingDeleteAsset(null)
+    } catch {
+      setStatus('Delete failed. Check your connection and try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const statusTone = status.toLowerCase().includes('failed') || status.toLowerCase().includes('cannot')
+    ? 'error'
+    : 'success'
+
   return (
-    <div className="space-y-8">
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="space-y-8 admin-fade-in">
+      <form onSubmit={handleSubmit} className="admin-surface bg-white rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
         <div>
-          <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Upload New Asset</h2>
-          <p className="font-body text-sm text-gray-500">Hero images, article covers, outreach media, and downloadable files should pass through this R2-backed pipeline.</p>
+          <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Upload Asset</h2>
+          <p className="font-body text-sm text-gray-500">Add approved files to the managed media pipeline for use across the platform.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div>
@@ -86,17 +138,17 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           detail={uploadDetail}
         />
         <div className="flex items-center gap-4">
-          <button type="submit" disabled={isUploading} className="rounded-full px-6 py-3 font-body font-semibold" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
+          <button type="submit" disabled={isUploading} className="admin-interactive rounded-full px-6 py-3 font-body font-semibold" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
             {isUploading ? 'Uploading...' : 'Upload Asset'}
           </button>
-          {status ? <p className="font-body text-sm text-gray-600">{status}</p> : null}
         </div>
+        {status ? <div aria-live="polite"><AdminInlineStatus tone={statusTone} message={status} /></div> : null}
       </form>
 
-      <section className="bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
+      <section className="admin-surface bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
         <div className="mb-5">
-          <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Media Library</h2>
-          <p className="font-body text-sm text-gray-500">Uploaded assets are persisted in CockroachDB and served from Cloudflare R2.</p>
+          <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Asset Catalog</h2>
+          <p className="font-body text-sm text-gray-500">Assets are tracked in CockroachDB and served through Cloudflare R2 storage.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -106,16 +158,17 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Type</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Size</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">URL</th>
+                <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {assets.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 font-body text-sm text-gray-500">No media assets yet.</td>
+                  <td colSpan={5} className="py-6 font-body text-sm text-gray-500">No assets uploaded yet.</td>
                 </tr>
               ) : (
                 assets.map((asset) => (
-                  <tr key={asset.id} className="border-b last:border-0" style={{ borderColor: 'var(--color-border)' }}>
+                  <tr key={asset.id} className="border-b last:border-0 transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--color-border)' }}>
                     <td className="py-4">
                       <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>{asset.label}</p>
                       <p className="font-body text-xs text-gray-400">{new Date(asset.createdAt).toLocaleString('en-NG')}</p>
@@ -127,6 +180,16 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                         Open asset
                       </a>
                     </td>
+                    <td className="py-4 font-body text-sm">
+                      <button
+                        type="button"
+                        onClick={() => requestDelete(asset)}
+                        disabled={isDeleting || isUploading}
+                        className="admin-interactive rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -134,6 +197,23 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           </table>
         </div>
       </section>
+
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteAsset)}
+        title="Delete media asset"
+        message={pendingDeleteAsset ? `Delete \"${pendingDeleteAsset.label}\" permanently from storage and records?` : ''}
+        confirmLabel="Delete asset"
+        confirmTone="danger"
+        busy={isDeleting}
+        onCancel={() => {
+          if (!isDeleting) {
+            setPendingDeleteAsset(null)
+          }
+        }}
+        onConfirm={() => {
+          void confirmDelete()
+        }}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/auth/session'
 import AdminUserDetailClient from '@/components/admin/AdminUserDetailClient'
+import AdminContentContainer from '@/components/admin/AdminContentContainer'
+import { requireAdminPageSession } from '@/lib/admin/page-guard'
 
 interface AdminUserDetailPageProps {
   params: Promise<{
@@ -14,23 +14,11 @@ interface AdminUserDetailPageProps {
  */
 export default async function AdminUserDetailPage({ params }: AdminUserDetailPageProps) {
   const { slug } = await params
-  const session = await getSession()
-
-  // Redirect to login if not authenticated
-  if (!session) {
-    redirect('/login')
-  }
-
-  // Redirect to home if not admin
-  if (session.role !== 'admin') {
-    redirect('/')
-  }
+  await requireAdminPageSession({ nextPath: `/admin/users/${slug}`, requiredRole: 'super_admin' })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <AdminUserDetailClient userId={slug} />
-      </div>
-    </div>
+    <AdminContentContainer>
+      <AdminUserDetailClient userId={slug} />
+    </AdminContentContainer>
   )
 }

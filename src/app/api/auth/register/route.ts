@@ -70,12 +70,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Bypass email verification - no email sent
+    // Send verification email
+    const verificationUrl = `${API_URL}/verify-email?token=${result.verificationToken}`
+    const emailResult = await sendEmailVerification(normalizedEmail, verificationUrl)
+
+    if (!emailResult.success) {
+      console.warn('Email verification send failed, but user created:', emailResult.error)
+    }
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Registration successful. Welcome to Down Below with Dr. Didi!',
+        message: 'Registration successful. Please check your email to verify your account.',
         user: result.user,
       },
       { status: 201 }
@@ -90,6 +96,16 @@ export async function POST(request: NextRequest) {
           error: 'Authentication database is not initialized yet. Please run migrations and try again.',
         },
         { status: 503 }
+      )
+    }
+
+    if (error instanceof Error && error.message.toLowerCase().includes('already exists')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'A user with this email already exists.',
+        },
+        { status: 409 }
       )
     }
 

@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { TeamMemberRecord } from '@/lib/admin/repository'
+import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
 type Tier = 'founder' | 'leadership' | 'core'
 type Status = 'draft' | 'published' | 'archived'
@@ -25,13 +27,31 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM
 
-export default function TeamMembersBoard({ initialMembers }: { initialMembers: TeamMemberRecord[] }) {
+function getTone(message: string) {
+  const value = message.toLowerCase()
+
+  if (value.includes('failed') || value.includes('required') || value.includes('cannot')) {
+    return 'error' as const
+  }
+
+  return 'success' as const
+}
+
+export default function TeamMembersBoard({
+  initialMembers,
+  hideHeader = false,
+}: {
+  initialMembers: TeamMemberRecord[]
+  hideHeader?: boolean
+}) {
   const [members, setMembers] = useState(initialMembers)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   async function refresh() {
     const res = await fetch('/api/admin/team', { cache: 'no-store' })
@@ -42,6 +62,7 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
   function startCreate() {
     setEditId(null)
     setForm(EMPTY_FORM)
+    setImageFile(null)
     setShowForm(true)
     setMsg('')
   }
@@ -60,6 +81,7 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
       imageAlt: member.imageAlt ?? '',
       status: member.status as Status,
     })
+    setImageFile(null)
     setShowForm(true)
     setMsg('')
   }
@@ -68,6 +90,7 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
+    setImageFile(null)
     setMsg('')
   }
 
@@ -80,9 +103,48 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
     setBusy(true)
     setMsg('')
 
+    if (!editId && !imageFile) {
+      setBusy(false)
+      setMsg('Image upload is required for new team members.')
+      return
+    }
+
+    let nextImageUrl = form.imageUrl
+
+    if (imageFile) {
+      setUploadingImage(true)
+
+      try {
+        const upload = await uploadAdminMediaAsset(
+          imageFile,
+          `${form.name || 'Team member'} profile image`,
+          form.imageAlt || form.name
+        )
+        nextImageUrl = upload.url
+      } catch (error) {
+        setBusy(false)
+        setUploadingImage(false)
+        setMsg(error instanceof Error ? error.message : 'Image upload failed')
+        return
+      }
+
+      setUploadingImage(false)
+    }
+
+    if (!nextImageUrl) {
+      setBusy(false)
+      setMsg('A team profile image is required before saving.')
+      return
+    }
+
     const url = editId ? `/api/admin/team/${editId}` : '/api/admin/team'
     const method = editId ? 'PUT' : 'POST'
-    const body = editId ? { ...form, id: editId } : form
+    const payload = {
+      ...form,
+      imageUrl: nextImageUrl,
+      imageAlt: form.imageAlt || form.name,
+    }
+    const body = editId ? { ...payload, id: editId } : payload
 
     const res = await fetch(url, {
       method,
@@ -123,24 +185,35 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
 
   return (
     <section className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-2xl border p-6 flex items-center justify-between gap-4" style={{ borderColor: 'var(--color-border)' }}>
-        <div>
-          <h1 className="font-heading text-3xl font-bold mb-1" style={{ color: 'var(--color-primary)' }}>Team Members</h1>
-          <p className="font-body text-sm text-gray-500">Manage the public team directory. Drag sortOrder to reorder.</p>
+      {!hideHeader ? (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+          <div>
+            <h1 className="mb-1 font-heading text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>Team Members</h1>
+            <p className="font-body text-sm text-gray-500">Manage public team profiles and publishing state.</p>
+          </div>
+          <button
+            type="button"
+            onClick={startCreate}
+            className="rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            + Add Member
+          </button>
         </div>
-        <button
-          onClick={startCreate}
-          className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-        >
-          + Add Member
-        </button>
-      </div>
-
-      {msg && (
-        <p className="font-body text-sm px-4 py-2 rounded-lg bg-blue-50 text-blue-700">{msg}</p>
+      ) : (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={startCreate}
+            className="rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            + Add Member
+          </button>
+        </div>
       )}
+
+      {msg ? <AdminInlineStatus tone={getTone(msg)} message={msg} /> : null}
 
       {/* Form */}
       {showForm && (
@@ -174,8 +247,20 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
             <Field label="Credentials">
               <input value={form.credentials} onChange={(e) => set('credentials', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Image URL">
-              <input value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} className="input-field" />
+            <Field label="Upload Image">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="input-field"
+              />
+              <p className="font-body text-xs text-gray-400 mt-1">
+                {imageFile
+                  ? `Selected: ${imageFile.name}`
+                  : editId
+                    ? 'Upload a new image to replace the current team photo.'
+                    : 'Required: upload image from media pipeline.'}
+              </p>
             </Field>
             <Field label="Image Alt">
               <input value={form.imageAlt} onChange={(e) => set('imageAlt', e.target.value)} className="input-field" />
@@ -199,11 +284,11 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
               </button>
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || uploadingImage}
                 className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {busy ? 'Saving…' : editId ? 'Update Member' : 'Create Member'}
+                {uploadingImage ? 'Uploading image…' : busy ? 'Saving…' : editId ? 'Update Member' : 'Create Member'}
               </button>
             </div>
           </form>
@@ -236,7 +321,7 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
                     <td className="px-4 py-3 text-gray-400">{m.sortOrder}</td>
                     <td className="px-4 py-3">
                       {m.imageUrl ? (
-                        <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
                           <Image src={m.imageUrl} alt={m.imageAlt ?? m.name} fill className="object-cover object-top" sizes="40px" />
                         </div>
                       ) : (
@@ -251,7 +336,7 @@ export default function TeamMembersBoard({ initialMembers }: { initialMembers: T
                         {m.tier}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{m.role}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-50 truncate">{m.role}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={m.status as Status} />
                     </td>

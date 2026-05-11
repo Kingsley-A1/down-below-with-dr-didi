@@ -61,6 +61,7 @@ function FaqAccordionItem({ item }: { item: FaqItem }) {
 
 export default function VaultForm() {
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const {
     register,
@@ -73,6 +74,7 @@ export default function VaultForm() {
   const questionValue = useWatch({ control, name: 'question', defaultValue: '' })
 
   const onSubmit = async (data: VaultFormData) => {
+    setErrorMessage('')
     setSubmitState('loading')
     try {
       const res = await fetch('/api/vault', {
@@ -80,9 +82,19 @@ export default function VaultForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      setSubmitState(res.ok ? 'success' : 'error')
-      if (res.ok) reset()
+
+      const result = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setErrorMessage(result?.error || 'Something went wrong. Please try again.')
+        setSubmitState('error')
+        return
+      }
+
+      setSubmitState('success')
+      reset()
     } catch {
+      setErrorMessage('Network error. Please try again.')
       setSubmitState('error')
     }
   }
@@ -97,10 +109,10 @@ export default function VaultForm() {
           <CheckCircle size={40} style={{ color: '#16a34a' }} />
         </div>
         <h3 className="font-heading font-bold text-3xl mb-4" style={{ color: 'var(--color-primary)' }}>
-          Question Received! 💚
+          Question Received!
         </h3>
         <p className="font-body text-gray-600 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-          Your question has been received anonymously. Dr. Didi will review it in moderation and may publish an answer to help others.
+          Your question is now in review. We keep it anonymous for public discussion while using your account only to deliver private responses.
         </p>
         <button
           onClick={() => setSubmitState('idle')}
@@ -119,9 +131,9 @@ export default function VaultForm() {
       <div className="text-white rounded-2xl p-6 mb-8 flex items-start gap-4" style={{ backgroundColor: 'var(--color-primary)' }}>
         <Shield size={24} className="shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
         <div>
-          <h3 className="font-body font-semibold mb-1">Your identity is completely protected.</h3>
+          <h3 className="font-body font-semibold mb-1">Your public identity stays protected.</h3>
           <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            We do not collect your name, email, IP address, or any identifying information. Questions are reviewed by Dr. Didi and may be published anonymously to help others.
+            Your submission can be answered privately in your account. It remains anonymous on public surfaces, while internal safeguards control who can view account identity.
           </p>
         </div>
       </div>
@@ -134,7 +146,7 @@ export default function VaultForm() {
         <h2 className="font-heading font-bold text-3xl mb-1" style={{ color: 'var(--color-primary)' }}>
           Ask Dr. Didi Anything
         </h2>
-        <p className="font-body text-gray-500 text-sm mb-8">No name. No email. 100% anonymous.</p>
+        <p className="font-body text-gray-500 text-sm mb-8">Private account-linked support with anonymous public handling.</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
@@ -185,7 +197,7 @@ export default function VaultForm() {
             >
               <AlertCircle size={18} style={{ color: '#dc2626' }} />
               <p className="font-body text-sm" style={{ color: '#b91c1c' }}>
-                Something went wrong. Please try again.
+                {errorMessage || 'Something went wrong. Please try again.'}
               </p>
             </div>
           )}

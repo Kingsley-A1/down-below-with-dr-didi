@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AuditLogViewer from './AuditLogViewer'
 import type { PublicUserRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
 
@@ -35,7 +37,7 @@ export default function AdminUserDetailClient({
 
         if (!response.ok) {
           if (response.status === 403) {
-            router.push('/')
+            router.push('/admin')
             return
           }
           if (response.status === 404) {
@@ -142,10 +144,10 @@ export default function AdminUserDetailClient({
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <div className="h-12 bg-gray-200 rounded animate-pulse" />
+        <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-gray-200 rounded animate-pulse" />
+            <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-100" />
           ))}
         </div>
       </div>
@@ -154,72 +156,60 @@ export default function AdminUserDetailClient({
 
   if (error || !user) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg">
-        <div className="flex justify-between items-center">
-          <p>{error || 'User not found'}</p>
-          <Link href="/admin/users" className="text-red-600 hover:text-red-800 font-medium">
-            Back to Users
-          </Link>
-        </div>
+      <div className="space-y-4">
+        <AdminInlineStatus tone="error" message={error || 'User not found'} />
+        <Link href="/admin/users" className="font-body text-sm font-semibold text-emerald-700 hover:text-emerald-900">
+          Back to user list
+        </Link>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">{user.displayName}</h1>
-          <p className="text-gray-600 text-lg">{user.email}</p>
-        </div>
-        <Link
-          href="/admin/users"
-          className="text-blue-600 hover:text-blue-800 font-medium"
-        >
-          ← Back to Users
-        </Link>
-      </div>
+      <AdminPageHeader
+        eyebrow="Operations"
+        title={user.displayName}
+        description={user.email}
+        actions={
+          <Link
+            href="/admin/users"
+            className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Back to user list
+          </Link>
+        }
+      />
 
-      {/* Messages */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg">
-          {error}
-        </div>
-      )}
+      {error ? <AdminInlineStatus tone="error" message={error} /> : null}
 
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg">
-          ✓ {successMessage}
-        </div>
-      )}
+      {successMessage ? <AdminInlineStatus tone="success" message={successMessage} /> : null}
 
-      {/* User Info Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-            <div className="text-lg font-semibold">
+            <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
+            <div>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                className={`rounded-full px-3 py-1 font-body text-xs font-semibold capitalize ${
                   user.role === 'admin'
-                    ? 'bg-purple-100 text-purple-800'
-                    : 'bg-blue-100 text-blue-800'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-100 text-slate-700'
                 }`}
               >
-                {user.role}
+                {user.role.replace('_', ' ')}
               </span>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <div className="text-lg font-semibold">
+            <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</p>
+            <div>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                className={`rounded-full px-3 py-1 font-body text-xs font-semibold ${
                   user.isActive
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-700'
                 }`}
               >
                 {user.isActive ? 'Active' : 'Inactive'}
@@ -228,15 +218,15 @@ export default function AdminUserDetailClient({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
               Email Verified
-            </label>
-            <div className="text-lg font-semibold">
+            </p>
+            <div>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                className={`rounded-full px-3 py-1 font-body text-xs font-semibold ${
                   user.emailVerified
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-yellow-100 text-yellow-800'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-700'
                 }`}
               >
                 {user.emailVerified ? 'Verified' : 'Pending'}
@@ -247,13 +237,13 @@ export default function AdminUserDetailClient({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-200">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-            <p className="text-gray-600">{user.phone || 'Not provided'}</p>
+            <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Phone</p>
+            <p className="font-body text-sm text-slate-600">{user.phone || 'Not provided'}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Member Since</label>
-            <p className="text-gray-600">
+            <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Member Since</p>
+            <p className="font-body text-sm text-slate-600">
               {new Date(user.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
@@ -263,33 +253,36 @@ export default function AdminUserDetailClient({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
+        <div className="mt-6 border-t border-slate-200 pt-6">
           {user.isActive ? (
             <button
+              type="button"
               onClick={handleDeactivate}
               disabled={isUpdating}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              className="rounded-lg bg-rose-600 px-5 py-2.5 font-body text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isUpdating ? 'Deactivating...' : 'Deactivate User'}
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleActivate}
               disabled={isUpdating}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              className="rounded-lg bg-emerald-600 px-5 py-2.5 font-body text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isUpdating ? 'Activating...' : 'Activate User'}
             </button>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Audit Logs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Audit Log</h2>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="font-heading text-2xl font-bold text-slate-900">Audit Timeline</h2>
+        <p className="mt-2 font-body text-sm text-slate-600">Recent account actions and moderation events.</p>
+        <div className="mt-5">
         <AuditLogViewer logs={auditLogs} isLoading={false} />
-      </div>
+        </div>
+      </section>
     </div>
   )
 }

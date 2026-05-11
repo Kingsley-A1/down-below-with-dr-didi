@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { VaultNotificationsWidget } from '@/components/auth/VaultNotificationsWidget'
 
 interface User {
   id: string
@@ -133,6 +134,8 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
 
   return (
     <div className="space-y-6">
+      <VaultNotificationsWidget />
+
       {error && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
           {error}

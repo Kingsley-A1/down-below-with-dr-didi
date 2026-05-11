@@ -1,36 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminSignInSchema } from '@/lib/validations'
-import { createAdminSessionToken, getAllowedAdminUser, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
-import { upsertAdminUserRecord, writeAuditLog } from '@/lib/admin/repository'
-import { env, getAdminEnv } from '@/lib/env'
+import { adminLoginSchema } from '@/lib/validations'
+import { createAdminSessionToken, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
+import { authenticateAdminUser, writeAuditLog } from '@/lib/admin/repository'
+import { env } from '@/lib/env'
+
+function isMissingAdminTableError(error: unknown) {
+  return error instanceof Error && error.message.includes('The table `public.AdminUser` does not exist')
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const parsed = adminSignInSchema.safeParse(body)
+    const parsed = adminLoginSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid admin credentials', issues: parsed.error.issues }, { status: 400 })
     }
 
     const email = parsed.data.email.trim().toLowerCase()
-    const allowedUser = getAllowedAdminUser(email)
-    const adminEnv = getAdminEnv()
+    const account = await authenticateAdminUser(email, parsed.data.password)
 
-    if (!allowedUser || parsed.data.accessCode !== adminEnv.ADMIN_ACCESS_CODE) {
+    if (!account) {
       return NextResponse.json({ error: 'Admin access denied' }, { status: 401 })
     }
 
-    await upsertAdminUserRecord(email, allowedUser.role)
-
     const token = await createAdminSessionToken({
       email,
-      role: allowedUser.role,
+      role: account.role,
     })
 
     const response = NextResponse.json({
       success: true,
-      role: allowedUser.role,
+      role: account.role,
     })
 
     response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString()))
@@ -39,12 +40,16 @@ export async function POST(request: NextRequest) {
       action: 'admin.sign_in',
       entityType: 'admin_session',
       actorEmail: email,
-      actorRole: allowedUser.role,
+      actorRole: account.role,
       summary: 'Admin user signed in',
     })
 
     return response
-  } catch {
+  } catch (error) {
+    if (isMissingAdminTableError(error)) {
+      return NextResponse.json({ error: 'Admin database is not initialized yet.' }, { status: 503 })
+    }
+
     return NextResponse.json({ error: 'Failed to create admin session' }, { status: 500 })
   }
 }

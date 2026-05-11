@@ -8,6 +8,7 @@ datasource db {
 
 enum AdminRole {
   super_admin
+  founder_admin
   editor
   moderator
 }
@@ -34,6 +35,18 @@ enum VaultSubmissionStatus {
   archived
 }
 
+enum VaultSubmissionSource {
+  app_authenticated
+  whatsapp_import
+  manual_admin
+}
+
+enum VaultActorType {
+  user
+  admin
+  system
+}
+
 enum TeamTier {
   founder
   leadership
@@ -52,13 +65,18 @@ model AdminUser {
   id                    String        @id @default(cuid())
   email                 String        @unique
   name                  String?
+  phone                 String?
+  passwordHash          String?
   role                  AdminRole
   isActive              Boolean       @default(true)
+  lastLoginAt           DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   mediaAssets           MediaAsset[]
   auditLogs             AuditLog[]
   updatedSiteSettings   SiteSettings[] @relation("SiteSettingsUpdatedBy")
+  vaultResponses        VaultResponse[]
+  vaultSubmissionEvents VaultSubmissionEvent[] @relation("VaultEventAdminActor")
 }
 
 model SiteSettings {
@@ -79,6 +97,21 @@ model SiteSettings {
   updatedAt       DateTime  @updatedAt
   updatedById     String?
   updatedBy       AdminUser? @relation("SiteSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model SiteAlert {
+  id              String    @id @default(cuid())
+  text            String
+  speed           Int       @default(100)
+  durationSeconds Int       @default(22)
+  isActive        Boolean   @default(true)
+  startsAt        DateTime  @default(now())
+  endsAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive, startsAt, endsAt])
+  @@index([createdAt])
 }
 
 model MediaAsset {
@@ -118,6 +151,9 @@ model User {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   auditLogs         AuditLog[]
+  vaultSubmissions  VaultSubmission[]
+  notifications     UserNotification[]
+  vaultEvents       VaultSubmissionEvent[] @relation("VaultEventUserActor")
 
   // Indexes to optimize session queries and reduce contention
   @@index([isActive])
@@ -149,10 +185,69 @@ model VaultSubmission {
   category         String
   question         String
   status           VaultSubmissionStatus @default(new)
+  source           VaultSubmissionSource @default(app_authenticated)
+  userId           String?
+  user             User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   moderationNotes  String?
   approvedFaqTitle String?
+  responses        VaultResponse[]
+  events           VaultSubmissionEvent[]
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model VaultResponse {
+  id              String          @id @default(cuid())
+  submissionId    String
+  submission      VaultSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  responseBody    String
+  responderAdminId String?
+  responderAdmin  AdminUser?      @relation(fields: [responderAdminId], references: [id], onDelete: SetNull)
+  responderRole   AdminRole
+  deliveredAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([submissionId, createdAt])
+  @@index([responderAdminId])
+}
+
+model UserNotification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  isRead     Boolean  @default(false)
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([entityType, entityId])
+}
+
+model VaultSubmissionEvent {
+  id          String          @id @default(cuid())
+  submissionId String
+  submission  VaultSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  actorType   VaultActorType
+  actorUserId String?
+  actorUser   User?           @relation("VaultEventUserActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAdminId String?
+  actorAdmin  AdminUser?      @relation("VaultEventAdminActor", fields: [actorAdminId], references: [id], onDelete: SetNull)
+  eventType   String
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([submissionId, createdAt])
+  @@index([actorType, createdAt])
 }
 
 model Article {

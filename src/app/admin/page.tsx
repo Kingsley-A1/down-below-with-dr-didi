@@ -1,68 +1,89 @@
 import Link from 'next/link'
+import AdminDashboardCards from '@/components/admin/AdminDashboardCards'
 import { getDashboardSummary } from '@/lib/admin/repository'
+import { requireAdminPageSession } from '@/lib/admin/page-guard'
 
 export const dynamic = 'force-dynamic'
 
-const cards: Array<{ key: keyof Awaited<ReturnType<typeof getDashboardSummary>>; label: string }> = [
-  { key: 'adminUsers', label: 'Admin users' },
-  { key: 'mediaAssets', label: 'Media assets' },
-  { key: 'auditLogs', label: 'Audit logs' },
-  { key: 'vaultSubmissions', label: 'V-Vault submissions' },
-  { key: 'podcastEpisodes', label: 'Podcast episodes' },
-]
-
 export default async function AdminDashboardPage() {
+  await requireAdminPageSession({ nextPath: '/admin' })
   const summary = await getDashboardSummary()
 
   return (
-    <div className="space-y-8">
-      <section className="bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-        <h1 className="font-heading text-3xl font-bold mb-3" style={{ color: 'var(--color-primary)' }}>Foundation Dashboard</h1>
-        <p className="font-body text-sm text-gray-600 max-w-3xl">
-          This admin surface is the Phase 1 and Phase 2 control plane for production hardening. It protects admin access, centralizes site settings, and anchors the CockroachDB plus R2 migration path.
+    <div className="space-y-6">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_6px_18px_rgba(2,12,27,0.06)]">
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-56 bg-linear-to-l from-emerald-100/60 to-transparent" />
+        <p className="relative z-10 font-body text-xs uppercase tracking-[0.28em] text-emerald-700">Control Plane</p>
+        <h1 className="relative z-10 mt-2 font-heading text-3xl font-bold text-slate-900">Admin Operations Hub</h1>
+        <p className="relative z-10 mt-3 max-w-3xl font-body text-sm text-slate-600">
+          One compact command center for settings, publishing modules, moderation queues, and governance signals. Every card opens a focused modal so operators can move from overview to action without losing context.
         </p>
-      </section>
 
-      <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-        {cards.map((card) => (
-          <div key={card.key} className="bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-            <p className="font-body text-sm text-gray-500 mb-2">{card.label}</p>
-            <p className="font-heading text-4xl font-bold" style={{ color: 'var(--color-primary)' }}>{summary[card.key]}</p>
+        <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="font-body text-xs uppercase tracking-[0.18em] text-emerald-700">Database</p>
+            <p className="mt-1 font-heading text-2xl font-bold text-emerald-900">
+              {summary.databaseReady ? 'Connected' : 'Offline'}
+            </p>
           </div>
-        ))}
-      </section>
-
-      <section className="bg-white rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
-        <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Readiness Status</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--color-primary-muted)' }}>
-            <p className="font-body text-sm font-semibold mb-1" style={{ color: 'var(--color-primary)' }}>Database layer</p>
-            <p className="font-body text-sm text-gray-600">{summary.databaseReady ? 'CockroachDB connection is configured for this environment.' : 'Database env is not configured yet. Add DATABASE_URL and DIRECT_URL to activate persistence.'}</p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-600">Admin users</p>
+            <p className="mt-1 font-heading text-2xl font-bold text-slate-900">{summary.adminUsers}</p>
           </div>
-          <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--color-primary-muted)' }}>
-            <p className="font-body text-sm font-semibold mb-1" style={{ color: 'var(--color-primary)' }}>Next steps</p>
-            <p className="font-body text-sm text-gray-600">Seed the database, upload the first hero asset, then replace placeholder contact values inside Site Settings.</p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-600">Platform users</p>
+            <p className="mt-1 font-heading text-2xl font-bold text-slate-900">{summary.platformUsers}</p>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Link href="/admin/settings" className="bg-white rounded-2xl border p-6 block" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Manage Site Settings</h2>
-          <p className="font-body text-sm text-gray-600">Update brand copy, public contact channels, hero defaults, and global metadata assumptions without editing source files.</p>
-        </Link>
-        <Link href="/admin/media" className="bg-white rounded-2xl border p-6 block" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Manage Media Assets</h2>
-          <p className="font-body text-sm text-gray-600">Upload hero images and reusable media into Cloudflare R2 while writing structured asset records to CockroachDB.</p>
-        </Link>
-        <Link href="/admin/vault" className="bg-white rounded-2xl border p-6 block lg:col-span-2" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Moderate V-Vault Submissions</h2>
-          <p className="font-body text-sm text-gray-600">Review anonymous questions, add moderation notes, and route approved entries into your FAQ pipeline.</p>
-        </Link>
-        <Link href="/admin/podcast" className="bg-white rounded-2xl border p-6 block lg:col-span-2" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Manage Podcast Episodes</h2>
-          <p className="font-body text-sm text-gray-600">Upload audio, publish show notes, and keep public podcast content current without code changes.</p>
-        </Link>
+      <AdminDashboardCards summary={summary} />
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_6px_18px_rgba(2,12,27,0.06)]">
+          <h2 className="font-heading text-2xl font-bold text-slate-900">Readiness checkpoint</h2>
+          <p className="mt-3 font-body text-sm text-slate-600">
+            {summary.databaseReady
+              ? 'CockroachDB is available, so all admin modules are running with persistent state.'
+              : 'Database is not configured in this environment. Set DATABASE_URL and DIRECT_URL before launch validation.'}
+          </p>
+          <p className="mt-3 font-body text-sm text-slate-600">
+            Total editorial modules online: <span className="font-semibold text-slate-900">8</span>
+          </p>
+        </article>
+
+        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_6px_18px_rgba(2,12,27,0.06)]">
+          <h2 className="font-heading text-2xl font-bold text-slate-900">Direct actions</h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/admin/settings"
+              className="rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white"
+            >
+              Open site settings
+            </Link>
+            <Link
+              href="/admin/media"
+              className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
+            >
+              Open media library
+            </Link>
+            <Link
+              href="/admin/alerts"
+              className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
+            >
+              Open site alerts
+            </Link>
+            <Link
+              href="/admin/register"
+              className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
+            >
+              Admin registration
+            </Link>
+          </div>
+          <p className="mt-3 font-body text-sm text-slate-600">
+            Keep one operator on each module during launch week to shorten triage loops.
+          </p>
+        </article>
       </section>
     </div>
   )

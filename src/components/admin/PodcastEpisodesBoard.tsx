@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Download, Music, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { PodcastEpisodeRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
+import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
 type Status = 'draft' | 'published' | 'archived'
 
@@ -30,12 +31,6 @@ const EMPTY_FORM = {
 }
 
 type FormState = typeof EMPTY_FORM
-
-interface UploadedAsset {
-  url: string
-  mimeType: string
-  sizeBytes: number
-}
 
 function slugify(value: string) {
   return value
@@ -140,26 +135,6 @@ export default function PodcastEpisodesBoard({
     setCoverFile(null)
   }
 
-  async function uploadAsset(file: File, label: string, altText = ''): Promise<UploadedAsset> {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('label', label)
-    formData.append('altText', altText)
-
-    const res = await fetch('/api/admin/media', {
-      method: 'POST',
-      body: formData,
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      throw new Error(data.error || `Failed to upload ${file.name}`)
-    }
-
-    return data.asset
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
@@ -168,6 +143,10 @@ export default function PodcastEpisodesBoard({
     setMessage('')
 
     try {
+      if (!editId && !audioFile) {
+        throw new Error('Audio upload is required for new podcast episodes.')
+      }
+
       let nextAudioUrl = form.audioUrl
       let nextAudioSize = form.audioSize ? Number(form.audioSize) : undefined
       let nextAudioType = form.audioType
@@ -176,16 +155,20 @@ export default function PodcastEpisodesBoard({
       if (audioFile) {
         setBusyLabel('Uploading podcast audio')
         setBusyDetail(audioFile.name)
-        const upload = await uploadAsset(audioFile, `${form.title} audio`)
+        const upload = await uploadAdminMediaAsset(audioFile, `${form.title || 'Podcast'} audio`)
         nextAudioUrl = upload.url
         nextAudioSize = upload.sizeBytes
         nextAudioType = upload.mimeType
       }
 
+      if (!nextAudioUrl) {
+        throw new Error('A podcast audio asset is required before saving.')
+      }
+
       if (coverFile) {
         setBusyLabel('Uploading cover image')
         setBusyDetail(coverFile.name)
-        const upload = await uploadAsset(coverFile, `${form.title} cover art`, form.title)
+        const upload = await uploadAdminMediaAsset(coverFile, `${form.title || 'Podcast'} cover art`, form.title)
         nextCoverImage = upload.url
       }
 
@@ -320,17 +303,25 @@ export default function PodcastEpisodesBoard({
             <Field label="Slug *">
               <input value={form.slug} onChange={(e) => set('slug', e.target.value)} required pattern="[a-z0-9-]+" className="input-field" />
             </Field>
-            <Field label="Audio URL *">
-              <input value={form.audioUrl} onChange={(e) => set('audioUrl', e.target.value)} required={!audioFile} className="input-field" />
-            </Field>
             <Field label="Upload audio">
               <input type="file" accept="audio/*" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="input-field" />
-            </Field>
-            <Field label="Cover image URL">
-              <input value={form.coverImage} onChange={(e) => set('coverImage', e.target.value)} className="input-field" />
+              <p className="font-body text-xs text-gray-400">
+                {audioFile
+                  ? `Selected: ${audioFile.name}`
+                  : editId
+                    ? 'Upload a new audio file to replace current media.'
+                    : 'Required: upload podcast audio from media pipeline.'}
+              </p>
             </Field>
             <Field label="Upload cover art">
               <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="input-field" />
+              <p className="font-body text-xs text-gray-400">
+                {coverFile
+                  ? `Selected: ${coverFile.name}`
+                  : editId
+                    ? 'Optional: upload only when replacing the current cover image.'
+                    : 'Optional: upload cover image from media pipeline.'}
+              </p>
             </Field>
             <Field label="Duration in seconds">
               <input type="number" min={1} value={form.duration} onChange={(e) => set('duration', e.target.value)} className="input-field" />
@@ -360,9 +351,6 @@ export default function PodcastEpisodesBoard({
             </Field>
             <Field label="External source link">
               <input value={form.externalSourceUrl} onChange={(e) => set('externalSourceUrl', e.target.value)} className="input-field" />
-            </Field>
-            <Field label="Audio MIME type">
-              <input value={form.audioType} onChange={(e) => set('audioType', e.target.value)} placeholder="audio/mpeg" className="input-field" />
             </Field>
             <div className="lg:col-span-2">
               <Field label="Summary *">

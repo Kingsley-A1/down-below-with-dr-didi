@@ -3,6 +3,10 @@ import { normaliseAdminRole, type AdminRole } from '@/lib/admin/rbac'
 
 export const ADMIN_SESSION_COOKIE = 'dbfh_admin_session'
 
+const adminRegistrationRoles = ['super_admin', 'founder_admin', 'editor'] as const
+
+type AdminRegistrationRole = (typeof adminRegistrationRoles)[number]
+
 export type AdminSession = {
   email: string
   role: AdminRole
@@ -144,22 +148,27 @@ export async function verifyAdminSession(token: string | undefined) {
   } satisfies AdminSession
 }
 
-export function parseAllowedAdminUsers() {
-  return env.ADMIN_ALLOWED_USERS.split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => {
-      const [email, role] = entry.split(':')
+export function resolveAdminRegistrationRole(accessCode: string): AdminRegistrationRole | null {
+  const trimmedAccessCode = accessCode.trim()
 
-      return {
-        email: email.trim().toLowerCase(),
-        role: normaliseAdminRole(role?.trim()),
-      }
-    })
-}
+  if (!trimmedAccessCode) {
+    return null
+  }
 
-export function getAllowedAdminUser(email: string) {
-  return parseAllowedAdminUsers().find((entry) => entry.email === email.trim().toLowerCase()) || null
+  const adminEnv = getAdminEnv()
+  const roleCodes: Array<{ role: AdminRegistrationRole; code: string }> = [
+    { role: 'super_admin', code: adminEnv.ADMIN_SUPER_ADMIN_ACCESS_CODE },
+    { role: 'founder_admin', code: adminEnv.ADMIN_FOUNDER_ADMIN_ACCESS_CODE },
+    { role: 'editor', code: adminEnv.ADMIN_EDITOR_ACCESS_CODE },
+  ]
+
+  for (const entry of roleCodes) {
+    if (safeEqual(entry.code, trimmedAccessCode)) {
+      return entry.role
+    }
+  }
+
+  return null
 }
 
 export function sessionCookieOptions(expiresAt: string) {

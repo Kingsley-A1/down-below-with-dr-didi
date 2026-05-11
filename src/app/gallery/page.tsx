@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import { getPublishedGalleryImages, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
+import ImageViewModal from '@/components/content/ImageViewModal'
 import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
@@ -23,20 +23,12 @@ const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'facility', label: 'Facility' },
 ]
 
-const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }> = {
-  outreach:  { bg: '#dcfce7', text: '#166534' },
-  event:     { bg: '#fce7f3', text: '#be185d' },
-  team:      { bg: '#dbeafe', text: '#1e40af' },
-  community: { bg: '#fef9c3', text: '#854d0e' },
-  facility:  { bg: '#ede9fe', text: '#7c3aed' },
-}
-
 interface Props {
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: string; image?: string }>
 }
 
 export default async function GalleryPage({ searchParams }: Props) {
-  const { category: rawCategory } = await searchParams
+  const { category: rawCategory, image: imageSlug } = await searchParams
   const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'community', 'facility']
   const category = validCategories.includes(rawCategory as GalleryImageCategory)
     ? (rawCategory as GalleryImageCategory)
@@ -127,51 +119,10 @@ export default async function GalleryPage({ searchParams }: Props) {
               </p>
             </div>
           ) : (
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-              {images.map((image) => (
-                <GalleryCard key={image.id} image={image} />
-              ))}
-            </div>
+            <ImageViewModal images={images} initialImageSlug={imageSlug} />
           )}
         </div>
       </main>
     </>
-  )
-}
-
-function GalleryCard({ image }: { image: PublicGalleryImage }) {
-  const badge = CATEGORY_BADGE[image.category]
-
-  return (
-    <Link
-      href={`/gallery/${image.slug}`}
-      className="group block rounded-xl overflow-hidden shadow-sm break-inside-avoid relative"
-      style={{ borderRadius: 'var(--radius-md, 0.75rem)' }}
-    >
-      <div className="relative w-full" style={{ aspectRatio: '3/4' }}>
-        <Image
-          src={image.imageUrl}
-          alt={image.imageAlt}
-          fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-        />
-        {/* Hover overlay */}
-        <div
-          className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)' }}
-        >
-          <span
-            className="inline-block text-xs font-body font-semibold px-2 py-0.5 rounded-full mb-2 self-start"
-            style={{ backgroundColor: badge.bg, color: badge.text }}
-          >
-            {image.category.charAt(0).toUpperCase() + image.category.slice(1)}
-          </span>
-          <p className="font-body font-semibold text-sm text-white line-clamp-2">
-            {image.title}
-          </p>
-        </div>
-      </div>
-    </Link>
   )
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
+import FooterVisibility from '@/components/layout/FooterVisibility'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
 import InstallPrompt from '@/components/layout/InstallPrompt'
 import StructuredData from '@/components/seo/StructuredData'
@@ -82,7 +83,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
         <main id="main-content">{children}</main>
         <InstallPrompt />
-        <Footer />
+        <FooterVisibility>
+          <Footer />
+        </FooterVisibility>
       </body>
     </html>
   )

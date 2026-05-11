@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/session'
 import { getUserById, getUserAuditLogs } from '@/lib/admin/user-repository'
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 
 /**
  * GET /api/admin/users/[id]
@@ -11,13 +11,18 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // Require authentication and admin role
-    const session = await requireAuth()
-    if (session.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
-    }
+  const session = await requireAdminSession(request)
 
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
+  }
+
+  try {
     const { id: userId } = await params
 
     // Validate user ID format
@@ -47,10 +52,6 @@ export async function GET(
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error fetching user details:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch user details', details: (error as Error).message },
-      { status: 500 }
-    )
+    return mapApiError(error, 'Failed to fetch user details')
   }
 }

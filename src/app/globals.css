@@ -21,6 +21,9 @@
   --radius-md: 16px;
   --radius-lg: 24px;
   --radius-full: 9999px;
+  --admin-motion-fast: 140ms;
+  --admin-motion-base: 220ms;
+  --admin-motion-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   --font-heading: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -122,6 +125,39 @@ h1, h2, h3 { letter-spacing: 0; }
   outline-offset: 3px;
 }
 
+.admin-interactive {
+  transition:
+    transform var(--admin-motion-fast) var(--admin-motion-ease),
+    box-shadow var(--admin-motion-fast) var(--admin-motion-ease),
+    background-color var(--admin-motion-fast) var(--admin-motion-ease),
+    border-color var(--admin-motion-fast) var(--admin-motion-ease),
+    color var(--admin-motion-fast) var(--admin-motion-ease);
+}
+
+.admin-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.admin-interactive:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.admin-surface {
+  transition:
+    border-color var(--admin-motion-base) var(--admin-motion-ease),
+    box-shadow var(--admin-motion-base) var(--admin-motion-ease),
+    background-color var(--admin-motion-base) var(--admin-motion-ease),
+    transform var(--admin-motion-base) var(--admin-motion-ease);
+}
+
+.admin-fade-in {
+  animation: admin-fade-in var(--admin-motion-base) var(--admin-motion-ease) both;
+}
+
+.admin-dialog-enter {
+  animation: admin-dialog-enter var(--admin-motion-base) var(--admin-motion-ease) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -130,6 +166,14 @@ h1, h2, h3 { letter-spacing: 0; }
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .admin-interactive,
+  .admin-surface,
+  .admin-fade-in,
+  .admin-dialog-enter {
+    animation: none !important;
+    transform: none !important;
   }
 }
 
@@ -272,6 +316,28 @@ h1, h2, h3 { letter-spacing: 0; }
 @keyframes site-alert-marquee {
   0% { transform: translate3d(0, 0, 0); }
   100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes admin-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes admin-dialog-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .section-pad {

@@ -1,14 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import prismaClientModule from '@prisma/client'
-
-type PrismaClientCtor = new (options?: {
-  adapter?: unknown
-  log?: ReadonlyArray<'query' | 'info' | 'warn' | 'error'>
-}) => any
-
-const PrismaClient =
-  (prismaClientModule as { PrismaClient?: PrismaClientCtor }).PrismaClient ??
-  (prismaClientModule as unknown as PrismaClientCtor)
+import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof createPrismaClient>

@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { siteSettingsSchema } from '@/lib/validations'
-import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 import { getSiteSettings, saveSiteSettings } from '@/lib/admin/repository'
-
-async function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
-  return verifyAdminSession(token)
-}
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 
 export async function GET(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'moderator')
+  if (roleError) {
+    return roleError
   }
 
   const settings = await getSiteSettings()
@@ -20,10 +20,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
   }
 
   try {
@@ -50,7 +55,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, settings })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update site settings'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return mapApiError(error, 'Failed to update site settings')
   }
 }

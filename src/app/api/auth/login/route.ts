@@ -106,7 +106,16 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    // Email verification check removed
+
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Please verify your email before logging in',
+        },
+        { status: 403 }
+      )
+    }
 
     await resetFailedLoginAttempts(user.id)
     limiter.reset(loginRateLimitKey)

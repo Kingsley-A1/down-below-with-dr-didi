@@ -34,7 +34,7 @@ export const galleryItems: GalleryItem[] = [
     title: 'Community Support Drive — Main Collection Point',
     date: 'March 2024',
     location: 'Calabar South, Cross River',
-    image: '/assets/IMG-20260508-WA0083.jpg',
+    image: '/assets/IMG-20260508-WA0082.jpg',
     description: 'Volunteers and participants gathered at the central point for structured item distribution and reproductive health signposting.',
   },
   {
@@ -50,7 +50,7 @@ export const galleryItems: GalleryItem[] = [
     title: 'Outreach Team Operations on Site',
     date: 'March 2024',
     location: 'Calabar South, Cross River',
-    image: '/assets/IMG-20260508-WA0081.jpg',
+    image: '/assets/IMG-20260508-WA0080.jpg',
     description: 'The field team organized logistics, sorted supplies, and coordinated beneficiaries to keep the outreach efficient and dignified.',
   },
   {
@@ -58,7 +58,7 @@ export const galleryItems: GalleryItem[] = [
     title: 'Community Gathering and Health Awareness Session',
     date: 'February 2024',
     location: 'Cross River State',
-    image: '/assets/IMG-20260508-WA0079.jpg',
+    image: '/assets/IMG-20260508-WA0073.jpg',
     description: 'A large community assembly where women and families received coordinated support and practical health awareness messaging.',
   },
   {

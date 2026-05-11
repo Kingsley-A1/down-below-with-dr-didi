@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 import { deletePodcastEpisode, updatePodcastEpisode } from '@/lib/admin/repository'
 import { podcastEpisodeSchema } from '@/lib/validations'
-
-async function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
-  return verifyAdminSession(token)
-}
+import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'editor')
+  if (roleError) {
+    return roleError
   }
 
   const { id } = await params
@@ -54,8 +54,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, episode })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update podcast episode'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return mapApiError(error, 'Failed to update podcast episode')
   }
 }
 
@@ -63,10 +62,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin(request)
+  const session = await requireAdminSession(request)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roleError = requireAdminRole(session, 'super_admin')
+  if (roleError) {
+    return roleError
   }
 
   const { id } = await params
@@ -75,7 +79,6 @@ export async function DELETE(
     await deletePodcastEpisode(id, { email: session.email, role: session.role })
     return NextResponse.json({ success: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete podcast episode'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return mapApiError(error, 'Failed to delete podcast episode')
   }
 }

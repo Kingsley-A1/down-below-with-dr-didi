@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { contactSchema } from '@/lib/validations'
 import { createContactSubmission } from '@/lib/admin/repository'
 import { contactLimiter, getClientIp } from '@/lib/rate-limit'
+import { mapApiError } from '@/lib/admin/api-guard'
 
 export async function POST(req: NextRequest) {
   const rl = contactLimiter(getClientIp(req))
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     await createContactSubmission({ firstName, lastName, email, phone, preferredDate, preferredTime, message })
 
     return NextResponse.json({ success: true, message: 'Booking request received' })
-  } catch {
-    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
+  } catch (error) {
+    return mapApiError(error, 'Failed to process request')
   }
 }

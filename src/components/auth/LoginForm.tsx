@@ -35,7 +35,11 @@ export function LoginForm() {
         body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
+      let data: { error?: string; message?: string } = {}
+      const contentType = response.headers.get('content-type') ?? ''
+      if (contentType.includes('application/json')) {
+        data = await response.json()
+      }
 
       if (!response.ok) {
         setError(data.error || 'Login failed')

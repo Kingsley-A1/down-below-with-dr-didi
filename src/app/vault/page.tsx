@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import VaultForm from '@/components/vault/VaultForm'
+import { getSession } from '@/lib/auth/session'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl } from '@/lib/site-config'
+import { isVaultSubmissionsEnabled } from '@/lib/env'
 
 export const metadata: Metadata = {
   title: 'The V-Vault — Ask Anonymously',
   description:
-    'WhatsApp-first support for private reproductive and sexual health guidance from the Down Below with Dr. Didi team.',
+    'Authenticated anonymous support for private reproductive and sexual health guidance from the Down Below with Dr. Didi team.',
   alternates: {
     canonical: canonicalUrl('/vault'),
   },
@@ -15,6 +19,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function VaultPage() {
   const siteSettings = await getPublicSiteSettings()
+  const session = await getSession()
+  const vaultEnabled = isVaultSubmissionsEnabled()
 
   return (
     <>
@@ -42,10 +48,10 @@ export default async function VaultPage() {
         <div className="max-w-2xl mx-auto px-6">
           <div className="mb-8 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
             <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
-              WhatsApp First Support
+              Open Support Channel
             </h2>
             <p className="font-body text-sm text-gray-600 mb-4">
-              For quick and personal guidance, start on WhatsApp. You can also send an email if that is easier.
+              WhatsApp and email remain available for direct support with Dr. Didi outside the anonymous V-Vault pipeline.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
@@ -67,14 +73,45 @@ export default async function VaultPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
-            <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
-              Anonymous submission is currently paused
-            </h3>
-            <p className="font-body text-sm text-gray-600 leading-relaxed">
-              The API-based anonymous message form is temporarily hidden. Please use WhatsApp first for guidance and follow-up.
-            </p>
-          </div>
+          {!vaultEnabled ? (
+            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+              <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
+                Anonymous submission is currently paused
+              </h3>
+              <p className="font-body text-sm text-gray-600 leading-relaxed">
+                The V-Vault submission channel is temporarily unavailable. Please use the support channels above.
+              </p>
+            </div>
+          ) : session ? (
+            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+              <VaultForm />
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+              <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
+                Sign in to use anonymous V-Vault submissions
+              </h3>
+              <p className="font-body text-sm text-gray-600 leading-relaxed mb-5">
+                To receive private in-browser responses, your submission is linked to your account internally while remaining anonymous to the public.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
+                  style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+                >
+                  Create account
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </>
