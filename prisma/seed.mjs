@@ -1,4 +1,6 @@
 import nextEnv from '@next/env'
+import path from 'node:path'
+import { readdir } from 'node:fs/promises'
 
 const { loadEnvConfig } = nextEnv
 
@@ -114,92 +116,142 @@ const teamMembers = [
   },
 ]
 
-const galleryImages = [
-  {
-    slug: 'calabar-community-support-drive-2024',
-    title: 'Community Support Distribution in Calabar South',
-    category: 'outreach',
-    eventName: 'Community Support Drive',
-    location: 'Calabar South, Cross River',
-    sortOrder: 0,
-    imageUrl: '/assets/admin_1.jpg',
-    imageAlt: 'Volunteers distributing support materials during a community outreach in Calabar South',
-    description:
-      'This outreach captured a structured distribution session where women and families received support materials in a respectful, community-first environment. Alongside distribution, the team shared practical reproductive health guidance and directed participants to follow-up channels for continued care.',
-    caption: 'Community support distribution in Calabar South',
-    status: 'published',
-  },
-  {
-    slug: 'calabar-main-collection-point-2024',
-    title: 'Main Collection Point Coordination and Beneficiary Support',
-    category: 'community',
-    eventName: 'Community Support Drive',
-    location: 'Calabar South, Cross River',
-    sortOrder: 1,
-    imageUrl: '/assets/IMG-20260508-WA0083.jpg',
-    imageAlt: 'Large crowd and volunteers coordinating distribution at a neighborhood collection point',
-    description:
-      "At the main collection point, the team coordinated beneficiary flow and item sorting to serve people safely and efficiently. The event combined practical aid delivery with confidence-building conversations about women's wellness and family health pathways.",
-    caption: 'Main collection point coordination',
-    status: 'published',
-  },
-  {
-    slug: 'dr-didi-field-engagement-2024',
-    title: 'Dr. Didi Field Engagement During Community Outreach',
-    category: 'team',
-    eventName: 'Down Below Community Outreach',
-    location: 'Calabar South, Cross River',
-    sortOrder: 2,
-    imageUrl: '/assets/dr_didi_hospital_bed_renewal_2.jpg',
-    imageAlt: 'Dr. Didi standing with clinical partners during a hospital bed renewal outreach',
-    description:
-      "Dr. Didi is shown in active field engagement, supporting women directly during distribution and community interaction. The moment reflects the initiative's model of combining practical service, trust, and clear health communication at grassroots level.",
-    caption: 'Dr. Didi in direct field engagement',
-    status: 'published',
-  },
-  {
-    slug: 'outreach-team-on-site-operations-2024',
-    title: 'Outreach Team Operations and On-Site Coordination',
-    category: 'outreach',
-    eventName: 'Community Support Drive',
-    location: 'Calabar South, Cross River',
-    sortOrder: 3,
-    imageUrl: '/assets/IMG-20260508-WA0081.jpg',
-    imageAlt: 'Outreach volunteers in branded shirts organizing materials for distribution',
-    description:
-      'This image highlights the operational side of the outreach as volunteers coordinated inventory, sorting, and distribution sequencing. Strong on-site coordination helped maintain dignity for beneficiaries while keeping the event timely and inclusive.',
-    caption: 'On-site volunteer coordination',
-    status: 'published',
-  },
-  {
-    slug: 'community-gathering-health-awareness-2024',
-    title: 'Community Gathering for Health Awareness and Support',
-    category: 'community',
-    eventName: 'Community Awareness Session',
-    location: 'Cross River State',
-    sortOrder: 4,
-    imageUrl: '/assets/IMG-20260508-WA0079.jpg',
-    imageAlt: 'Community members gathered under canopies during a support and awareness session',
-    description:
-      'A broad community gathering brought women, families, and local leaders together for coordinated support and health awareness. The session strengthened trust between the initiative and the community while reinforcing practical steps for reproductive wellness follow-up.',
-    caption: 'Community awareness gathering',
-    status: 'published',
-  },
-  {
-    slug: 'founder-led-health-mobilization-calabar-2024',
-    title: 'Founder-Led Public Health Mobilization in Calabar',
-    category: 'event',
-    eventName: "Women's Health Mobilization Event",
-    location: 'Calabar, Cross River',
-    sortOrder: 5,
-    imageUrl: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
-    imageAlt: 'Dr. Didi speaking with a microphone during a women\'s health mobilization event',
-    description:
-      "Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women's health. The event atmosphere captures the initiative's core approach: clinical clarity, compassionate communication, and strong community participation.",
-    caption: 'Founder-led public health mobilization',
-    status: 'published',
-  },
-]
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+
+function normalizeStem(fileName) {
+  return fileName.replace(/\.[^.]+$/, '')
+}
+
+function toSlug(value) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function toTitleCase(value) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => {
+      if (/^\d+$/.test(word)) return word
+      if (/^WA\d+$/i.test(word)) return word.toUpperCase()
+      if (word.toLowerCase() === 'dr') return 'Dr.'
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join(' ')
+}
+
+function formatTitleFromStem(stem) {
+  const normalized = stem
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\bhopital\b/gi, 'hospital')
+    .replace(/\bphyscal\b/gi, 'physical')
+    .replace(/\bannivessary\b/gi, 'anniversary')
+
+  const imgCodeMatch = normalized.match(/^IMG\s+\d+\s+WA\d+$/i)
+  if (imgCodeMatch) {
+    const code = normalized.match(/WA\d+/i)?.[0]?.toUpperCase() || 'FIELD'
+    return `Outreach Field Photo ${code}`
+  }
+
+  return toTitleCase(normalized)
+}
+
+function inferGalleryCategory(stem) {
+  const lower = stem.toLowerCase()
+
+  if (
+    lower.includes('hospital') ||
+    lower.includes('hopital') ||
+    lower.includes('facility') ||
+    lower.includes('bed renewal') ||
+    lower.includes('bed')
+  ) {
+    return 'facility'
+  }
+
+  if (lower.includes('community')) {
+    return 'community'
+  }
+
+  if (lower.includes('outreach') || lower.startsWith('img-') || lower.includes('admin')) {
+    return 'outreach'
+  }
+
+  if (
+    lower.includes('meeting') ||
+    lower.includes('anniversary') ||
+    lower.includes('mobilization') ||
+    lower.includes('event')
+  ) {
+    return 'event'
+  }
+
+  return 'event'
+}
+
+function inferEventName(category) {
+  if (category === 'outreach') return 'Community Outreach Programme'
+  if (category === 'community') return 'Community Engagement Activity'
+  if (category === 'facility') return 'Facility Support and Upgrade'
+  return 'Down Below Initiative Event'
+}
+
+function inferDescription(category, title) {
+  if (category === 'outreach') {
+    return `Documented outreach moment from Down Below Family Health Initiative, highlighting ${title.toLowerCase()} and practical field support.`
+  }
+
+  if (category === 'community') {
+    return `Community engagement moment from Down Below Family Health Initiative, featuring ${title.toLowerCase()} and local participation.`
+  }
+
+  if (category === 'facility') {
+    return `Facility-focused documentation from Down Below Family Health Initiative, featuring ${title.toLowerCase()} and service delivery context.`
+  }
+
+  return `Event documentation from Down Below Family Health Initiative, capturing ${title.toLowerCase()} in a structured programme setting.`
+}
+
+async function buildGalleryImages() {
+  const assetsDir = path.join(process.cwd(), 'public', 'assets')
+  const files = await readdir(assetsDir)
+
+  const teamImageFiles = new Set(
+    teamMembers
+      .map((member) => member.imageUrl)
+      .filter(Boolean)
+      .map((url) => url.split('/').pop().toLowerCase())
+  )
+
+  const galleryFiles = files
+    .filter((fileName) => IMAGE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
+    .filter((fileName) => !teamImageFiles.has(fileName.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b))
+
+  return galleryFiles.map((fileName, index) => {
+    const stem = normalizeStem(fileName)
+    const title = formatTitleFromStem(stem)
+    const category = inferGalleryCategory(stem)
+
+    return {
+      slug: toSlug(stem),
+      title,
+      category,
+      eventName: inferEventName(category),
+      location: 'Cross River, Nigeria',
+      sortOrder: index,
+      imageUrl: `/assets/${fileName}`,
+      imageAlt: title,
+      description: inferDescription(category, title),
+      caption: title,
+      status: 'published',
+    }
+  })
+}
 
 const siteAlerts = [
   {
@@ -249,6 +301,9 @@ async function seedTeamMembers() {
 
 async function seedGalleryImages() {
   console.log('Seeding gallery images...')
+
+  const galleryImages = await buildGalleryImages()
+
   for (const image of galleryImages) {
     await prisma.galleryImage.upsert({
       where: { slug: image.slug },
@@ -267,6 +322,17 @@ async function seedGalleryImages() {
       create: image,
     })
   }
+
+  const currentSlugs = galleryImages.map((image) => image.slug)
+  const deleteResult = await prisma.galleryImage.deleteMany({
+    where: {
+      slug: {
+        notIn: currentSlugs,
+      },
+    },
+  })
+
+  console.log(`  ✓ ${deleteResult.count} stale gallery images deleted`)
   console.log(`  ✓ ${galleryImages.length} gallery images seeded`)
 }
 

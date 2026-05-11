@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getPublishedGalleryImages, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
-import { gallerySeedItems } from '@/data/gallery'
 import { canonicalUrl } from '@/lib/site-config'
 
 export const metadata: Metadata = {
@@ -20,7 +19,6 @@ const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'outreach', label: 'Outreach' },
   { value: 'event', label: 'Events' },
-  { value: 'team', label: 'Team' },
   { value: 'community', label: 'Community' },
   { value: 'facility', label: 'Facility' },
 ]
@@ -37,26 +35,9 @@ interface Props {
   searchParams: Promise<{ category?: string }>
 }
 
-function seedToPublic(item: (typeof gallerySeedItems)[0]): PublicGalleryImage {
-  return {
-    id: item.slug,
-    slug: item.slug,
-    title: item.title,
-    description: item.description,
-    caption: item.caption ?? null,
-    imageUrl: item.imageUrl,
-    imageAlt: item.imageAlt,
-    category: item.category as GalleryImageCategory,
-    eventName: item.eventName ?? null,
-    location: item.location ?? null,
-    capturedAt: null,
-    sortOrder: 0,
-  }
-}
-
 export default async function GalleryPage({ searchParams }: Props) {
   const { category: rawCategory } = await searchParams
-  const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
+  const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'community', 'facility']
   const category = validCategories.includes(rawCategory as GalleryImageCategory)
     ? (rawCategory as GalleryImageCategory)
     : undefined
@@ -67,13 +48,6 @@ export default async function GalleryPage({ searchParams }: Props) {
     images = await getPublishedGalleryImages(category)
   } catch {
     images = []
-  }
-
-  if (images.length === 0) {
-    const fallback = gallerySeedItems
-      .filter((i) => !category || i.category === category)
-      .map(seedToPublic)
-    images = fallback
   }
 
   const activeCategory = rawCategory && validCategories.includes(rawCategory as GalleryImageCategory)

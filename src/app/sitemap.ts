@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { articles } from '@/data/articles'
-import { gallerySeedItems } from '@/data/gallery'
+import { getPublishedGalleryImages } from '@/lib/admin/repository'
 import { canonicalUrl } from '@/lib/site-config'
 
 const publicRoutes = [
@@ -15,7 +15,7 @@ const publicRoutes = [
   { path: '/contact', priority: 0.8, changeFrequency: 'monthly' as const },
 ]
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
   const routes = publicRoutes.map((route) => ({
     url: canonicalUrl(route.path),
@@ -31,12 +31,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.72,
   }))
 
-  const galleryRoutes = gallerySeedItems.map((image) => ({
-    url: canonicalUrl(`/gallery/${image.slug}`),
-    lastModified: now,
-    changeFrequency: 'monthly' as const,
-    priority: 0.58,
-  }))
+  let galleryRoutes: MetadataRoute.Sitemap = []
+
+  try {
+    const galleryImages = await getPublishedGalleryImages()
+    galleryRoutes = galleryImages.map((image) => ({
+      url: canonicalUrl(`/gallery/${image.slug}`),
+      lastModified: now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.58,
+    }))
+  } catch {
+    galleryRoutes = []
+  }
 
   return [...routes, ...articleRoutes, ...galleryRoutes]
 }

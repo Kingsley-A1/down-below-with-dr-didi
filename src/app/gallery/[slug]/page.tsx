@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, MapPin, Calendar, Tag } from 'lucide-react'
 import { getPublishedGalleryImages, getGalleryImageBySlug, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
-import { gallerySeedItems } from '@/data/gallery'
 import { formatDate } from '@/lib/utils'
 import { canonicalUrl } from '@/lib/site-config'
 
@@ -20,23 +19,6 @@ const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }>
   facility:  { bg: '#ede9fe', text: '#7c3aed' },
 }
 
-function seedToPublic(item: (typeof gallerySeedItems)[0]): PublicGalleryImage {
-  return {
-    id: item.slug,
-    slug: item.slug,
-    title: item.title,
-    description: item.description,
-    caption: item.caption ?? null,
-    imageUrl: item.imageUrl,
-    imageAlt: item.imageAlt,
-    category: item.category as GalleryImageCategory,
-    eventName: item.eventName ?? null,
-    location: item.location ?? null,
-    capturedAt: null,
-    sortOrder: 0,
-  }
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
 
@@ -45,11 +27,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     image = await getGalleryImageBySlug(slug)
   } catch {
     /* DB offline — fall through to seed lookup */
-  }
-
-  if (!image) {
-    const seed = gallerySeedItems.find((i) => i.slug === slug)
-    image = seed ? seedToPublic(seed) : null
   }
 
   if (!image) {
@@ -84,17 +61,11 @@ export default async function GalleryImagePage({ params }: Props) {
       related = all.filter((i) => i.slug !== slug).slice(0, 3)
     }
   } catch {
-    /* DB offline — fall through to seed */
+    /* DB offline */
   }
 
   if (!image) {
-    const seed = gallerySeedItems.find((i) => i.slug === slug)
-    if (!seed) notFound()
-    image = seedToPublic(seed)
-    related = gallerySeedItems
-      .filter((i) => i.slug !== slug && i.category === seed.category)
-      .slice(0, 3)
-      .map(seedToPublic)
+    notFound()
   }
 
   const badge = CATEGORY_BADGE[image.category]
@@ -159,19 +130,19 @@ export default async function GalleryImagePage({ params }: Props) {
                 >
                   {image.eventName && (
                     <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                      <Tag className="w-4 h-4 flex-shrink-0" />
+                      <Tag className="w-4 h-4 shrink-0" />
                       <span className="font-body text-sm">{image.eventName}</span>
                     </div>
                   )}
                   {image.location && (
                     <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <MapPin className="w-4 h-4 shrink-0" />
                       <span className="font-body text-sm">{image.location}</span>
                     </div>
                   )}
                   {image.capturedAt && (
                     <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <Calendar className="w-4 h-4 shrink-0" />
                       <span className="font-body text-sm">{formatDate(image.capturedAt)}</span>
                     </div>
                   )}

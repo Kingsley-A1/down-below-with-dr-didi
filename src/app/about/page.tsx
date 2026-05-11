@@ -39,21 +39,15 @@ export default async function AboutPage() {
     }))
   }
 
-  const tierRank: Record<PublicTeamMember['tier'], number> = {
-    founder: 0,
-    leadership: 1,
-    core: 2,
-  }
+  const founder = teamMembers.find((member) => member.tier === 'founder')
+  const leadership = teamMembers.filter((member) => member.tier === 'leadership')
+  const core = teamMembers.filter((member) => member.tier === 'core')
 
-  const rankedTeamMembers = [...teamMembers].sort((a, b) => {
-    const tierDelta = tierRank[a.tier] - tierRank[b.tier]
-
-    if (tierDelta !== 0) {
-      return tierDelta
-    }
-
-    return a.sortOrder - b.sortOrder
-  })
+  const rankedTeamMembers = [
+    ...(founder ? [founder] : []),
+    ...leadership,
+    ...core,
+  ]
 
   return (
     <>
