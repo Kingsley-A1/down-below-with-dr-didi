@@ -17,6 +17,22 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
+function getTeamImageObjectPosition(name: string): string {
+  if (name === 'Mr. Etoma Eugene') {
+    return 'center 16%'
+  }
+
+  if (name === 'Mrs. Ebani Clarkson Agbor') {
+    return 'center 18%'
+  }
+
+  if (name === 'Dr. Edidiong Ekereuke') {
+    return 'center 14%'
+  }
+
+  return 'center top'
+}
+
 function toPublicTeamMember(m: (typeof staticTeam)[0]): PublicTeamMember {
   return {
     id: String(m.id),
@@ -102,7 +118,8 @@ export default async function TeamPage() {
                         src={founder.imageUrl}
                         alt={founder.imageAlt ?? founder.name}
                         fill
-                        className="object-cover object-top"
+                        className="object-cover"
+                        style={{ objectPosition: getTeamImageObjectPosition(founder.name) }}
                         sizes="(max-width: 1024px) 100vw, 40vw"
                         priority
                       />
@@ -218,7 +235,8 @@ function TeamMemberCard({ member }: { member: PublicTeamMember }) {
             src={member.imageUrl}
             alt={member.imageAlt ?? member.name}
             fill
-            className="object-cover object-top"
+            className="object-cover"
+            style={{ objectPosition: getTeamImageObjectPosition(member.name) }}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (

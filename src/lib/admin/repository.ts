@@ -3,7 +3,10 @@ import { hasDatabaseConfig } from '@/lib/env'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
 import { canViewVaultIdentity, type AdminRole } from '@/lib/admin/rbac'
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
 import { gallerySeedItems } from '@/data/gallery'
+import { team as staticTeam } from '@/data/team'
 
 export type DashboardSummary = {
   adminUsers: number
@@ -1671,6 +1674,147 @@ export type GalleryImageRecord = PublicGalleryImage & {
   updatedAt: string
 }
 
+const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+
+let localAssetFileSetCache: Set<string> | null = null
+
+async function getLocalAssetFileSet(): Promise<Set<string>> {
+  if (localAssetFileSetCache) {
+    return localAssetFileSetCache
+  }
+
+  try {
+    const assetsDir = path.join(process.cwd(), 'public', 'assets')
+    const fileNames = await readdir(assetsDir)
+    localAssetFileSetCache = new Set(fileNames.map((fileName) => fileName.toLowerCase()))
+    return localAssetFileSetCache
+  } catch {
+    localAssetFileSetCache = new Set()
+    return localAssetFileSetCache
+  }
+}
+
+function galleryTitleFromFileName(fileName: string): string {
+  const stem = fileName.replace(/\.[^.]+$/, '')
+  const normalized = stem
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => (word.length <= 3 ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ')
+}
+
+function gallerySlugFromFileName(fileName: string): string {
+  return fileName
+    .toLowerCase()
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function inferFallbackGalleryCategory(fileName: string): GalleryImageCategory {
+  const lower = fileName.toLowerCase()
+
+  if (lower.includes('hospital') || lower.includes('facility') || lower.includes('bed')) {
+    return 'facility'
+  }
+
+  if (lower.includes('community')) {
+    return 'community'
+  }
+
+  if (lower.includes('outreach') || lower.startsWith('img-')) {
+    return 'outreach'
+  }
+
+  return 'event'
+}
+
+async function getFallbackGalleryImages(category?: GalleryImageCategory): Promise<PublicGalleryImage[]> {
+  const assetFileSet = await getLocalAssetFileSet()
+  const teamImageFileNames = new Set(
+    staticTeam
+      .map((member) => member.image?.split('/').pop()?.toLowerCase())
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const seeded = gallerySeedItems
+    .filter((item) => {
+      const fileName = item.imageUrl.split('/').pop()?.toLowerCase()
+      return Boolean(fileName && assetFileSet.has(fileName))
+    })
+    .map((item, index) => ({
+      id: `seed-${item.slug}`,
+      slug: item.slug,
+      title: item.title,
+      description: item.description,
+      caption: item.caption || null,
+      imageUrl: normalizePublicImageUrl(item.imageUrl),
+      imageAlt: item.imageAlt,
+      category: item.category as GalleryImageCategory,
+      eventName: item.eventName || null,
+      location: item.location || null,
+      capturedAt: null,
+      sortOrder: index,
+    }))
+
+  const seededFileNames = new Set(
+    seeded
+      .map((item) => item.imageUrl.split('/').pop()?.toLowerCase())
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const discovered = Array.from(assetFileSet)
+    .filter((fileName) => IMAGE_FILE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
+    .filter((fileName) => !teamImageFileNames.has(fileName))
+    .filter((fileName) => !seededFileNames.has(fileName))
+    .sort((a, b) => a.localeCompare(b))
+    .map((fileName, index) => {
+      const title = galleryTitleFromFileName(fileName)
+      const imageCategory = inferFallbackGalleryCategory(fileName)
+
+      return {
+        id: `asset-${fileName}`,
+        slug: gallerySlugFromFileName(fileName),
+        title,
+        description: `Gallery highlight from Down Below Family Health Initiative featuring ${title.toLowerCase()}.`,
+        caption: title,
+        imageUrl: `/assets/${fileName}`,
+        imageAlt: title,
+        category: imageCategory,
+        eventName: null,
+        location: 'Cross River, Nigeria',
+        capturedAt: null,
+        sortOrder: seeded.length + index,
+      }
+    })
+
+  const combined = [...seeded, ...discovered]
+  if (!category) {
+    return combined
+  }
+
+  return combined.filter((item) => item.category === category)
+}
+
+async function hasRenderableLocalAsset(imageUrl: string): Promise<boolean> {
+  if (!imageUrl.startsWith('/assets/')) {
+    return true
+  }
+
+  const fileName = imageUrl.split('/').pop()?.toLowerCase()
+  if (!fileName) {
+    return false
+  }
+
+  const assetFileSet = await getLocalAssetFileSet()
+  return assetFileSet.has(fileName)
+}
+
 type GalleryImageDbRecord = {
   id: string
   slug: string
@@ -1709,31 +1853,10 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
   }
 }
 
-function getSeedGalleryImages(category?: GalleryImageCategory): PublicGalleryImage[] {
-  const filtered = category
-    ? gallerySeedItems.filter((item) => item.category === category)
-    : gallerySeedItems
-
-  return filtered.map((item, index) => ({
-    id: `seed-${item.slug}`,
-    slug: item.slug,
-    title: item.title,
-    description: item.description,
-    caption: item.caption || null,
-    imageUrl: normalizePublicImageUrl(item.imageUrl),
-    imageAlt: item.imageAlt,
-    category: item.category as GalleryImageCategory,
-    eventName: item.eventName || null,
-    location: item.location || null,
-    capturedAt: null,
-    sortOrder: index,
-  }))
-}
-
 export async function getPublishedGalleryImages(
   category?: GalleryImageCategory
 ): Promise<PublicGalleryImage[]> {
-  const fallbackImages = getSeedGalleryImages(category)
+  const fallbackImages = await getFallbackGalleryImages(category)
 
   if (!hasDatabaseConfig()) {
     return fallbackImages
@@ -1748,24 +1871,33 @@ export async function getPublishedGalleryImages(
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     })
 
-    if (records.length === 0) {
+    const normalizedRecords = await Promise.all(
+      records.map(async (record: GalleryImageDbRecord) => ({
+        id: record.id,
+        slug: record.slug,
+        title: record.title,
+        description: record.description,
+        caption: record.caption,
+        imageUrl: normalizePublicImageUrl(record.imageUrl),
+        imageAlt: record.imageAlt,
+        category: record.category as GalleryImageCategory,
+        eventName: record.eventName,
+        location: record.location,
+        capturedAt: record.capturedAt ? record.capturedAt.toISOString() : null,
+        sortOrder: record.sortOrder,
+        renderable: await hasRenderableLocalAsset(normalizePublicImageUrl(record.imageUrl)),
+      }))
+    )
+
+    const safeRecords = normalizedRecords
+      .filter((record) => record.renderable)
+      .map(({ renderable, ...record }) => record)
+
+    if (safeRecords.length === 0) {
       return fallbackImages
     }
 
-    return records.map((r: GalleryImageDbRecord) => ({
-      id: r.id,
-      slug: r.slug,
-      title: r.title,
-      description: r.description,
-      caption: r.caption,
-      imageUrl: normalizePublicImageUrl(r.imageUrl),
-      imageAlt: r.imageAlt,
-      category: r.category as GalleryImageCategory,
-      eventName: r.eventName,
-      location: r.location,
-      capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
-      sortOrder: r.sortOrder,
-    }))
+    return safeRecords
   } catch {
     return fallbackImages
   }
@@ -1774,7 +1906,7 @@ export async function getPublishedGalleryImages(
 export async function getGalleryImageBySlug(
   slug: string
 ): Promise<PublicGalleryImage | null> {
-  const fallbackImage = getSeedGalleryImages().find((item) => item.slug === slug) || null
+  const fallbackImage = (await getFallbackGalleryImages()).find((item) => item.slug === slug) || null
 
   if (!hasDatabaseConfig()) {
     return fallbackImage
@@ -1793,13 +1925,18 @@ export async function getGalleryImageBySlug(
       return null
     }
 
+    const normalizedImageUrl = normalizePublicImageUrl(r.imageUrl)
+    if (!(await hasRenderableLocalAsset(normalizedImageUrl))) {
+      return fallbackImage
+    }
+
     return {
       id: r.id,
       slug: r.slug,
       title: r.title,
       description: r.description,
       caption: r.caption,
-      imageUrl: normalizePublicImageUrl(r.imageUrl),
+      imageUrl: normalizedImageUrl,
       imageAlt: r.imageAlt,
       category: r.category as GalleryImageCategory,
       eventName: r.eventName,

@@ -90,15 +90,25 @@ export default async function AboutPage() {
       <section className="py-24" style={{ backgroundColor: 'var(--color-surface)' }}>
         <div className="max-w-container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-[40%_60%] gap-16 items-start">
-            <div className="rounded-2xl overflow-hidden sticky top-24 shadow-xl">
-              <Image
-                src="/assets/dr_didi_1.jpg"
-                alt="Dr. Edidiong Ekereuke, founder of DownBelow Family and Health Initiatives with Dr. Didi"
-                width={560}
-                height={640}
-                className="object-cover w-full"
-                style={{ aspectRatio: '4 / 5', maxHeight: '500px' }}
-              />
+            <div className="rounded-3xl border bg-white p-4 shadow-xl" style={{ borderColor: 'var(--color-border)' }}>
+              <div
+                className="overflow-hidden rounded-2xl"
+                style={{ background: 'linear-gradient(135deg, rgba(11,78,65,0.12), rgba(252,238,33,0.16))' }}
+              >
+                <Image
+                  src="/assets/dr_didi_1.jpg"
+                  alt="Dr. Edidiong Ekereuke, founder of DownBelow Family and Health Initiatives with Dr. Didi"
+                  width={560}
+                  height={640}
+                  className="object-cover w-full"
+                  style={{ aspectRatio: '4 / 5', maxHeight: '560px', objectPosition: 'center 15%' }}
+                />
+              </div>
+              <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: 'rgba(11,78,65,0.15)' }}>
+                <p className="font-body text-xs uppercase tracking-[0.22em] text-emerald-700">Founder Spotlight</p>
+                <p className="mt-2 font-heading text-xl font-bold text-slate-900">Dr. Edidiong Ekereuke</p>
+                <p className="mt-1 font-body text-sm text-slate-600">Senior Medical Official (UCTH)</p>
+              </div>
             </div>
             <div>
               <div
@@ -183,7 +193,16 @@ export default async function AboutPage() {
                     width={96}
                     height={96}
                     className="rounded-full object-cover mx-auto mb-4"
-                    style={{ width: '96px', height: '96px' }}
+                    style={{
+                      width: '96px',
+                      height: '96px',
+                      objectPosition:
+                        member.name === 'Mr. Etoma Eugene' || member.name === 'Mrs. Ebani Clarkson Agbor'
+                          ? 'center 18%'
+                          : member.name === 'Dr. Edidiong Ekereuke'
+                            ? 'center 14%'
+                            : 'center',
+                    }}
                   />
                 ) : (
                   <div

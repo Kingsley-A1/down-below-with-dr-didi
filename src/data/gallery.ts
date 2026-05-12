@@ -31,7 +31,7 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'community',
     eventName: 'Community Support Drive',
     location: 'Calabar South, Cross River',
-    imageUrl: '/assets/IMG-20260508-WA0083.jpg',
+    imageUrl: '/assets/main-collection-point-coordination.jpg',
     imageAlt: 'Large crowd and volunteers coordinating distribution at a neighborhood collection point',
     description:
       'At the main collection point, the team coordinated beneficiary flow and item sorting to serve people safely and efficiently. The event combined practical aid delivery with confidence-building conversations about women\'s wellness and family health pathways.',
@@ -55,7 +55,7 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'outreach',
     eventName: 'Community Support Drive',
     location: 'Calabar South, Cross River',
-    imageUrl: '/assets/IMG-20260508-WA0081.jpg',
+    imageUrl: '/assets/outreach-team-operations.jpg',
     imageAlt: 'Outreach volunteers in branded shirts organizing materials for distribution',
     description:
       'This image highlights the operational side of the outreach as volunteers coordinated inventory, sorting, and distribution sequencing. Strong on-site coordination helped maintain dignity for beneficiaries while keeping the event timely and inclusive.',
@@ -67,7 +67,7 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'community',
     eventName: 'Community Awareness Session',
     location: 'Cross River State',
-    imageUrl: '/assets/IMG-20260508-WA0079.jpg',
+    imageUrl: '/assets/community-gathering-awareness.jpg',
     imageAlt: 'Community members gathered under canopies during a support and awareness session',
     description:
       'A broad community gathering brought women, families, and local leaders together for coordinated support and health awareness. The session strengthened trust between the initiative and the community while reinforcing practical steps for reproductive wellness follow-up.',
@@ -79,7 +79,7 @@ export const gallerySeedItems: GallerySeedItem[] = [
     category: 'event',
     eventName: 'Women\'s Health Mobilization Event',
     location: 'Calabar, Cross River',
-    imageUrl: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
+    imageUrl: '/assets/founder-led-health-mobilization.jpg',
     imageAlt: 'Dr. Didi speaking with a microphone during a women\'s health mobilization event',
     description:
       'Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women\'s health. The event atmosphere captures the initiative\'s core approach: clinical clarity, compassionate communication, and strong community participation.',
