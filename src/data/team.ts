@@ -15,7 +15,7 @@ export const team: TeamMember[] = [
     id: 1,
     slug: 'dr-edidiong-ekereuke',
     name: 'Dr. Edidiong Ekereuke',
-    role: 'Founder & Lead Physician',
+    role: 'Founder & Executive Director',
     tier: 'founder',
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
@@ -35,20 +35,9 @@ export const team: TeamMember[] = [
   },
   {
     id: 3,
-    slug: 'mrs-gift-bunchi-abang',
-    name: 'Mrs. Gift Bunchi Abang',
-    role: 'Public Relations Officer',
-    tier: 'core',
-    sortOrder: 2,
-    credentials: '',
-    bio: 'Public Relations Officer for Down Below Family Health Initiative.',
-    image: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
-  },
-  {
-    id: 4,
     slug: 'mr-etoma-eugene',
     name: 'Mr. Etoma Eugene',
-    role: 'Secretary',
+    role: 'General Secretary',
     tier: 'core',
     sortOrder: 3,
     credentials: '',
@@ -66,4 +55,17 @@ export const team: TeamMember[] = [
     bio: 'Financial Secretary for Down Below Family Health Initiative.',
     image: '/assets/Mrs-Ebani-Carkson-Agbor-Financial-Secretary.jpg',
   },
+
+      {
+      id: 4,
+      slug: 'mrs-gift-bunchi-abang',
+      name: 'Mrs. Gift Bunchi Abang',
+      role: 'Public Relations Officer',
+      tier: 'core',
+      sortOrder: 2,
+      credentials: '',
+      bio: 'Public Relations Officer for Down Below Family Health Initiative.',
+      image: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
+    }
 ]
+
