@@ -7,7 +7,7 @@ import { canonicalUrl } from '@/lib/site-config'
 export const metadata: Metadata = {
   title: 'Community Outreach',
   description:
-    'See the field impact of DownBelow Family and Health Initiatives with Dr. Didi through medical outreach, health education, and family-centered community support.',
+    'See the field impact of DownBelow Family  Health Initiatives with Dr. Didi through medical outreach, health education, and family-centered community support.',
   alternates: {
     canonical: canonicalUrl('/outreach'),
   },

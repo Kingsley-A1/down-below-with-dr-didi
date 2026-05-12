@@ -188,7 +188,7 @@ export default async function HomePage() {
               Our Three Pillars
             </h2>
             <p className="font-body text-gray-600 max-w-xl mx-auto leading-relaxed">
-              Every part of DownBelow Family and Health Initiatives with Dr. Didi is built around
+              Every part of DownBelow Family  Health Initiatives with Dr. Didi is built around
               three core principles.
             </p>
           </div>
@@ -339,7 +339,7 @@ export default async function HomePage() {
                 — Dr. Didi, MBBCH
               </p>
               <p className="font-body text-sm text-gray-500 mb-8">
-                Founder, DownBelow Family and Health Initiatives with Dr. Didi &middot; Calabar, Nigeria
+                Founder, DownBelow Family  Health Initiatives with Dr. Didi &middot; Calabar, Nigeria
               </p>
               <Link
                 href="/about"

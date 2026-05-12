@@ -14,7 +14,7 @@ export const team: TeamMember[] = [
   {
     id: 1,
     slug: 'dr-edidiong-ekereuke',
-    name: 'Dr. Edidiong Ekereuke',
+    name: 'Dr. Mrs Edidiong Ekereuke',
     role: 'Founder & Executive Director',
     tier: 'founder',
     sortOrder: 0,

@@ -192,7 +192,7 @@ Seed rows:
 
 | slug | name | role | tier | sortOrder |
 |---|---|---|---|---|
-| `dr-edidiong-ekereuke` | Dr. Edidiong Ekereuke | Founder &  Executive Director | founder | 0 |
+| `dr-edidiong-ekereuke` | Dr. Mrs Edidiong Ekereuke | Founder &  Executive Director | founder | 0 |
 | `ngozi-eze` | Ngozi Eze | Community Health Officer | core | 1 |
 | `amaka-obi` | Amaka Obi | Health Communications Lead | core | 2 |
 

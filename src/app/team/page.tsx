@@ -26,7 +26,7 @@ function getTeamImageObjectPosition(name: string): string {
     return 'center 18%'
   }
 
-  if (name === 'Dr. Edidiong Ekereuke') {
+  if (name === 'Dr. Mrs Edidiong Ekereuke') {
     return 'center 14%'
   }
 

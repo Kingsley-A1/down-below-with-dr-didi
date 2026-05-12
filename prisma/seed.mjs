@@ -56,14 +56,14 @@ function parseAllowedUsers(source) {
 const teamMembers = [
   {
     slug: 'dr-edidiong-ekereuke',
-    name: 'Dr. Edidiong Ekereuke',
+    name: 'Dr. Mrs Edidiong Ekereuke',
     role: 'Founder & Executive Director',
     tier: 'founder',
     sortOrder: 0,
     credentials: 'Senior Medical Official, UCTH',
     bio: "Faith-based women's health advocate focused on infertility management, reproductive education, and practical support for women and families.",
     imageUrl: '/assets/dr_didi_2.jpg',
-    imageAlt: 'Dr. Edidiong Ekereuke, Founder of Down Below Family Health Initiative',
+    imageAlt: 'Dr. Mrs Edidiong Ekereuke, Founder of Down Below Family Health Initiative',
     status: 'published',
   },
   {

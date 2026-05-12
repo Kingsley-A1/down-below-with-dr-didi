@@ -1,12 +1,12 @@
 export const siteConfig = {
-  name: 'DownBelow Family and Health Initiatives with Dr. Didi',
+  name: 'DownBelow Family  Health Initiatives with Dr. Didi',
   shortName: 'DownBelow Family',
   founderName: 'Dr. Didi',
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://down-below.com',
   alternateNames: [
     'Down Below With Dr. Didi',
     'Down Below Family Health Initiative with Dr. Didi',
-    'DownBelow Family and Health Initiatives with Dr. Didi',
+    'DownBelow Family  Health Initiatives with Dr. Didi',
     'DOWNBELOW FAMILY HEALTH INITIATIVE WITH DR DIDI',
     'Down Below Family Health Initiative Nigeria',
     'Down Below women health platform',
@@ -14,7 +14,7 @@ export const siteConfig = {
   tagline: 'Non-profit and non-denominational Christian ministry preserving the family unit for God.',
   motto: 'Expose In Love. Educate. Heal.',
   description:
-    'DownBelow Family and Health Initiatives with Dr. Didi provides accessible and reliable information on family, sexuality, and health through open discussions, medical lectures, community outreach, and supportive engagement.',
+    'DownBelow Family  Health Initiatives with Dr. Didi provides accessible and reliable information on family, sexuality, and health through open discussions, medical lectures, community outreach, and supportive engagement.',
   primaryWhatsapp: 'https://wa.me/2348034404652',
   contactEmail: 'downbelowwithdrdidi@gmail.com',
   heroHeadline: 'Expose In Love. Educate. Heal.',

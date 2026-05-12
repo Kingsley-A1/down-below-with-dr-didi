@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'About DownBelow',
   description:
-    'Learn about DownBelow Family and Health Initiatives with Dr. Didi, a non-profit and non-denominational Christian ministry preserving the family unit through education, health guidance, and healing conversations.',
+    'Learn about DownBelow Family  Health Initiatives with Dr. Didi, a non-profit and non-denominational Christian ministry preserving the family unit through education, health guidance, and healing conversations.',
   alternates: {
     canonical: canonicalUrl('/about'),
   },
@@ -97,7 +97,7 @@ export default async function AboutPage() {
               >
                 <Image
                   src="/assets/dr_didi_1.jpg"
-                  alt="Dr. Edidiong Ekereuke, founder of DownBelow Family and Health Initiatives with Dr. Didi"
+                  alt="Dr. Mrs Edidiong Ekereuke, founder of DownBelow Family  Health Initiatives with Dr. Didi"
                   width={560}
                   height={640}
                   className="object-cover w-full"
@@ -106,7 +106,7 @@ export default async function AboutPage() {
               </div>
               <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: 'rgba(11,78,65,0.15)' }}>
                 <p className="font-body text-xs uppercase tracking-[0.22em] text-emerald-700">Founder Spotlight</p>
-                <p className="mt-2 font-heading text-xl font-bold text-slate-900">Dr. Edidiong Ekereuke</p>
+                <p className="mt-2 font-heading text-xl font-bold text-slate-900">Dr. Mrs Edidiong Ekereuke</p>
                 <p className="mt-1 font-body text-sm text-slate-600">Senior Medical Official (UCTH)</p>
               </div>
             </div>
@@ -120,11 +120,11 @@ export default async function AboutPage() {
               <h2 className="font-heading font-bold mb-1" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--color-primary)' }}>
                 Dr. Didi
               </h2>
-              <p className="font-body text-gray-500 mb-6">Dr. Edidiong Ekereuke · Senior Medical Official (UCTH)</p>
+              <p className="font-body text-gray-500 mb-6">Dr. Mrs Edidiong Ekereuke · Senior Medical Official (UCTH)</p>
 
               <div className="space-y-4 font-body text-gray-700 leading-relaxed mb-8 text-sm">
                 <p>
-                  DownBelow Family and Health Initiatives with Dr. Didi is a non-profit and
+                  DownBelow Family  Health Initiatives with Dr. Didi is a non-profit and
                   non-denominational Christian ministry made up of men and women from different
                   walks of life and denominations, with the primary objective of preserving the
                   family unit for God.
@@ -199,7 +199,7 @@ export default async function AboutPage() {
                       objectPosition:
                         member.name === 'Mr. Etoma Eugene' || member.name === 'Mrs. Ebani Clarkson Agbor'
                           ? 'center 18%'
-                          : member.name === 'Dr. Edidiong Ekereuke'
+                          : member.name === 'Dr. Mrs Edidiong Ekereuke'
                             ? 'center 14%'
                             : 'center',
                     }}
