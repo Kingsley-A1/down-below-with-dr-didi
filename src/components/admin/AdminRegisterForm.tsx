@@ -4,11 +4,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Eye, EyeOff } from 'lucide-react'
 import { adminRegisterSchema, type AdminRegisterData } from '@/lib/validations'
 
 export default function AdminRegisterForm({ supportPhone }: { supportPhone: string }) {
   const router = useRouter()
   const [serverError, setServerError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showAccessCode, setShowAccessCode] = useState(false)
   const [showSupportContact, setShowSupportContact] = useState(false)
 
   const {
@@ -92,13 +96,23 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
         <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="admin-register-password">
           Password
         </label>
-        <input
-          id="admin-register-password"
-          type="password"
-          autoComplete="new-password"
-          {...register('password')}
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 font-body text-sm"
-        />
+        <div className="relative">
+          <input
+            id="admin-register-password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            {...register('password')}
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-11 font-body text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((previous) => !previous)}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         {errors.password ? <p className="mt-2 text-sm text-red-600">{errors.password.message}</p> : null}
       </div>
 
@@ -106,13 +120,23 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
         <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="admin-register-confirm-password">
           Confirm password
         </label>
-        <input
-          id="admin-register-confirm-password"
-          type="password"
-          autoComplete="new-password"
-          {...register('confirmPassword')}
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 font-body text-sm"
-        />
+        <div className="relative">
+          <input
+            id="admin-register-confirm-password"
+            type={showConfirmPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            {...register('confirmPassword')}
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-11 font-body text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword((previous) => !previous)}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700"
+            aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+          >
+            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         {errors.confirmPassword ? <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p> : null}
       </div>
 
@@ -120,14 +144,24 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
         <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="admin-register-access-code">
           Role access code
         </label>
-        <input
-          id="admin-register-access-code"
-          type="password"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          {...register('accessCode')}
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 font-body text-sm"
-        />
+        <div className="relative">
+          <input
+            id="admin-register-access-code"
+            type={showAccessCode ? 'text' : 'password'}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            {...register('accessCode')}
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-11 font-body text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowAccessCode((previous) => !previous)}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700"
+            aria-label={showAccessCode ? 'Hide access code' : 'Show access code'}
+          >
+            {showAccessCode ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
         {errors.accessCode ? <p className="mt-2 text-sm text-red-600">{errors.accessCode.message}</p> : null}
       </div>
 
