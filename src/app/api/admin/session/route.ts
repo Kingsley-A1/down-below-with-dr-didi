@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminLoginSchema } from '@/lib/validations'
 import { createAdminSessionToken, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
-import { authenticateAdminUser, writeAuditLog } from '@/lib/admin/repository'
+import { authenticateAdminUserWithDiagnostics } from '@/lib/admin/auth-diagnostics'
 import { env } from '@/lib/env'
 
 function isMissingAdminTableError(error: unknown) {
@@ -18,31 +18,34 @@ export async function POST(request: NextRequest) {
     }
 
     const email = parsed.data.email.trim().toLowerCase()
-    const account = await authenticateAdminUser(email, parsed.data.password)
+    
+    // Use enhanced authentication with diagnostics
+    const authResult = await authenticateAdminUserWithDiagnostics(email, parsed.data.password)
 
-    if (!account) {
-      return NextResponse.json({ error: 'Admin access denied' }, { status: 401 })
+    if (!authResult.success || !authResult.account) {
+      const baseHint = 'Verify your credentials, then run account recovery if access still fails.'
+      const suggestion = authResult.attempt.diagnostics?.diagnostics.suggestions?.[0]
+      const hint = env.NODE_ENV === 'production' ? baseHint : suggestion || baseHint
+
+      return NextResponse.json({
+        error: 'Admin access denied',
+        hint,
+        troubleshoot: 'Double-check your email and password, then retry.',
+        recover: 'Use the self-service recovery page if access is still denied.',
+      }, { status: 401 })
     }
 
     const token = await createAdminSessionToken({
       email,
-      role: account.role,
+      role: authResult.account.role,
     })
 
     const response = NextResponse.json({
       success: true,
-      role: account.role,
+      role: authResult.account.role,
     })
 
     response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString()))
-
-    await writeAuditLog({
-      action: 'admin.sign_in',
-      entityType: 'admin_session',
-      actorEmail: email,
-      actorRole: account.role,
-      summary: 'Admin user signed in',
-    })
 
     return response
   } catch (error) {

@@ -56,6 +56,12 @@ export const adminLoginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
+export const adminRecoverySchema = z.object({
+  email: z.string().trim().email('Enter a valid admin email address').max(255),
+  password: adminPasswordSchema,
+  accessCode: z.string().trim().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
+})
+
 export const vaultModerationSchema = z.object({
   id: z.string().min(1, 'Submission id is required'),
   status: z.enum(['new', 'reviewed', 'answered_privately', 'approved_for_faq', 'archived']),
@@ -131,6 +137,7 @@ export type VaultFormData = z.infer<typeof vaultSchema>
 export type ContactFormData = z.infer<typeof contactSchema>
 export type AdminRegisterData = z.infer<typeof adminRegisterSchema>
 export type AdminLoginData = z.infer<typeof adminLoginSchema>
+export type AdminRecoveryData = z.infer<typeof adminRecoverySchema>
 export type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>
 export type VaultModerationData = z.infer<typeof vaultModerationSchema>
 export type VaultResponseData = z.infer<typeof vaultResponseSchema>
