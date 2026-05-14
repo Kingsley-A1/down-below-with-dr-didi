@@ -18,7 +18,7 @@ export async function PATCH(
     return roleError
   }
 
-  const { commentId } = await params
+    const { id, commentId } = await params
 
   try {
     const body = await request.json()
@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
     }
 
-    const comment = await moderateEventComment(commentId, parsed.data.status, {
+    const comment = await moderateEventComment(id, commentId, parsed.data.status, {
       email: session.email,
       role: session.role,
     })

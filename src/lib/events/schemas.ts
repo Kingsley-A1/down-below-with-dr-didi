@@ -63,8 +63,15 @@ export const eventCommentModerationSchema = z.object({
   status: commentStatusSchema,
 })
 
+function stripHtml(input: string) {
+  return input.replace(/<[^>]+>/g, '')
+}
+
 export const eventCommentSchema = z.object({
-  body: z.string().trim().min(2, 'Comment must be at least 2 characters').max(2000),
+  body: z
+    .string()
+    .transform((value) => stripHtml(value).trim())
+    .pipe(z.string().min(2, 'Comment must be at least 2 characters').max(2000)),
 })
 
 export type CreateEventInput = z.infer<typeof createEventSchema>

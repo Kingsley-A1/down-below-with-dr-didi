@@ -1896,7 +1896,20 @@ export async function getPublishedGalleryImages(
 
     const safeRecords = normalizedRecords
       .filter((record) => record.renderable)
-      .map(({ renderable, ...record }) => record)
+      .map((record) => ({
+        id: record.id,
+        slug: record.slug,
+        title: record.title,
+        description: record.description,
+        caption: record.caption,
+        imageUrl: record.imageUrl,
+        imageAlt: record.imageAlt,
+        category: record.category,
+        eventName: record.eventName,
+        location: record.location,
+        capturedAt: record.capturedAt,
+        sortOrder: record.sortOrder,
+      }))
 
     if (safeRecords.length === 0) {
       return fallbackImages
@@ -2552,6 +2565,7 @@ const eventsModels = prisma as unknown as {
   }
   eventComment: {
     findMany: (...args: unknown[]) => Promise<unknown[]>
+    findFirst: (...args: unknown[]) => Promise<unknown>
     update: (...args: unknown[]) => Promise<unknown>
   }
 }
@@ -2782,12 +2796,24 @@ export async function getEventComments(eventId: string): Promise<EventCommentRec
 }
 
 export async function moderateEventComment(
+  eventId: string,
   commentId: string,
   status: EventCommentStatus,
   actor: { email: string; role: AdminRole }
 ): Promise<EventCommentRecord> {
   if (!hasDatabaseConfig()) {
     throw new Error('Database is not configured')
+  }
+
+  const existingComment = (await eventsModels.eventComment.findFirst({
+    where: {
+      id: commentId,
+      eventId,
+    },
+  })) as EventCommentDbRecord | null
+
+  if (!existingComment) {
+    throw new Error('Event comment not found')
   }
 
   const record = (await eventsModels.eventComment.update({

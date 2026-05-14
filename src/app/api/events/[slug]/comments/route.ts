@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/session'
 import { mapApiError } from '@/lib/admin/api-guard'
-import { addComment, getEventBySlug, getVisibleComments } from '@/lib/events/repository'
+import {
+  COMMENT_RATE_LIMIT_MAX,
+  addComment,
+  countRecentUserComments,
+  getEventBySlug,
+  getVisibleComments,
+} from '@/lib/events/repository'
 import { eventCommentSchema } from '@/lib/events/schemas'
 
 export async function GET(
@@ -36,11 +42,23 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
+    if (!event.engagementEnabled) {
+      return NextResponse.json({ error: 'Comments are paused for this event' }, { status: 403 })
+    }
+
     const body = await request.json()
     const parsed = eventCommentSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+    }
+
+    const recentCommentCount = await countRecentUserComments(event.id, session.userId)
+    if (recentCommentCount >= COMMENT_RATE_LIMIT_MAX) {
+      return NextResponse.json(
+        { error: 'You are commenting too quickly. Please wait a minute and try again.' },
+        { status: 429 }
+      )
     }
 
     const comment = await addComment(event.id, session.userId, session.displayName, parsed.data.body)

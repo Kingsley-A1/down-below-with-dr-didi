@@ -149,7 +149,9 @@ export default async function EventDetailPage({ params }: Props) {
               />
               <ShareMenu title={event.title} url={publicUrl} />
             </div>
-            <a href="#comments" className="text-sm font-semibold text-slate-700 underline underline-offset-2">{event._count.comments} comment(s)</a>
+            <a href="#comments" className="text-sm font-semibold text-slate-700 underline underline-offset-2">
+              {event._count.comments} visible comment{event._count.comments === 1 ? '' : 's'}
+            </a>
           </section>
 
           {bodyBlocks.length > 0 ? (
@@ -163,7 +165,7 @@ export default async function EventDetailPage({ params }: Props) {
 
           <section id="comments" className="space-y-4 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
             <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Comments</h2>
-            <CommentForm eventSlug={event.slug} isAuthenticated={isAuthenticated} />
+            <CommentForm eventSlug={event.slug} isAuthenticated={isAuthenticated} disabled={!event.engagementEnabled} />
             <CommentThread eventSlug={event.slug} initialComments={comments} />
           </section>
         </div>

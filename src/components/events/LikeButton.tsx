@@ -52,7 +52,7 @@ export default function LikeButton({
 
       const data = await response.json()
       setLiked(Boolean(data.liked))
-      setCount(typeof data.count === 'number' ? data.count : count)
+      setCount((prev) => (typeof data.count === 'number' ? data.count : prev))
     } catch {
       setLiked(!nextLiked)
       setCount((prev) => Math.max(0, prev + (nextLiked ? -1 : 1)))
@@ -67,6 +67,8 @@ export default function LikeButton({
         type="button"
         onClick={toggleLike}
         disabled={busy || disabled}
+        aria-pressed={liked}
+        aria-label={liked ? `Unlike this event. ${count} likes` : `Like this event. ${count} likes`}
         className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
           liked
             ? 'border-rose-200 bg-rose-50 text-rose-700'
@@ -78,13 +80,15 @@ export default function LikeButton({
       </button>
 
       {authRequired ? (
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-slate-600" role="status">
           <Link href={`/login?next=${encodeURIComponent(`/events/${eventSlug}`)}`} className="font-semibold text-slate-900 underline underline-offset-2">
             Log in
           </Link>{' '}
           to like this event.
         </p>
       ) : null}
+
+      {disabled ? <p className="text-xs text-slate-500">Engagement is paused for this event.</p> : null}
     </div>
   )
 }

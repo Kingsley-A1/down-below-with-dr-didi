@@ -14,6 +14,7 @@ if (!connectionString) {
 // Optimize connection pooling for concurrent requests
 // Add pooling parameters if not already present
 const poolParams = {
+  connect_timeout: '60',
   pool_size: '20', // Increased from default 10 for better concurrency
   pool_timeout: '30', // 30 seconds timeout for waiting for connection
   pool_recycle: '3600', // Recycle connections every hour

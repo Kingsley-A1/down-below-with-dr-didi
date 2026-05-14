@@ -1,6 +1,10 @@
 import { hasDatabaseConfig } from '@/lib/env'
 import { prisma } from '@/lib/prisma'
 
+export const PUBLIC_COMMENT_LIMIT = 50
+export const COMMENT_RATE_LIMIT_WINDOW_MS = 60 * 1000
+export const COMMENT_RATE_LIMIT_MAX = 5
+
 export type PublicEventRecord = {
   id: string
   slug: string
@@ -124,7 +128,11 @@ export async function getPublishedEvents(): Promise<PublicEventRecord[]> {
       _count: {
         select: {
           likes: true,
-          comments: true,
+          comments: {
+            where: {
+              status: 'visible',
+            },
+          },
         },
       },
     },
@@ -144,7 +152,11 @@ export async function getEventBySlug(slug: string): Promise<PublicEventRecord | 
       _count: {
         select: {
           likes: true,
-          comments: true,
+          comments: {
+            where: {
+              status: 'visible',
+            },
+          },
         },
       },
     },
@@ -216,7 +228,10 @@ export async function unlikeEvent(eventId: string, userId: string): Promise<void
   })
 }
 
-export async function getVisibleComments(eventId: string): Promise<PublicCommentRecord[]> {
+export async function getVisibleComments(
+  eventId: string,
+  limit = PUBLIC_COMMENT_LIMIT
+): Promise<PublicCommentRecord[]> {
   if (!hasDatabaseConfig()) {
     return []
   }
@@ -226,10 +241,27 @@ export async function getVisibleComments(eventId: string): Promise<PublicComment
       eventId,
       status: 'visible',
     },
-    orderBy: [{ createdAt: 'asc' }],
+    orderBy: [{ createdAt: 'desc' }],
+    take: Math.min(Math.max(limit, 1), PUBLIC_COMMENT_LIMIT),
   })
 
   return records.map((record) => mapPublicComment(record as CommentDbRecord))
+}
+
+export async function countRecentUserComments(eventId: string, userId: string): Promise<number> {
+  if (!hasDatabaseConfig()) {
+    return 0
+  }
+
+  return prisma.eventComment.count({
+    where: {
+      eventId,
+      userId,
+      createdAt: {
+        gte: new Date(Date.now() - COMMENT_RATE_LIMIT_WINDOW_MS),
+      },
+    },
+  })
 }
 
 export async function addComment(

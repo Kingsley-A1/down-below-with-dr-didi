@@ -26,7 +26,13 @@ export default function CommentThread({
         return
       }
 
-      setComments((prev) => [detail.comment!, ...prev])
+      setComments((prev) => {
+        if (prev.some((comment) => comment.id === detail.comment!.id)) {
+          return prev
+        }
+
+        return [detail.comment!, ...prev]
+      })
     }
 
     function onRevert(event: Event) {
@@ -68,7 +74,9 @@ export default function CommentThread({
         <article key={comment.id} className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-slate-900">{comment.displayName}</p>
-            <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</p>
+            <time className="text-xs text-slate-500" dateTime={comment.createdAt}>
+              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+            </time>
           </div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{comment.body}</p>
         </article>

@@ -22,9 +22,11 @@ function stripHtml(input: string) {
 export default function CommentForm({
   eventSlug,
   isAuthenticated,
+  disabled = false,
 }: {
   eventSlug: string
   isAuthenticated: boolean
+  disabled?: boolean
 }) {
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
@@ -105,27 +107,42 @@ export default function CommentForm({
     )
   }
 
+  const normalizedBody = stripHtml(body).trim()
+  const canSubmit = normalizedBody.length >= 2 && !busy && !disabled
+
   return (
     <form onSubmit={submitComment} className="space-y-3">
+      <label htmlFor="event-comment" className="block text-sm font-semibold text-slate-800">
+        Add a comment
+      </label>
       <textarea
+        id="event-comment"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={4}
         maxLength={2000}
+        disabled={disabled}
         placeholder="Add your comment..."
-        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400"
+        aria-describedby="event-comment-help event-comment-error"
+        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition-colors focus:border-slate-400 disabled:bg-slate-50 disabled:text-slate-500"
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">{body.length}/2000</span>
+        <span id="event-comment-help" className="text-xs text-slate-500">
+          {disabled ? 'Comments are paused for this event.' : `${body.length}/2000`}
+        </span>
         <button
           type="submit"
-          disabled={busy}
+          disabled={!canSubmit}
           className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {busy ? 'Posting...' : 'Post comment'}
         </button>
       </div>
-      {error ? <p className="text-xs font-semibold text-rose-700">{error}</p> : null}
+      {error ? (
+        <p id="event-comment-error" className="text-xs font-semibold text-rose-700" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }

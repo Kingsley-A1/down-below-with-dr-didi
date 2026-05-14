@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getPublishedEvents } from '@/lib/events/repository'
 import { mapApiError } from '@/lib/admin/api-guard'
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const events = await getPublishedEvents()
     return NextResponse.json({ events })

@@ -21,7 +21,19 @@ if (!connectionString) {
   throw new Error('Missing DATABASE_URL environment variable')
 }
 
-const adapter = new PrismaPg({ connectionString })
+function withCockroachConnectionDefaults(value) {
+  const url = new URL(value)
+
+  if (!url.searchParams.has('connect_timeout')) {
+    url.searchParams.set('connect_timeout', '60')
+  }
+
+  return url.toString()
+}
+
+const adapter = new PrismaPg({
+  connectionString: withCockroachConnectionDefaults(connectionString),
+})
 const prisma = new PrismaClient({ adapter })
 
 const defaultSiteSettings = {

@@ -22,6 +22,10 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
+    if (!event.engagementEnabled) {
+      return NextResponse.json({ error: 'Engagement is paused for this event' }, { status: 403 })
+    }
+
     await likeEvent(event.id, session.userId)
     const count = await getEventLikeCount(event.id)
 
