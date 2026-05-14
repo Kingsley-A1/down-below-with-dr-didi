@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Camera } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
@@ -25,6 +26,22 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [isDeleting, setIsDeleting] = useState(false)
   const [pendingDeleteAsset, setPendingDeleteAsset] = useState<MediaAssetRecord | null>(null)
   const [uploadDetail, setUploadDetail] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const selectedPreviewUrl = useMemo(() => {
+    if (!selectedFile || !selectedFile.type.startsWith('image/')) {
+      return ''
+    }
+
+    return URL.createObjectURL(selectedFile)
+  }, [selectedFile])
+
+  useEffect(() => {
+    return () => {
+      if (selectedPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(selectedPreviewUrl)
+      }
+    }
+  }, [selectedPreviewUrl])
 
   async function refreshAssets() {
     const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
@@ -59,6 +76,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
       await refreshAssets()
       setStatus('Asset uploaded successfully.')
       form.reset()
+      setSelectedFile(null)
     } catch {
       setStatus('Upload failed. Check your connection and try again.')
     } finally {
@@ -130,7 +148,27 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
         </div>
         <div>
           <label className="block font-body text-sm font-semibold mb-2" htmlFor="file">File</label>
-          <input id="file" name="file" type="file" required className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+            <Camera className="h-3.5 w-3.5" />
+            <span>Media</span>
+          </div>
+          <input
+            id="file"
+            name="file"
+            type="file"
+            required
+            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            className="w-full rounded-xl border px-4 py-3 text-sm"
+            style={{ borderColor: 'var(--color-border)' }}
+          />
+          {selectedPreviewUrl ? (
+            <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={selectedPreviewUrl} alt="Selected upload preview" className="h-full w-full object-cover" />
+              </div>
+            </div>
+          ) : null}
         </div>
         <UploadProgress
           active={isUploading}

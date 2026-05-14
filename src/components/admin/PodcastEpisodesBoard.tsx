@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Download, Music, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Camera, Download, Music, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { PodcastEpisodeRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -81,6 +81,21 @@ export default function PodcastEpisodesBoard({
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const coverPreviewUrl = useMemo(() => {
+    if (coverFile) {
+      return URL.createObjectURL(coverFile)
+    }
+
+    return form.coverImage || ''
+  }, [coverFile, form.coverImage])
+
+  useEffect(() => {
+    return () => {
+      if (coverFile && coverPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(coverPreviewUrl)
+      }
+    }
+  }, [coverFile, coverPreviewUrl])
 
   async function refresh() {
     const res = await fetch('/api/admin/podcast', { cache: 'no-store' })
@@ -314,7 +329,19 @@ export default function PodcastEpisodesBoard({
               </p>
             </Field>
             <Field label="Upload cover art">
+              <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                <Camera className="h-3.5 w-3.5" />
+                <span>Camera</span>
+              </div>
               <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="input-field" />
+              {coverPreviewUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <div className="relative h-32 w-full overflow-hidden rounded-lg bg-slate-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} className="h-full w-full object-cover" />
+                  </div>
+                </div>
+              ) : null}
               <p className="font-body text-xs text-gray-400">
                 {coverFile
                   ? `Selected: ${coverFile.name}`

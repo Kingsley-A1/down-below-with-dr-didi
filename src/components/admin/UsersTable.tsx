@@ -4,6 +4,18 @@ import Link from 'next/link'
 import { PublicUserRecord } from '@/lib/admin/user-repository'
 import { formatDistanceToNow } from 'date-fns'
 
+function getRoleBadgeClass(role: string): string {
+  switch (role) {
+    case 'super_admin':     return 'bg-violet-100 text-violet-800'
+    case 'founder_admin':   return 'bg-rose-100 text-rose-700'
+    case 'editor':          return 'bg-sky-100 text-sky-700'
+    case 'moderator':       return 'bg-amber-100 text-amber-700'
+    case 'contributor':     return 'bg-teal-100 text-teal-700'
+    case 'verified_healer': return 'bg-emerald-100 text-emerald-800'
+    default:                return 'bg-slate-100 text-slate-700'
+  }
+}
+
 interface UsersTableProps {
   users: PublicUserRecord[]
   isLoading?: boolean
@@ -54,7 +66,9 @@ export default function UsersTable({ users, isLoading = false, onUserClick }: Us
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="font-body text-xs uppercase tracking-[0.14em] text-slate-500">{user.role.replace('_', ' ')}</p>
+                <span className={`rounded-full px-2.5 py-0.5 font-body text-[10px] font-semibold capitalize ${getRoleBadgeClass(user.role)}`}>
+                  {user.role.replace(/_/g, ' ')}
+                </span>
                 <p className="mt-1 font-body text-sm font-semibold text-slate-900">{user.displayName}</p>
                 <p className="font-body text-xs text-slate-600">{user.email}</p>
               </div>
@@ -130,14 +144,8 @@ export default function UsersTable({ users, isLoading = false, onUserClick }: Us
                   {user.displayName}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
-                  <span
-                    className={`rounded-full px-3 py-1 font-body text-xs font-semibold capitalize ${
-                      user.role === 'admin'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {user.role.replace('_', ' ')}
+                  <span className={`rounded-full px-3 py-1 font-body text-xs font-semibold capitalize ${getRoleBadgeClass(user.role)}`}>
+                    {user.role.replace(/_/g, ' ')}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">

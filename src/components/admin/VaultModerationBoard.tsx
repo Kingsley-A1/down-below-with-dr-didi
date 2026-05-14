@@ -20,6 +20,7 @@ export default function VaultModerationBoard({
   const [respondingId, setRespondingId] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({})
+  const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null)
   const [identityRevealed, setIdentityRevealed] = useState(false)
   const [identityActionLoading, setIdentityActionLoading] = useState(false)
 
@@ -91,6 +92,7 @@ export default function VaultModerationBoard({
     }
 
     setResponseDrafts((prev) => ({ ...prev, [submissionId]: '' }))
+    setReplyOpenFor((current) => (current === submissionId ? null : current))
     await refresh({ includeIdentity: identityRevealed })
     setStatusMessage(
       result.notificationCreated
@@ -268,38 +270,54 @@ export default function VaultModerationBoard({
                 </button>
 
                 <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                  <label className="block font-body text-xs uppercase tracking-[0.12em] text-gray-400 mb-2">
-                    Private response to user
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={responseDrafts[submission.id] || ''}
-                    onChange={(event) => {
-                      const value = event.currentTarget.value
-                      setResponseDrafts((prev) => ({ ...prev, [submission.id]: value }))
-                    }}
-                    onKeyDown={(event) => {
-                      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                        event.preventDefault()
-                        void sendResponse(submission.id)
-                      }
-                    }}
-                    placeholder="Write a private response for this submission..."
-                    className="w-full rounded-xl border px-4 py-3 text-sm mb-3 admin-interactive"
-                    style={{ borderColor: 'var(--color-border)' }}
-                  />
-                  <p className="mb-3 font-body text-xs text-gray-500">Use Ctrl+Enter (or Cmd+Enter) to send quickly.</p>
-                  <button
-                    type="button"
-                    disabled={respondingId === submission.id}
-                    onClick={() => {
-                      void sendResponse(submission.id)
-                    }}
-                    className="admin-interactive inline-flex rounded-full px-5 py-2.5 font-body font-semibold"
-                    style={{ backgroundColor: '#1f2937', color: '#fff' }}
-                  >
-                    {respondingId === submission.id ? 'Sending response...' : 'Send Private Response'}
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-body text-xs uppercase tracking-[0.12em] text-gray-400">Private response to user</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyOpenFor((current) => (current === submission.id ? null : submission.id))
+                      }}
+                      className="admin-interactive inline-flex rounded-full border px-3 py-1.5 font-body text-xs font-semibold"
+                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+                    >
+                      {replyOpenFor === submission.id ? 'Collapse composer' : 'Compose private response'}
+                    </button>
+                  </div>
+                  {replyOpenFor === submission.id ? (
+                    <>
+                      <textarea
+                        rows={4}
+                        value={responseDrafts[submission.id] || ''}
+                        onChange={(event) => {
+                          const value = event.currentTarget.value
+                          setResponseDrafts((prev) => ({ ...prev, [submission.id]: value }))
+                        }}
+                        onKeyDown={(event) => {
+                          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                            event.preventDefault()
+                            void sendResponse(submission.id)
+                          }
+                        }}
+                        placeholder="Write a private response for this submission..."
+                        className="mt-3 w-full rounded-xl border px-4 py-3 text-sm mb-3 admin-interactive"
+                        style={{ borderColor: 'var(--color-border)' }}
+                      />
+                      <p className="mb-3 font-body text-xs text-gray-500">Use Ctrl+Enter (or Cmd+Enter) to send quickly.</p>
+                      <button
+                        type="button"
+                        disabled={respondingId === submission.id}
+                        onClick={() => {
+                          void sendResponse(submission.id)
+                        }}
+                        className="admin-interactive inline-flex rounded-full px-5 py-2.5 font-body font-semibold"
+                        style={{ backgroundColor: '#1f2937', color: '#fff' }}
+                      >
+                        {respondingId === submission.id ? 'Sending response...' : 'Send Private Response'}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="mt-2 font-body text-xs text-gray-500">Open composer to draft and send a private response.</p>
+                  )}
                 </div>
               </form>
             )

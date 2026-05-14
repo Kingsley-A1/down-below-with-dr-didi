@@ -46,33 +46,6 @@ export default async function VaultPage() {
 
       <section className="py-16" style={{ backgroundColor: 'var(--color-surface)' }}>
         <div className="max-w-2xl mx-auto px-6">
-          <div className="mb-8 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
-            <h2 className="font-heading text-2xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
-              Open Support Channel
-            </h2>
-            <p className="font-body text-sm text-gray-600 mb-4">
-              WhatsApp and email remain available for direct support with Dr. Didi outside the anonymous V-Vault pipeline.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <a
-                href={siteSettings.primaryWhatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
-                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
-              >
-                Contact on WhatsApp
-              </a>
-              <a
-                href={`mailto:${siteSettings.contactEmail}`}
-                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
-              >
-                Send Gmail
-              </a>
-            </div>
-          </div>
-
           {!vaultEnabled ? (
             <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
               <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
@@ -112,6 +85,33 @@ export default async function VaultPage() {
               </div>
             </div>
           )}
+
+          <div className="mt-8 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+            <h2 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
+              Need Immediate Support?
+            </h2>
+            <p className="font-body text-sm text-gray-600 mb-4">
+              Use WhatsApp or email for direct support with Dr. Didi when you prefer a direct channel over anonymous submission.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href={siteSettings.primaryWhatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
+              >
+                Contact on WhatsApp
+              </a>
+              <a
+                href={`mailto:${siteSettings.contactEmail}`}
+                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+              >
+                Send Gmail
+              </a>
+            </div>
+          </div>
         </div>
       </section>
     </>

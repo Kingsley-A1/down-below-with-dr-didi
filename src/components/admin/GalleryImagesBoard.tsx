@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import { Camera } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { GalleryImageRecord, GalleryImageCategory } from '@/lib/admin/repository'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -36,6 +37,15 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+}
+
 function getTone(message: string) {
   const value = message.toLowerCase()
 
@@ -62,6 +72,22 @@ export default function GalleryImagesBoard({
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [slugManual, setSlugManual] = useState(false)
+  const previewUrl = useMemo(() => {
+    if (imageFile) {
+      return URL.createObjectURL(imageFile)
+    }
+
+    return form.imageUrl || ''
+  }, [form.imageUrl, imageFile])
+
+  useEffect(() => {
+    return () => {
+      if (imageFile && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [imageFile, previewUrl])
 
   async function refresh() {
     const res = await fetch('/api/admin/gallery', { cache: 'no-store' })
@@ -73,6 +99,7 @@ export default function GalleryImagesBoard({
     setEditId(null)
     setForm(EMPTY_FORM)
     setImageFile(null)
+    setSlugManual(false)
     setShowForm(true)
     setMsg('')
   }
@@ -103,6 +130,7 @@ export default function GalleryImagesBoard({
     setEditId(null)
     setForm(EMPTY_FORM)
     setImageFile(null)
+    setSlugManual(false)
   }
 
   function set(field: keyof FormState, value: string | number) {
@@ -236,18 +264,75 @@ export default function GalleryImagesBoard({
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Title (min 5 chars) *">
-              <input value={form.title} onChange={(e) => set('title', e.target.value)} required minLength={5} className="input-field" />
+              <input
+                value={form.title}
+                onChange={(e) => {
+                  set('title', e.target.value)
+                  if (!slugManual && !editId) {
+                    set('slug', slugify(e.target.value))
+                  }
+                }}
+                required
+                minLength={5}
+                className="input-field"
+              />
             </Field>
-            <Field label="Slug *">
-              <input value={form.slug} onChange={(e) => set('slug', e.target.value)} required pattern="[a-z0-9-]+" className="input-field" />
+            <Field label="URL Slug">
+              {editId ? (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <code className="flex-1 font-mono text-xs text-slate-700">{form.slug}</code>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-body text-[10px] font-semibold text-amber-700">locked — editing breaks public URLs</span>
+                </div>
+              ) : slugManual ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={form.slug}
+                    onChange={(e) => set('slug', e.target.value)}
+                    required
+                    pattern="[a-z0-9-]+"
+                    title="Lowercase letters, numbers, hyphens only"
+                    className="input-field flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setSlugManual(false); set('slug', slugify(form.title)) }}
+                    className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 font-body text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    Auto
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <code className="flex-1 font-mono text-xs text-slate-500">{form.slug || '— will be generated from title'}</code>
+                  <button
+                    type="button"
+                    onClick={() => setSlugManual(true)}
+                    className="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1 font-body text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    Edit
+                  </button>
+                </div>
+              )}
             </Field>
             <Field label="Upload Image">
+              <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                <Camera className="h-3.5 w-3.5" />
+                <span>Camera</span>
+              </div>
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
                 className="input-field"
               />
+              {previewUrl ? (
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="h-full w-full object-cover" />
+                  </div>
+                </div>
+              ) : null}
               <p className="font-body text-xs text-gray-400 mt-1">
                 {imageFile
                   ? `Selected: ${imageFile.name}`

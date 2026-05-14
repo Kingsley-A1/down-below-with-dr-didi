@@ -21,6 +21,18 @@ export type PublicUserRecord = {
 }
 
 /**
+ * Enriched admin-only user record including security status and activity stats.
+ * Only returned by getAdminUserDetail — never exposed to public API endpoints.
+ */
+export type PublicAdminUserDetailRecord = PublicUserRecord & {
+  lastActivityAt: string
+  failedLoginAttempts: number
+  lockoutUntil: string | null
+  isLockedOut: boolean
+  vaultSubmissionCount: number
+}
+
+/**
  * Database user record (with sensitive fields for internal use)
  */
 type UserDbRecord = {
@@ -39,6 +51,8 @@ type UserDbRecord = {
   phoneVerifyCode: string | null
   phoneVerifyExpiry: Date | null
   lastActivityAt: Date
+  failedLoginAttempts: number
+  lockoutUntil: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -573,6 +587,39 @@ export async function activateUser(
     return true
   } catch (error: unknown) {
     console.error('Error activating user:', error)
+    throw error
+  }
+}
+
+/**
+ * Get enriched user detail for admin view — includes security status and vault activity count.
+ * Never call this from public-facing routes.
+ */
+export async function getAdminUserDetail(userId: string): Promise<PublicAdminUserDetailRecord | null> {
+  try {
+    const user = (await prisma.user.findUnique({
+      where: { id: userId },
+    })) as UserDbRecord | null
+
+    if (!user) return null
+
+    const vaultSubmissionCount = await prisma.vaultSubmission.count({
+      where: { userId },
+    })
+
+    const now = new Date()
+    const isLockedOut = user.lockoutUntil !== null && user.lockoutUntil > now
+
+    return {
+      ...mapToPublicRecord(user),
+      lastActivityAt: user.lastActivityAt.toISOString(),
+      failedLoginAttempts: user.failedLoginAttempts,
+      lockoutUntil: user.lockoutUntil ? user.lockoutUntil.toISOString() : null,
+      isLockedOut,
+      vaultSubmissionCount,
+    }
+  } catch (error) {
+    console.error('Error fetching admin user detail:', error)
     throw error
   }
 }

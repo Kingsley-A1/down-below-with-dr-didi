@@ -6,10 +6,22 @@ import Link from 'next/link'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AuditLogViewer from './AuditLogViewer'
-import type { PublicUserRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
+import type { PublicAdminUserDetailRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
 
 interface AdminUserDetailClientProps {
   userId: string
+}
+
+function getRoleBadgeClass(role: string): string {
+  switch (role) {
+    case 'super_admin':   return 'bg-violet-100 text-violet-800'
+    case 'founder_admin': return 'bg-rose-100 text-rose-700'
+    case 'editor':        return 'bg-sky-100 text-sky-700'
+    case 'moderator':     return 'bg-amber-100 text-amber-700'
+    case 'contributor':   return 'bg-teal-100 text-teal-700'
+    case 'verified_healer': return 'bg-emerald-100 text-emerald-800'
+    default:              return 'bg-slate-100 text-slate-700'
+  }
 }
 
 /**
@@ -19,7 +31,7 @@ export default function AdminUserDetailClient({
   userId,
 }: AdminUserDetailClientProps) {
   const router = useRouter()
-  const [user, setUser] = useState<PublicUserRecord | null>(null)
+  const [user, setUser] = useState<PublicAdminUserDetailRecord | null>(null)
   const [auditLogs, setAuditLogs] = useState<PublicUserAuditLogRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,13 +203,9 @@ export default function AdminUserDetailClient({
             <p className="mb-2 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</p>
             <div>
               <span
-                className={`rounded-full px-3 py-1 font-body text-xs font-semibold capitalize ${
-                  user.role === 'admin'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-slate-100 text-slate-700'
-                }`}
+                className={`rounded-full px-3 py-1 font-body text-xs font-semibold capitalize ${getRoleBadgeClass(user.role)}`}
               >
-                {user.role.replace('_', ' ')}
+                {user.role.replace(/_/g, ' ')}
               </span>
             </div>
           </div>
@@ -253,27 +261,62 @@ export default function AdminUserDetailClient({
           </div>
         </div>
 
-        <div className="mt-6 border-t border-slate-200 pt-6">
-          {user.isActive ? (
-            <button
-              type="button"
-              onClick={handleDeactivate}
-              disabled={isUpdating}
-              className="rounded-lg bg-rose-600 px-5 py-2.5 font-body text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isUpdating ? 'Deactivating...' : 'Deactivate User'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleActivate}
-              disabled={isUpdating}
-              className="rounded-lg bg-emerald-600 px-5 py-2.5 font-body text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isUpdating ? 'Activating...' : 'Activate User'}
-            </button>
-          )}
-        </div>
+          {/* Security + Activity stats */}
+          <div className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+            <div>
+              <p className="mb-1 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Last Activity</p>
+              <p className="font-body text-sm text-slate-700">
+                {new Date(user.lastActivityAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+            <div>
+              <p className="mb-1 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Lock</p>
+              {user.isLockedOut ? (
+                <div className="space-y-0.5">
+                  <span className="inline-block rounded-full bg-rose-100 px-2.5 py-0.5 font-body text-xs font-semibold text-rose-700">
+                    Locked
+                  </span>
+                  <p className="font-body text-xs text-slate-500">
+                    Until {new Date(user.lockoutUntil!).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              ) : user.failedLoginAttempts > 0 ? (
+                <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 font-body text-xs font-semibold text-amber-700">
+                  {user.failedLoginAttempts} failed attempt{user.failedLoginAttempts !== 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 font-body text-xs font-semibold text-emerald-700">
+                  Clean
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="mb-1 font-body text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">V-Vault Submissions</p>
+              <p className="font-body text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
+                {user.vaultSubmissionCount}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            {user.isActive ? (
+              <button
+                onClick={handleDeactivate}
+                disabled={isUpdating}
+                className="rounded-full bg-rose-600 px-5 py-2 font-body text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
+              >
+                {isUpdating ? 'Deactivating...' : 'Deactivate User'}
+              </button>
+            ) : (
+              <button
+                onClick={handleActivate}
+                disabled={isUpdating}
+                className="rounded-full bg-emerald-600 px-5 py-2 font-body text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {isUpdating ? 'Activating...' : 'Activate User'}
+              </button>
+            )}
+          </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

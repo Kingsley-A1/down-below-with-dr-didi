@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Camera } from 'lucide-react'
 import { siteSettingsSchema, type SiteSettingsFormData } from '@/lib/validations'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
@@ -36,6 +37,21 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
   })
 
   const currentHeroImageUrl = watch('heroImageUrl')
+  const heroPreviewUrl = useMemo(() => {
+    if (heroImageFile) {
+      return URL.createObjectURL(heroImageFile)
+    }
+
+    return currentHeroImageUrl || ''
+  }, [currentHeroImageUrl, heroImageFile])
+
+  useEffect(() => {
+    return () => {
+      if (heroImageFile && heroPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(heroPreviewUrl)
+      }
+    }
+  }, [heroImageFile, heroPreviewUrl])
 
   async function onSubmit(values: SiteSettingsFormData) {
     setServerMessage('')
@@ -120,6 +136,10 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
         <label className="block font-body text-sm font-semibold mb-2" htmlFor="heroImageUpload">
           Hero image upload
         </label>
+        <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+          <Camera className="h-3.5 w-3.5" />
+          <span>Camera</span>
+        </div>
         <input
           id="heroImageUpload"
           type="file"
@@ -128,6 +148,14 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
           className="w-full rounded-xl border px-4 py-3 font-body text-sm"
           style={{ borderColor: 'var(--color-border)' }}
         />
+        {heroPreviewUrl ? (
+          <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="relative h-40 w-full overflow-hidden rounded-lg bg-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroPreviewUrl} alt={watch('heroImageAlt') || watch('heroHeadline') || 'Hero image preview'} className="h-full w-full object-cover" />
+            </div>
+          </div>
+        ) : null}
         <p className="mt-2 font-body text-xs text-gray-500">
           {heroImageFile
             ? `Selected: ${heroImageFile.name}`

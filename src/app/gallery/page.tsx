@@ -19,6 +19,7 @@ const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'outreach', label: 'Outreach' },
   { value: 'event', label: 'Events' },
+  { value: 'team', label: 'Team' },
   { value: 'community', label: 'Community' },
   { value: 'facility', label: 'Facility' },
 ]
@@ -29,7 +30,7 @@ interface Props {
 
 export default async function GalleryPage({ searchParams }: Props) {
   const { category: rawCategory, image: imageSlug } = await searchParams
-  const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'community', 'facility']
+  const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
   const category = validCategories.includes(rawCategory as GalleryImageCategory)
     ? (rawCategory as GalleryImageCategory)
     : undefined

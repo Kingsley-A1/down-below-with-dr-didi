@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         eventName: eventName || undefined,
         location: location || undefined,
         capturedAt: capturedAt || undefined,
-        status: status === 'archived' ? 'published' : status,
+        status,
       },
       { email: session.email, role: session.role }
     )

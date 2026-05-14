@@ -91,7 +91,7 @@ export default function AdminConfirmDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId}>
+    <div className="fixed inset-0 z-80 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId}>
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
@@ -100,7 +100,7 @@ export default function AdminConfirmDialog({
         aria-label="Close confirmation dialog"
       />
 
-      <div ref={dialogRef} className="admin-dialog-enter relative z-[81] w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+      <div ref={dialogRef} className="admin-dialog-enter relative z-81 w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto">
         <h2 id={titleId} className="font-heading text-xl font-bold text-slate-900">
           {title}
         </h2>

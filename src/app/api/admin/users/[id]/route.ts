@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserById, getUserAuditLogs } from '@/lib/admin/user-repository'
+import { getAdminUserDetail, getUserAuditLogs } from '@/lib/admin/user-repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 
 /**
@@ -34,8 +34,8 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams
     const auditLimit = Math.min(parseInt(searchParams.get('auditLimit') || '50'), 100)
 
-    // Fetch user details
-    const user = await getUserById(userId)
+    // Fetch user details with security stats
+    const user = await getAdminUserDetail(userId)
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
