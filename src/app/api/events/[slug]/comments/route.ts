@@ -1,0 +1,56 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth/session'
+import { mapApiError } from '@/lib/admin/api-guard'
+import { addComment, getEventBySlug, getVisibleComments } from '@/lib/events/repository'
+import { eventCommentSchema } from '@/lib/events/schemas'
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await params
+    const event = await getEventBySlug(slug)
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    const comments = await getVisibleComments(event.id)
+    return NextResponse.json({ comments })
+  } catch (error) {
+    return mapApiError(error, 'Failed to fetch comments')
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const session = await requireAuth()
+    const { slug } = await params
+
+    const event = await getEventBySlug(slug)
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const parsed = eventCommentSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+    }
+
+    const comment = await addComment(event.id, session.userId, session.displayName, parsed.data.body)
+
+    return NextResponse.json({ success: true, comment }, { status: 201 })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized: No active session') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    return mapApiError(error, 'Failed to add comment')
+  }
+}

@@ -9,6 +9,7 @@ import SiteAlertTicker from '@/components/layout/SiteAlertTicker'
 
 const navLinks = [
   { href: '/', label: 'Home' },
+  { href: '/events', label: 'Events' },
   { href: '/library', label: 'Library' },
   { href: '/outreach', label: 'Outreach' },
   { href: '/podcast', label: 'Podcast' },

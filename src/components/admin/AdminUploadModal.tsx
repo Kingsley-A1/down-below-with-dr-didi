@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Camera } from 'lucide-react'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { uploadAdminMediaAsset, type UploadedAsset } from '@/components/admin/media-upload'
 
@@ -48,6 +49,12 @@ const DESTINATION_OPTIONS = [
     label: 'Podcast Episodes',
     helper: 'Covers and audio-related assets.',
     href: '/admin/podcast',
+  },
+  {
+    value: 'events',
+    label: 'Events',
+    helper: 'Cover imagery and stream-related assets.',
+    href: '/admin/events',
   },
 ] as const
 
@@ -159,6 +166,22 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
     return DESTINATION_OPTIONS.find((option) => option.value === destination) || DESTINATION_OPTIONS[0]
   }, [destination])
 
+  const imagePreviewUrl = useMemo(() => {
+    if (!file || !file.type.startsWith('image/')) {
+      return ''
+    }
+
+    return URL.createObjectURL(file)
+  }, [file])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreviewUrl)
+      }
+    }
+  }, [imagePreviewUrl])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -186,14 +209,14 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
   }
 
   return (
-    <div className="fixed inset-0 z-70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Upload media asset">
+    <div className="fixed inset-0 z-70 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true" aria-label="Upload media asset">
       <button
         type="button"
         aria-label="Close upload modal"
         onClick={onClose}
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
       />
-      <div ref={modalRef} className="admin-dialog-enter relative z-71 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <div ref={modalRef} className="admin-dialog-enter relative z-71 flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="border-b border-slate-200 bg-linear-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
           <p className="font-body text-xs uppercase tracking-[0.22em] text-slate-300">Admin Upload</p>
           <h2 className="mt-1 font-heading text-2xl font-bold">Upload to Media Library</h2>
@@ -202,7 +225,7 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-6">
+        <form onSubmit={handleSubmit} className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="admin-upload-kind">
@@ -245,6 +268,10 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
             <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="admin-upload-file">
               File
             </label>
+            <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+              <Camera className="h-3.5 w-3.5" />
+              <span>{mediaKind === 'image' ? 'Camera' : 'Media'}</span>
+            </div>
             <input
               id="admin-upload-file"
               type="file"
@@ -259,6 +286,14 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
               }}
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-body text-sm text-slate-700"
             />
+            {imagePreviewUrl ? (
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imagePreviewUrl} alt={altText || label || 'Selected media preview'} className="h-full w-full object-cover" />
+                </div>
+              </div>
+            ) : null}
             {file ? (
               <p className="mt-2 font-body text-xs text-slate-500">
                 {file.name} ({bytesToReadableSize(file.size)})

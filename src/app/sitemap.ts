@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { articles } from '@/data/articles'
 import { getPublishedGalleryImages } from '@/lib/admin/repository'
+import { getPublishedEvents } from '@/lib/events/repository'
 import { canonicalUrl } from '@/lib/site-config'
 
 const publicRoutes = [
@@ -10,6 +11,7 @@ const publicRoutes = [
   { path: '/gallery', priority: 0.75, changeFrequency: 'weekly' as const },
   { path: '/library', priority: 0.9, changeFrequency: 'weekly' as const },
   { path: '/podcast', priority: 0.75, changeFrequency: 'weekly' as const },
+  { path: '/events', priority: 0.85, changeFrequency: 'weekly' as const },
   { path: '/vault', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/outreach', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/contact', priority: 0.8, changeFrequency: 'monthly' as const },
@@ -32,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   let galleryRoutes: MetadataRoute.Sitemap = []
+  let eventRoutes: MetadataRoute.Sitemap = []
 
   try {
     const galleryImages = await getPublishedGalleryImages()
@@ -45,5 +48,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     galleryRoutes = []
   }
 
-  return [...routes, ...articleRoutes, ...galleryRoutes]
+  try {
+    const events = await getPublishedEvents()
+    eventRoutes = events.map((event) => ({
+      url: canonicalUrl(`/events/${event.slug}`),
+      lastModified: new Date(event.updatedAt),
+      changeFrequency: 'weekly' as const,
+      priority: 0.76,
+    }))
+  } catch {
+    eventRoutes = []
+  }
+
+  return [...routes, ...articleRoutes, ...galleryRoutes, ...eventRoutes]
 }

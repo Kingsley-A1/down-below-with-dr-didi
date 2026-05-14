@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowUpRight,
   Bell,
+  CalendarDays,
   GalleryHorizontal,
   ImageIcon,
   LayoutDashboard,
@@ -46,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/team', label: 'Team Members', icon: UserSquare2 },
       { href: '/admin/gallery', label: 'Gallery Images', icon: GalleryHorizontal },
       { href: '/admin/podcast', label: 'Podcast Episodes', icon: Mic2 },
+      { href: '/admin/events', label: 'Events', icon: CalendarDays },
     ],
   },
   {
@@ -156,46 +158,40 @@ export default function AdminShell({
   role: AdminRole
 }) {
   const pathname = usePathname() || '/admin'
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const [desktopNavOpen, setDesktopNavOpen] = useState(true)
+  const [navOpen, setNavOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
-  const mobilePanelRef = useRef<HTMLElement | null>(null)
-  const mobileCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  const navPanelRef = useRef<HTMLElement | null>(null)
+  const navCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
 
   function handleNavToggle() {
-    if (window.matchMedia('(min-width: 1024px)').matches) {
-      setDesktopNavOpen((previous) => !previous)
-      return
-    }
-
-    setMobileNavOpen(true)
+    setNavOpen(true)
   }
 
   useEffect(() => {
-    setMobileNavOpen(false)
+    setNavOpen(false)
   }, [pathname])
 
   useEffect(() => {
-    if (!mobileNavOpen) {
+    if (!navOpen) {
       return
     }
 
     lastFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    mobileCloseButtonRef.current?.focus()
+    navCloseButtonRef.current?.focus()
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        setMobileNavOpen(false)
+        setNavOpen(false)
         return
       }
 
-      if (event.key !== 'Tab' || !mobilePanelRef.current) {
+      if (event.key !== 'Tab' || !navPanelRef.current) {
         return
       }
 
-      const focusable = getFocusableElements(mobilePanelRef.current)
+      const focusable = getFocusableElements(navPanelRef.current)
 
       if (focusable.length === 0) {
         return
@@ -220,7 +216,7 @@ export default function AdminShell({
       document.removeEventListener('keydown', onKeyDown)
       lastFocusedElementRef.current?.focus()
     }
-  }, [mobileNavOpen])
+  }, [navOpen])
 
   return (
     <div className="min-h-screen bg-(--color-surface) admin-fade-in">
@@ -231,12 +227,11 @@ export default function AdminShell({
               type="button"
               onClick={handleNavToggle}
               className="admin-interactive inline-flex h-10 w-10 items-center justify-center text-slate-700"
-              aria-label={desktopNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              aria-expanded={mobileNavOpen}
-              aria-controls="admin-mobile-nav"
+              aria-label={navOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={navOpen}
+              aria-controls="admin-nav-panel"
             >
-              <Menu className="h-5 w-5 lg:hidden" />
-              {desktopNavOpen ? <X className="hidden h-5 w-5 lg:block" /> : <Menu className="hidden h-5 w-5 lg:block" />}
+              {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <div className="min-w-0">
               <p className="truncate font-heading text-xl font-bold text-slate-900 md:text-2xl">Admin Console</p>
@@ -268,40 +263,42 @@ export default function AdminShell({
         </div>
       </header>
 
-      {mobileNavOpen ? (
-        <div className="fixed inset-0 z-60 lg:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation menu">
+      {navOpen ? (
+        <div className="fixed inset-0 z-60" role="dialog" aria-modal="true" aria-label="Admin navigation menu">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/45"
-            onClick={() => setMobileNavOpen(false)}
+            onClick={() => setNavOpen(false)}
             aria-label="Close navigation menu"
           />
-          <aside id="admin-mobile-nav" ref={mobilePanelRef} className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs border-r border-slate-200 bg-white p-4 shadow-2xl">
+          <aside
+            id="admin-nav-panel"
+            ref={navPanelRef}
+            className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs border-r border-slate-200 bg-white p-4 shadow-2xl sm:max-w-sm lg:w-[320px] lg:max-w-[320px]"
+          >
             <div className="mb-4 flex items-center justify-between">
               <p className="font-heading text-lg font-bold text-slate-900">Admin Navigation</p>
               <button
-                ref={mobileCloseButtonRef}
+                ref={navCloseButtonRef}
                 type="button"
-                onClick={() => setMobileNavOpen(false)}
+                onClick={() => setNavOpen(false)}
                 className="admin-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
                 aria-label="Close menu"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <AdminNav pathname={pathname} onNavigate={() => setMobileNavOpen(false)} onUpload={() => setUploadOpen(true)} />
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <p className="truncate font-body text-xs text-slate-500">Signed in as</p>
+              <p className="truncate font-body text-sm font-semibold text-slate-800">{email}</p>
+              <p className="mt-1 font-body text-[11px] uppercase tracking-[0.18em] text-slate-500">{role.replace('_', ' ')}</p>
+            </div>
+            <AdminNav pathname={pathname} onNavigate={() => setNavOpen(false)} onUpload={() => setUploadOpen(true)} />
           </aside>
         </div>
       ) : null}
 
-      <div className={`max-w-container mx-auto grid gap-6 px-4 py-6 md:px-6 lg:gap-8 lg:py-8 ${desktopNavOpen ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
-        {desktopNavOpen ? (
-          <aside className="hidden lg:block">
-            <div className="admin-surface sticky top-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <AdminNav pathname={pathname} onUpload={() => setUploadOpen(true)} />
-            </div>
-          </aside>
-        ) : null}
+      <div className="max-w-container mx-auto px-4 py-6 md:px-6 lg:py-8">
         <div className="min-w-0">{children}</div>
       </div>
 

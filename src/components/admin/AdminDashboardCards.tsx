@@ -13,6 +13,7 @@ export type AdminDashboardSummarySnapshot = {
   teamMembers: number
   galleryImages: number
   podcastEpisodes: number
+  outreachEvents: number
   activeAlerts: number
   databaseReady: boolean
 }
@@ -93,6 +94,16 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
         metricValue: summary.podcastEpisodes,
         status: 'live',
         highlights: ['Audio publishing', 'Structured metadata', 'Category-aware listing'],
+      },
+      {
+        id: 'events',
+        title: 'Events',
+        href: '/admin/events',
+        description: 'Schedule and manage live streams, event history, and engagement settings.',
+        metricLabel: 'Events',
+        metricValue: summary.outreachEvents,
+        status: 'live',
+        highlights: ['Live + upcoming support', 'YouTube/Facebook stream links', 'Engagement toggles and moderation'],
       },
       {
         id: 'team',
@@ -213,21 +224,21 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
       </section>
 
       {activeCard ? (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-60 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true">
           <button
             type="button"
             aria-label="Close module details"
             onClick={() => setActiveCardId(null)}
             className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
           />
-          <div ref={dialogRef} className="admin-dialog-enter relative z-61 w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl">
+          <div ref={dialogRef} className="admin-dialog-enter relative z-61 flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl">
             <div className="bg-slate-950 px-6 py-5 text-white">
               <p className="font-body text-xs uppercase tracking-[0.2em] text-slate-300">Module details</p>
               <h3 className="mt-2 font-heading text-3xl font-bold">{activeCard.title}</h3>
               <p className="mt-2 font-body text-sm text-slate-300">{activeCard.description}</p>
             </div>
 
-            <div className="space-y-5 px-6 py-6">
+            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-500">Primary metric</p>
                 <p className="mt-1 font-heading text-3xl font-bold text-slate-900">{activeCard.metricValue}</p>

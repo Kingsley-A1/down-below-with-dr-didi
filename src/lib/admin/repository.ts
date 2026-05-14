@@ -18,6 +18,7 @@ export type DashboardSummary = {
   teamMembers: number
   galleryImages: number
   podcastEpisodes: number
+  outreachEvents: number
   activeAlerts: number
   databaseReady: boolean
 }
@@ -1347,6 +1348,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       teamMembers: 0,
       galleryImages: 0,
       podcastEpisodes: 0,
+      outreachEvents: 0,
       activeAlerts: 0,
       databaseReady: false,
     }
@@ -1362,6 +1364,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     teamMembers,
     galleryImages,
     podcastEpisodes,
+    outreachEvents,
     activeAlerts,
   ] = await Promise.all([
     prisma.adminUser.count(),
@@ -1373,6 +1376,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     prisma.teamMember.count().catch(() => 0),
     prisma.galleryImage.count().catch(() => 0),
     prisma.podcastEpisode.count().catch(() => 0),
+    prisma.outreachEvent.count().catch(() => 0),
     prisma.siteAlert
       .count({
         where: {
@@ -1394,6 +1398,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     teamMembers,
     galleryImages,
     podcastEpisodes,
+    outreachEvents,
     activeAlerts,
     databaseReady: true,
   }
@@ -1951,14 +1956,40 @@ export async function getGalleryImageBySlug(
 
 export async function getAllGalleryImages(): Promise<GalleryImageRecord[]> {
   if (!hasDatabaseConfig()) {
-    return []
+    const fallback = await getFallbackGalleryImages()
+    return fallback
+      .map((item) => ({
+        ...item,
+        status: 'published' as const,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
   }
 
   const records = await prisma.galleryImage.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   })
 
-  return records.map(mapGalleryImage)
+  const dbItems = records.map(mapGalleryImage)
+  const dbSlugs = new Set(dbItems.map((item) => item.slug))
+  const fallback = await getFallbackGalleryImages()
+  const fallbackOnly = fallback
+    .filter((item) => !dbSlugs.has(item.slug))
+    .map((item) => ({
+      ...item,
+      status: 'published' as const,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }))
+
+  return [...dbItems, ...fallbackOnly].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) {
+      return a.sortOrder - b.sortOrder
+    }
+
+    return a.title.localeCompare(b.title)
+  })
 }
 
 export async function createGalleryImage(
@@ -1974,7 +2005,7 @@ export async function createGalleryImage(
     location?: string
     capturedAt?: string
     sortOrder?: number
-    status?: 'draft' | 'published'
+    status?: 'draft' | 'published' | 'archived'
   },
   actor: { email: string; role: AdminRole }
 ): Promise<GalleryImageRecord> {
@@ -2376,4 +2407,406 @@ export async function deletePodcastEpisode(
     summary: `Deleted podcast episode "${record.title}"`,
     metadata: { slug: record.slug },
   })
+}
+
+export type EventStatus = 'draft' | 'published' | 'archived'
+export type EventCommentStatus = 'visible' | 'hidden' | 'flagged'
+
+export type EventRecord = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  body: string | null
+  coverImageUrl: string | null
+  coverImageAlt: string | null
+  communityLabel: string | null
+  location: string | null
+  scheduledAt: string | null
+  endedAt: string | null
+  streamUrl: string | null
+  streamProvider: string | null
+  isLive: boolean
+  engagementEnabled: boolean
+  status: EventStatus
+  publishedAt: string | null
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+  _count: {
+    likes: number
+    comments: number
+  }
+}
+
+export type EventCommentRecord = {
+  id: string
+  eventId: string
+  userId: string
+  displayName: string
+  body: string
+  status: EventCommentStatus
+  createdAt: string
+  updatedAt: string
+}
+
+type EventDbRecord = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  body: string | null
+  coverImageUrl: string | null
+  coverImageAlt: string | null
+  communityLabel: string | null
+  location: string | null
+  scheduledAt: Date | null
+  endedAt: Date | null
+  streamUrl: string | null
+  streamProvider: string | null
+  isLive: boolean
+  engagementEnabled: boolean
+  status: string
+  publishedAt: Date | null
+  sortOrder: number
+  createdAt: Date
+  updatedAt: Date
+  _count: {
+    likes: number
+    comments: number
+  }
+}
+
+type EventCommentDbRecord = {
+  id: string
+  eventId: string
+  userId: string
+  displayName: string
+  body: string
+  status: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+function mapEventRecord(record: EventDbRecord): EventRecord {
+  return {
+    id: record.id,
+    slug: record.slug,
+    title: record.title,
+    summary: record.summary,
+    body: record.body,
+    coverImageUrl: record.coverImageUrl,
+    coverImageAlt: record.coverImageAlt,
+    communityLabel: record.communityLabel,
+    location: record.location,
+    scheduledAt: record.scheduledAt ? record.scheduledAt.toISOString() : null,
+    endedAt: record.endedAt ? record.endedAt.toISOString() : null,
+    streamUrl: record.streamUrl,
+    streamProvider: record.streamProvider,
+    isLive: record.isLive,
+    engagementEnabled: record.engagementEnabled,
+    status: record.status as EventStatus,
+    publishedAt: record.publishedAt ? record.publishedAt.toISOString() : null,
+    sortOrder: record.sortOrder,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+    _count: {
+      likes: record._count.likes,
+      comments: record._count.comments,
+    },
+  }
+}
+
+function mapEventCommentRecord(record: EventCommentDbRecord): EventCommentRecord {
+  return {
+    id: record.id,
+    eventId: record.eventId,
+    userId: record.userId,
+    displayName: record.displayName,
+    body: record.body,
+    status: record.status as EventCommentStatus,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function normalizeEventStatus(status: EventStatus = 'draft') {
+  return status
+}
+
+function eventDateFromIso(value?: string | null): Date | null {
+  if (!value) {
+    return null
+  }
+
+  return new Date(value)
+}
+
+const eventsModels = prisma as unknown as {
+  outreachEvent: {
+    findMany: (...args: unknown[]) => Promise<unknown[]>
+    findUnique: (...args: unknown[]) => Promise<unknown>
+    create: (...args: unknown[]) => Promise<unknown>
+    update: (...args: unknown[]) => Promise<unknown>
+    delete: (...args: unknown[]) => Promise<unknown>
+  }
+  eventComment: {
+    findMany: (...args: unknown[]) => Promise<unknown[]>
+    update: (...args: unknown[]) => Promise<unknown>
+  }
+}
+
+export async function getAllEvents(): Promise<EventRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = await eventsModels.outreachEvent.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { scheduledAt: 'asc' }, { createdAt: 'desc' }],
+    include: {
+      _count: {
+        select: {
+          likes: true,
+          comments: true,
+        },
+      },
+    },
+  })
+
+  return records.map((record) => mapEventRecord(record as EventDbRecord))
+}
+
+export async function getEventById(id: string): Promise<EventRecord | null> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const record = await eventsModels.outreachEvent.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          likes: true,
+          comments: true,
+        },
+      },
+    },
+  })
+
+  if (!record) {
+    return null
+  }
+
+  return mapEventRecord(record as EventDbRecord)
+}
+
+export async function createEvent(
+  input: {
+    slug: string
+    title: string
+    summary: string
+    body?: string
+    coverImageUrl?: string
+    coverImageAlt?: string
+    communityLabel?: string
+    location?: string
+    scheduledAt?: string
+    endedAt?: string
+    streamUrl?: string
+    streamProvider?: string
+    isLive?: boolean
+    engagementEnabled?: boolean
+    status?: EventStatus
+    publishedAt?: string
+    sortOrder?: number
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<EventRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = (await eventsModels.outreachEvent.create({
+    data: {
+      slug: input.slug.trim(),
+      title: input.title.trim(),
+      summary: input.summary.trim(),
+      body: input.body?.trim() || null,
+      coverImageUrl: input.coverImageUrl?.trim() || null,
+      coverImageAlt: input.coverImageAlt?.trim() || null,
+      communityLabel: input.communityLabel?.trim() || null,
+      location: input.location?.trim() || null,
+      scheduledAt: eventDateFromIso(input.scheduledAt),
+      endedAt: eventDateFromIso(input.endedAt),
+      streamUrl: input.streamUrl?.trim() || null,
+      streamProvider: input.streamProvider?.trim() || null,
+      isLive: input.isLive ?? false,
+      engagementEnabled: input.engagementEnabled ?? true,
+      status: normalizeEventStatus(input.status),
+      publishedAt: eventDateFromIso(input.publishedAt),
+      sortOrder: input.sortOrder ?? 0,
+    },
+    include: {
+      _count: {
+        select: {
+          likes: true,
+          comments: true,
+        },
+      },
+    },
+  })) as EventDbRecord
+
+  await writeAuditLog({
+    action: 'events.create',
+    entityType: 'outreach_event',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Created event "${record.title}"`,
+    metadata: {
+      slug: record.slug,
+      status: record.status,
+      scheduledAt: record.scheduledAt ? record.scheduledAt.toISOString() : null,
+    },
+  })
+
+  return mapEventRecord(record as EventDbRecord)
+}
+
+export async function updateEvent(
+  id: string,
+  input: Partial<{
+    slug: string
+    title: string
+    summary: string
+    body: string | null
+    coverImageUrl: string | null
+    coverImageAlt: string | null
+    communityLabel: string | null
+    location: string | null
+    scheduledAt: string | null
+    endedAt: string | null
+    streamUrl: string | null
+    streamProvider: string | null
+    isLive: boolean
+    engagementEnabled: boolean
+    status: EventStatus
+    publishedAt: string | null
+    sortOrder: number
+  }>,
+  actor: { email: string; role: AdminRole }
+): Promise<EventRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = (await eventsModels.outreachEvent.update({
+    where: { id },
+    data: {
+      ...(input.slug !== undefined && { slug: input.slug.trim() }),
+      ...(input.title !== undefined && { title: input.title.trim() }),
+      ...(input.summary !== undefined && { summary: input.summary.trim() }),
+      ...(input.body !== undefined && { body: input.body?.trim() || null }),
+      ...(input.coverImageUrl !== undefined && { coverImageUrl: input.coverImageUrl?.trim() || null }),
+      ...(input.coverImageAlt !== undefined && { coverImageAlt: input.coverImageAlt?.trim() || null }),
+      ...(input.communityLabel !== undefined && { communityLabel: input.communityLabel?.trim() || null }),
+      ...(input.location !== undefined && { location: input.location?.trim() || null }),
+      ...(input.scheduledAt !== undefined && { scheduledAt: eventDateFromIso(input.scheduledAt) }),
+      ...(input.endedAt !== undefined && { endedAt: eventDateFromIso(input.endedAt) }),
+      ...(input.streamUrl !== undefined && { streamUrl: input.streamUrl?.trim() || null }),
+      ...(input.streamProvider !== undefined && { streamProvider: input.streamProvider?.trim() || null }),
+      ...(input.isLive !== undefined && { isLive: input.isLive }),
+      ...(input.engagementEnabled !== undefined && { engagementEnabled: input.engagementEnabled }),
+      ...(input.status !== undefined && { status: normalizeEventStatus(input.status) }),
+      ...(input.publishedAt !== undefined && { publishedAt: eventDateFromIso(input.publishedAt) }),
+      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+    },
+    include: {
+      _count: {
+        select: {
+          likes: true,
+          comments: true,
+        },
+      },
+    },
+  })) as EventDbRecord
+
+  await writeAuditLog({
+    action: 'events.update',
+    entityType: 'outreach_event',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Updated event "${record.title}"`,
+    metadata: {
+      slug: record.slug,
+      changedFields: Object.keys(input),
+    },
+  })
+
+  return mapEventRecord(record as EventDbRecord)
+}
+
+export async function deleteEvent(
+  id: string,
+  actor: { email: string; role: AdminRole }
+): Promise<void> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = (await eventsModels.outreachEvent.delete({ where: { id } })) as EventDbRecord
+
+  await writeAuditLog({
+    action: 'events.delete',
+    entityType: 'outreach_event',
+    entityId: id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Deleted event "${record.title}"`,
+    metadata: { slug: record.slug },
+  })
+}
+
+export async function getEventComments(eventId: string): Promise<EventCommentRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = await eventsModels.eventComment.findMany({
+    where: { eventId },
+    orderBy: [{ createdAt: 'desc' }],
+  })
+
+  return records.map((record: unknown) => mapEventCommentRecord(record as EventCommentDbRecord))
+}
+
+export async function moderateEventComment(
+  commentId: string,
+  status: EventCommentStatus,
+  actor: { email: string; role: AdminRole }
+): Promise<EventCommentRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const record = (await eventsModels.eventComment.update({
+    where: { id: commentId },
+    data: { status },
+  })) as EventCommentDbRecord
+
+  await writeAuditLog({
+    action: 'events.comment.moderate',
+    entityType: 'event_comment',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Moderated event comment ${record.id}`,
+    metadata: {
+      eventId: record.eventId,
+      status,
+    },
+  })
+
+  return mapEventCommentRecord(record as EventCommentDbRecord)
 }

@@ -104,6 +104,7 @@ export default async function Footer() {
               {[
                 { href: '/', label: 'Home' },
                 { href: '/about', label: 'About DownBelow' },
+                { href: '/events', label: 'Events' },
                 { href: '/library', label: 'Health Library' },
                 { href: '/podcast', label: 'Podcast' },
                 { href: '/outreach', label: 'Community Outreach' },
