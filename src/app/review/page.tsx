@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import { HeartHandshake, Quote, Star } from 'lucide-react'
+import { HeartHandshake, MessageCircleHeart, Quote, Star } from 'lucide-react'
 import ReviewHelpfulButton from '@/components/reviews/ReviewHelpfulButton'
 import ReviewSubmissionForm from '@/components/reviews/ReviewSubmissionForm'
 import { getSession } from '@/lib/auth/session'
@@ -30,41 +30,58 @@ export default async function ReviewPage() {
     : 0
 
   return (
-    <main className="section-pad" style={{ backgroundColor: 'var(--color-surface)' }}>
+    <main className="pt-28 pb-16 sm:pt-32 sm:pb-20" style={{ backgroundColor: 'var(--color-surface)' }}>
       <section className="mx-auto max-w-container px-6">
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px] lg:items-start">
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_10px_28px_rgba(2,12,27,0.06)] sm:p-8">
+        <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_16px_40px_rgba(2,12,27,0.07)]">
+          <div className="grid gap-0 lg:grid-cols-[1fr_360px]">
+            <div className="p-6 sm:p-8 lg:p-10">
               <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-body text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
                 <HeartHandshake className="h-4 w-4" />
                 What people are saying
               </div>
-              <h1 className="mt-4 font-heading text-4xl font-bold text-slate-900 sm:text-5xl">Reviews</h1>
+              <h1 className="mt-5 max-w-3xl font-heading text-4xl font-bold tracking-normal text-slate-950 sm:text-5xl">
+                Real stories from real people.
+              </h1>
               <p className="mt-4 max-w-3xl font-body text-base leading-7 text-slate-600">
-                Real words from people who have experienced the education, outreach, and support work of Down Below Family Health Initiative.
+                Public reviews from outreach participants, community members, volunteers, and people who have experienced DownBelow&apos;s care and teaching.
               </p>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            </div>
+            <div className="border-t border-slate-200 bg-slate-50 p-6 sm:p-8 lg:border-l lg:border-t-0">
+              <div className="grid gap-3">
                 <Metric label="Published reviews" value={reviews.length.toString()} />
                 <Metric label="Average rating" value={averageRating ? averageRating.toFixed(1) : '5.0'} />
                 <Metric label="Helpful marks" value={reviews.reduce((sum, review) => sum + review.helpfulCount, 0).toString()} />
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:items-start">
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <MessageCircleHeart className="h-5 w-5 text-emerald-700" />
+              <h2 className="font-heading text-2xl font-bold text-slate-950">Latest reviews</h2>
+            </div>
 
             <div className="grid gap-4">
               {reviews.map((review) => (
-                <article key={review.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(2,12,27,0.05)]">
+                <article key={review.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(2,12,27,0.05)] transition-shadow hover:shadow-[0_14px_30px_rgba(2,12,27,0.08)] sm:p-6">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-1 text-amber-500" aria-label={`${review.rating} out of 5 stars`}>
-                        {Array.from({ length: 5 }, (_, index) => (
-                          <Star key={index} className={`h-4 w-4 ${index < review.rating ? 'fill-current' : ''}`} />
-                        ))}
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 font-heading text-sm font-bold text-emerald-800">
+                        {review.displayName.slice(0, 2).toUpperCase()}
                       </div>
-                      <h2 className="mt-3 font-heading text-xl font-bold text-slate-900">{review.displayName}</h2>
-                      <p className="font-body text-sm text-slate-500">
-                        {[review.roleLabel, review.location].filter(Boolean).join(' - ')}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-1 text-amber-500" aria-label={`${review.rating} out of 5 stars`}>
+                          {Array.from({ length: 5 }, (_, index) => (
+                            <Star key={index} className={`h-4 w-4 ${index < review.rating ? 'fill-current' : ''}`} />
+                          ))}
+                        </div>
+                        <h3 className="mt-2 font-heading text-xl font-bold text-slate-950">{review.displayName}</h3>
+                        <p className="font-body text-sm text-slate-500">
+                          {[review.roleLabel, review.location].filter(Boolean).join(' - ')}
+                        </p>
+                      </div>
                     </div>
                     <Quote className="hidden h-8 w-8 text-emerald-100 sm:block" />
                   </div>
@@ -101,7 +118,7 @@ export default async function ReviewPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className="mt-1 font-heading text-3xl font-bold text-slate-900">{value}</p>
     </div>

@@ -198,9 +198,10 @@ export async function createPublicReview(input: {
       location: input.location?.trim() || null,
       rating: input.rating ?? 5,
       body: input.body.trim(),
-      status: 'draft',
+      status: 'published',
       source: 'public_submission',
       userId: input.userId || null,
+      publishedAt: new Date(),
     },
     include: { _count: { select: { helpfuls: true } } },
   })

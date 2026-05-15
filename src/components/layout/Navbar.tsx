@@ -55,6 +55,22 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    if (!menuOpen) {
+      return
+    }
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
+  }, [menuOpen])
+
   const loadSessionState = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/session', {
@@ -203,43 +219,50 @@ export default function Navbar() {
       {/* Mobile Drawer */}
       {menuOpen && (
         <div
-          className="lg:hidden border-t px-6 py-6 flex flex-col gap-4 shadow-lg"
+          className="fixed inset-x-0 bottom-0 top-16 z-50 flex flex-col overflow-y-auto overscroll-contain border-t px-6 py-5 shadow-lg lg:hidden"
           style={{
             borderColor: 'var(--color-border)',
             backgroundColor: 'var(--color-bg)',
           }}
         >
-          {mobileNavigationLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={pathname === href ? 'page' : undefined}
-              className="font-body font-medium text-base py-3 border-b last:border-0"
-              style={{ color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
-              onClick={() => setMenuOpen(false)}
-            >
-              {label}
-            </Link>
-          ))}
-          <Link
-            href={ctaHref}
-            className="mt-2 font-body font-semibold text-sm px-5 py-3 rounded-full text-center transition-colors"
-            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
-            onClick={() => setMenuOpen(false)}
-          >
-            {ctaLabel}
-          </Link>
-          <div className="mt-2 flex items-center justify-center gap-3 text-xs text-slate-400">
-            {legalLinks.map(({ href, label }) => (
+          <div className="flex flex-col gap-1">
+            {mobileNavigationLinks.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className="font-body hover:text-slate-600"
+                aria-current={pathname === href ? 'page' : undefined}
+                className="font-body font-medium text-base py-3 border-b last:border-0"
+                style={{ color: 'var(--color-primary)', borderColor: 'var(--color-border)' }}
                 onClick={() => setMenuOpen(false)}
               >
                 {label}
               </Link>
             ))}
+          </div>
+          <Link
+            href={ctaHref}
+            className="mt-4 font-body font-semibold text-sm px-5 py-3 rounded-full text-center transition-colors"
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
+            onClick={() => setMenuOpen(false)}
+          >
+            {ctaLabel}
+          </Link>
+          <div className="mt-6 border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+            <p className="mb-2 font-body text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Legal
+            </p>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              {legalLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="font-body underline-offset-4 hover:text-slate-600 hover:underline"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}

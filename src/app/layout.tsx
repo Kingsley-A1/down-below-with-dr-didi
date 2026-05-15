@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import FooterVisibility from '@/components/layout/FooterVisibility'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
 import InstallPrompt from '@/components/layout/InstallPrompt'
+import ScrollToTopOnNavigation from '@/components/layout/ScrollToTopOnNavigation'
 import StructuredData from '@/components/seo/StructuredData'
 import { canonicalUrl, seoKeywords, siteConfig } from '@/lib/site-config'
 
@@ -76,6 +78,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="font-body">
         <StructuredData />
+        <Suspense fallback={null}>
+          <ScrollToTopOnNavigation />
+        </Suspense>
         <WelcomeIntro />
         <a
           href="#main-content"

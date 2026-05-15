@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Send, Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, Send, Star } from 'lucide-react'
+import type { PublicReviewRecord } from '@/lib/reviews/repository'
 
 const EMPTY_FORM = {
   displayName: '',
@@ -15,10 +17,12 @@ const EMPTY_FORM = {
 type ReviewFormState = typeof EMPTY_FORM
 
 export default function ReviewSubmissionForm() {
+  const router = useRouter()
   const [form, setForm] = useState<ReviewFormState>(EMPTY_FORM)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [submittedReview, setSubmittedReview] = useState<PublicReviewRecord | null>(null)
 
   function set<K extends keyof ReviewFormState>(field: K, value: ReviewFormState[K]) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -36,15 +40,17 @@ export default function ReviewSubmissionForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      const data = (await response.json()) as { error?: string; message?: string }
+      const data = (await response.json()) as { error?: string; message?: string; review?: PublicReviewRecord }
 
       if (!response.ok) {
         setError(data.error || 'Review could not be submitted.')
         return
       }
 
-      setMessage(data.message || 'Thank you. Your review has been submitted for moderation.')
+      setMessage(data.message || 'Thank you. Your review is now live.')
+      setSubmittedReview(data.review ?? null)
       setForm(EMPTY_FORM)
+      router.refresh()
     } catch {
       setError('Review could not be submitted. Please try again.')
     } finally {
@@ -57,7 +63,24 @@ export default function ReviewSubmissionForm() {
       <div>
         <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Share your experience</p>
         <h2 className="mt-2 font-heading text-2xl font-bold text-slate-900">Add a review</h2>
+        <p className="mt-2 font-body text-sm leading-6 text-slate-500">
+          Your review appears immediately. The team may later add a reply when helpful.
+        </p>
       </div>
+
+      {submittedReview ? (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <div>
+              <p className="font-body text-sm font-semibold text-emerald-900">{message}</p>
+              <p className="mt-2 line-clamp-3 font-body text-sm leading-6 text-emerald-950">
+                &ldquo;{submittedReview.body}&rdquo;
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name *">
@@ -110,7 +133,7 @@ export default function ReviewSubmissionForm() {
         <span>I confirm this review may be reviewed by the team and published on the website.</span>
       </label>
 
-      {message ? <p className="rounded-xl bg-emerald-50 px-3 py-2 font-body text-sm font-semibold text-emerald-800">{message}</p> : null}
+      {message && !submittedReview ? <p className="rounded-xl bg-emerald-50 px-3 py-2 font-body text-sm font-semibold text-emerald-800">{message}</p> : null}
       {error ? <p className="rounded-xl bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700">{error}</p> : null}
 
       <button

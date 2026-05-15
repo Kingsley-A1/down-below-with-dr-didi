@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         review,
-        message: 'Thank you. Your review has been submitted for moderation.',
+        message: 'Thank you. Your review is now live.',
       },
       { status: 201 }
     )

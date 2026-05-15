@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
 }
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -35,13 +35,15 @@ export default async function GalleryPage({ searchParams }: Props) {
     ? (rawCategory as GalleryImageCategory)
     : undefined
 
-  let images: PublicGalleryImage[]
+  let allImages: PublicGalleryImage[]
 
   try {
-    images = await getPublishedGalleryImages(category)
+    allImages = await getPublishedGalleryImages()
   } catch {
-    images = []
+    allImages = []
   }
+
+  const images = category ? allImages.filter((image) => image.category === category) : allImages
 
   const activeCategory = rawCategory && validCategories.includes(rawCategory as GalleryImageCategory)
     ? rawCategory
@@ -97,6 +99,7 @@ export default async function GalleryPage({ searchParams }: Props) {
                   <Link
                     key={value}
                     href={href}
+                    scroll
                     className="font-body text-sm font-medium px-4 py-1.5 rounded-full whitespace-nowrap transition-colors"
                     style={{
                       backgroundColor: isActive ? 'var(--color-primary)' : 'transparent',
@@ -120,7 +123,7 @@ export default async function GalleryPage({ searchParams }: Props) {
               </p>
             </div>
           ) : (
-            <ImageViewModal images={images} initialImageSlug={imageSlug} />
+            <ImageViewModal key={activeCategory} images={images} initialImageSlug={imageSlug} />
           )}
         </div>
       </main>
