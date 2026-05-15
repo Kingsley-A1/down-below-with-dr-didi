@@ -349,11 +349,9 @@ export default function GalleryImagesBoard({
                 className="input-field"
               />
               {previewUrl ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="h-full w-full object-cover" />
-                  </div>
+                <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
                 </div>
               ) : null}
               <p className="font-body text-xs text-gray-400 mt-1">

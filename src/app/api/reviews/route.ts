@@ -4,10 +4,14 @@ import { getSession } from '@/lib/auth/session'
 import { createPublicReview, getPublishedReviews } from '@/lib/reviews/repository'
 import { publicReviewSchema } from '@/lib/validations'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
-    const reviews = await getPublishedReviews(session?.userId)
+    const reviewVisitorKey = request.cookies.get('downbelow_review_visitor')?.value || null
+    const reviews = await getPublishedReviews({
+      userId: session?.userId || null,
+      visitorKey: session ? null : reviewVisitorKey,
+    })
     return NextResponse.json({ reviews })
   } catch (error) {
     return mapApiError(error, 'Failed to fetch reviews')

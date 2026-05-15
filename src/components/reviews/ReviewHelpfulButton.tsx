@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { ThumbsUp } from 'lucide-react'
 
 export default function ReviewHelpfulButton({
@@ -16,35 +15,34 @@ export default function ReviewHelpfulButton({
   const [helpful, setHelpful] = useState(initialHelpful)
   const [count, setCount] = useState(initialCount)
   const [busy, setBusy] = useState(false)
-  const [authRequired, setAuthRequired] = useState(false)
+  const [error, setError] = useState('')
 
   async function toggleHelpful() {
-    if (busy || reviewId.startsWith('seed-review-')) {
+    if (busy) {
       return
     }
 
     setBusy(true)
-    setAuthRequired(false)
+    setError('')
 
     const nextHelpful = !helpful
     setHelpful(nextHelpful)
     setCount((current) => Math.max(0, current + (nextHelpful ? 1 : -1)))
+
+    if (reviewId.startsWith('seed-review-')) {
+      setBusy(false)
+      return
+    }
 
     try {
       const response = await fetch(`/api/reviews/${reviewId}/helpful`, {
         method: nextHelpful ? 'POST' : 'DELETE',
       })
 
-      if (response.status === 401) {
-        setHelpful(!nextHelpful)
-        setCount((current) => Math.max(0, current + (nextHelpful ? -1 : 1)))
-        setAuthRequired(true)
-        return
-      }
-
       if (!response.ok) {
         setHelpful(!nextHelpful)
         setCount((current) => Math.max(0, current + (nextHelpful ? -1 : 1)))
+        setError('Could not update this yet. Please try again.')
         return
       }
 
@@ -56,6 +54,7 @@ export default function ReviewHelpfulButton({
     } catch {
       setHelpful(!nextHelpful)
       setCount((current) => Math.max(0, current + (nextHelpful ? -1 : 1)))
+      setError('Could not update this yet. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -66,7 +65,7 @@ export default function ReviewHelpfulButton({
       <button
         type="button"
         onClick={toggleHelpful}
-        disabled={busy || reviewId.startsWith('seed-review-')}
+        disabled={busy}
         aria-pressed={helpful}
         className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors disabled:opacity-60 ${
           helpful
@@ -79,12 +78,9 @@ export default function ReviewHelpfulButton({
         <span>found this helpful</span>
       </button>
 
-      {authRequired ? (
-        <p className="font-body text-xs text-slate-600" role="status">
-          <Link href={`/login?next=${encodeURIComponent('/review')}`} className="font-semibold text-slate-900 underline underline-offset-2">
-            Log in
-          </Link>{' '}
-          to mark reviews as helpful.
+      {error ? (
+        <p className="font-body text-xs text-rose-600" role="status">
+          {error}
         </p>
       ) : null}
     </div>

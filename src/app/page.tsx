@@ -3,10 +3,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight } from 'lucide-react'
 import { articles } from '@/data/articles'
-import { vaultPreviewItems } from '@/data/vault-preview'
 import { formatDate } from '@/lib/utils'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl, siteConfig } from '@/lib/site-config'
+import { getPublicVaultPreviewItems } from '@/lib/vault/public-preview'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
@@ -37,6 +37,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const siteSettings = await getPublicSiteSettings()
+  const vaultPreviewItems = await getPublicVaultPreviewItems(4)
   const latestArticles = [...articles]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
@@ -280,7 +281,7 @@ export default async function HomePage() {
             ))}
           </div>
 
-          <div className="text-center">
+          <div className="flex flex-col items-center justify-center gap-3 text-center sm:flex-row">
             <Link
               href="/vault"
               className="inline-flex items-center gap-2 font-body font-semibold px-8 py-4 rounded-full transition-all hover:scale-105"
@@ -288,6 +289,13 @@ export default async function HomePage() {
             >
               <Shield size={18} />
               Ask Your Own Question
+            </Link>
+            <Link
+              href="/vault"
+              className="inline-flex items-center gap-2 rounded-full border border-white/25 px-8 py-4 font-body font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              Read More
+              <ArrowRight size={18} />
             </Link>
           </div>
         </div>

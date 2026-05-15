@@ -3,27 +3,29 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
-const INTRO_DURATION_MS = 5000
-const REDUCED_MOTION_DURATION_MS = 2200
-const SESSION_KEY = 'dbwd-intro-seen'
+const INTRO_DURATION_MS = 3900
+const REDUCED_MOTION_DURATION_MS = 1800
+const COOLDOWN_MS = 24 * 60 * 60 * 1000
+const COOLDOWN_KEY = 'dbwd-intro-last-shown-at'
 
 export default function WelcomeIntro() {
   const pathname = usePathname() || ''
   const [phase, setPhase] = useState<'checking' | 'visible' | 'hidden'>('checking')
+  const isHomePage = pathname === '/' || pathname === '/home'
 
   useEffect(() => {
-    if (pathname.startsWith('/admin')) {
-      const timeoutId = window.setTimeout(() => setPhase('hidden'), 0)
-      return () => window.clearTimeout(timeoutId)
+    if (!isHomePage) {
+      return
     }
 
-    if (window.sessionStorage.getItem(SESSION_KEY) === '1') {
-      const timeoutId = window.setTimeout(() => setPhase('hidden'), 0)
-      return () => window.clearTimeout(timeoutId)
+    const lastShownAt = Number(window.localStorage.getItem(COOLDOWN_KEY) || '0')
+    if (lastShownAt && Date.now() - lastShownAt < COOLDOWN_MS) {
+      const hiddenTimer = window.setTimeout(() => setPhase('hidden'), 0)
+      return () => window.clearTimeout(hiddenTimer)
     }
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.sessionStorage.setItem(SESSION_KEY, '1')
+    window.localStorage.setItem(COOLDOWN_KEY, Date.now().toString())
     const showTimer = window.setTimeout(() => setPhase('visible'), 0)
 
     const hideTimer = window.setTimeout(() => {
@@ -34,9 +36,9 @@ export default function WelcomeIntro() {
       window.clearTimeout(showTimer)
       window.clearTimeout(hideTimer)
     }
-  }, [pathname])
+  }, [isHomePage])
 
-  if (pathname.startsWith('/admin') || phase === 'hidden') return null
+  if (!isHomePage || phase !== 'visible') return null
 
   return (
     <div
@@ -49,11 +51,17 @@ export default function WelcomeIntro() {
         <p className="font-body text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
           Welcome to
         </p>
-        <p className="mt-3 font-heading text-3xl font-bold sm:text-5xl">
-          DownBelow Family
+        <p className="mt-3 font-heading text-4xl font-bold uppercase tracking-normal sm:text-6xl">
+          DOWNBELOW
         </p>
-        <p className="mt-3 font-body text-sm sm:text-base" style={{ color: 'rgba(255,255,255,0.72)' }}>
-          Expose love, educate, and heal.
+        <p
+          className="welcome-intro__typing mx-auto mt-2 max-w-max font-heading text-xl font-bold sm:text-3xl"
+          style={{ color: 'var(--color-accent)' }}
+        >
+          With Dr. Didi
+        </p>
+        <p className="mt-5 font-body text-sm font-semibold sm:text-base" style={{ color: 'rgba(255,255,255,0.78)' }}>
+          Expose in Love, Teach, Win
         </p>
         <span className="mx-auto mt-5 block h-1 w-24 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
       </div>

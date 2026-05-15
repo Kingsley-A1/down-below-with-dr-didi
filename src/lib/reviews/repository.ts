@@ -9,6 +9,11 @@ export const PUBLIC_REVIEW_LIMIT = 60
 export type ReviewStatus = 'draft' | 'published' | 'archived'
 export type ReviewSource = 'public_submission' | 'admin_created' | 'seed'
 
+export type ReviewHelpfulIdentity = {
+  userId?: string | null
+  visitorKey?: string | null
+}
+
 export type PublicReviewRecord = {
   id: string
   displayName: string
@@ -102,21 +107,38 @@ function fallbackReviews(): PublicReviewRecord[] {
   }))
 }
 
-export async function getPublishedReviews(viewerUserId?: string | null): Promise<PublicReviewRecord[]> {
+function normalizeHelpfulIdentity(viewer?: string | ReviewHelpfulIdentity | null): ReviewHelpfulIdentity {
+  if (typeof viewer === 'string') {
+    return { userId: viewer }
+  }
+
+  return {
+    userId: viewer?.userId || null,
+    visitorKey: viewer?.visitorKey || null,
+  }
+}
+
+export async function getPublishedReviews(viewer?: string | ReviewHelpfulIdentity | null): Promise<PublicReviewRecord[]> {
   if (!hasDatabaseConfig()) {
     return fallbackReviews()
   }
 
   try {
+    const { userId, visitorKey } = normalizeHelpfulIdentity(viewer)
+    const helpfulWhere = [
+      ...(userId ? [{ userId }] : []),
+      ...(visitorKey ? [{ visitorKey }] : []),
+    ]
+
     const records = await prisma.review.findMany({
       where: { status: 'published' },
       orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: PUBLIC_REVIEW_LIMIT,
       include: {
         _count: { select: { helpfuls: true } },
-        helpfuls: viewerUserId
+        helpfuls: helpfulWhere.length > 0
           ? {
-              where: { userId: viewerUserId },
+              where: { OR: helpfulWhere },
               select: { id: true },
               take: 1,
             }
@@ -318,27 +340,48 @@ export async function deleteAdminReview(
   })
 }
 
-export async function markReviewHelpful(reviewId: string, userId: string): Promise<number> {
+export async function markReviewHelpful(reviewId: string, identity: ReviewHelpfulIdentity): Promise<number> {
   if (!hasDatabaseConfig()) {
     throw new Error('Database is not configured')
   }
 
-  await prisma.reviewHelpful.upsert({
-    where: {
-      reviewId_userId: { reviewId, userId },
-    },
-    update: {},
-    create: { reviewId, userId },
-  })
+  if (identity.userId) {
+    await prisma.reviewHelpful.upsert({
+      where: {
+        reviewId_userId: { reviewId, userId: identity.userId },
+      },
+      update: {},
+      create: { reviewId, userId: identity.userId },
+    })
+  } else if (identity.visitorKey) {
+    await prisma.reviewHelpful.upsert({
+      where: {
+        reviewId_visitorKey: { reviewId, visitorKey: identity.visitorKey },
+      },
+      update: {},
+      create: { reviewId, visitorKey: identity.visitorKey },
+    })
+  } else {
+    throw new Error('A review helpful identity is required')
+  }
 
   return prisma.reviewHelpful.count({ where: { reviewId } })
 }
 
-export async function unmarkReviewHelpful(reviewId: string, userId: string): Promise<number> {
+export async function unmarkReviewHelpful(reviewId: string, identity: ReviewHelpfulIdentity): Promise<number> {
   if (!hasDatabaseConfig()) {
     throw new Error('Database is not configured')
   }
 
-  await prisma.reviewHelpful.deleteMany({ where: { reviewId, userId } })
+  const OR = [
+    ...(identity.userId ? [{ userId: identity.userId }] : []),
+    ...(identity.visitorKey ? [{ visitorKey: identity.visitorKey }] : []),
+  ]
+
+  if (OR.length === 0) {
+    throw new Error('A review helpful identity is required')
+  }
+
+  await prisma.reviewHelpful.deleteMany({ where: { reviewId, OR } })
   return prisma.reviewHelpful.count({ where: { reviewId } })
 }

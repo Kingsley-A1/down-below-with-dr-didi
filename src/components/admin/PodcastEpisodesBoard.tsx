@@ -403,10 +403,9 @@ export default function PodcastEpisodesBoard({
               </div>
               <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="input-field" />
               {coverPreviewUrl ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  <div className="relative h-32 w-full overflow-hidden rounded-lg bg-slate-200">
-                    <Image src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" unoptimized={coverPreviewUrl.startsWith('blob:')} />
-                  </div>
+                <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
                 </div>
               ) : null}
               <p className="font-body text-xs text-gray-400">

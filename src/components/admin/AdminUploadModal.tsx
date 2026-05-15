@@ -301,11 +301,9 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 font-body text-sm text-slate-700"
             />
             {imagePreviewUrl ? (
-              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imagePreviewUrl} alt={altText || label || 'Selected media preview'} className="h-full w-full object-cover" />
-                </div>
+              <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imagePreviewUrl} alt={altText || label || 'Selected media preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
               </div>
             ) : null}
             {file ? (

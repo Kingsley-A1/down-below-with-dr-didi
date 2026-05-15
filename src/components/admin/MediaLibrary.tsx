@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, File, ImageIcon } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
@@ -162,11 +162,9 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             style={{ borderColor: 'var(--color-border)' }}
           />
           {selectedPreviewUrl ? (
-            <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <div className="relative h-36 w-full overflow-hidden rounded-lg bg-slate-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={selectedPreviewUrl} alt="Selected upload preview" className="h-full w-full object-cover" />
-              </div>
+            <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={selectedPreviewUrl} alt="Selected upload preview" className="max-h-72 max-w-full rounded-lg object-contain" />
             </div>
           ) : null}
         </div>
@@ -188,11 +186,42 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Asset Catalog</h2>
           <p className="font-body text-sm text-gray-500">Assets are tracked in CockroachDB and served through Cloudflare R2 storage.</p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="grid gap-3 md:hidden">
+          {assets.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 p-5 font-body text-sm text-gray-500">No assets uploaded yet.</p>
+          ) : (
+            assets.map((asset) => (
+              <article key={asset.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <AssetPreview asset={asset} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>{asset.label}</p>
+                    <p className="mt-1 font-body text-xs text-gray-500">{asset.kind} / {formatBytes(asset.sizeBytes)}</p>
+                    <p className="mt-1 font-body text-xs text-gray-400">{new Date(asset.createdAt).toLocaleString('en-NG')}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <a href={asset.url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-slate-200 px-4 py-2 font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
+                    Open asset
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => requestDelete(asset)}
+                    disabled={isDeleting || isUploading}
+                    className="admin-interactive rounded-full bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-                <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Label</th>
+                <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Asset</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Type</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Size</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">URL</th>
@@ -208,8 +237,13 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                 assets.map((asset) => (
                   <tr key={asset.id} className="border-b last:border-0 transition-colors hover:bg-slate-50" style={{ borderColor: 'var(--color-border)' }}>
                     <td className="py-4">
-                      <p className="font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>{asset.label}</p>
-                      <p className="font-body text-xs text-gray-400">{new Date(asset.createdAt).toLocaleString('en-NG')}</p>
+                      <div className="flex items-center gap-3">
+                        <AssetPreview asset={asset} />
+                        <div className="min-w-0">
+                          <p className="truncate font-body font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>{asset.label}</p>
+                          <p className="font-body text-xs text-gray-400">{new Date(asset.createdAt).toLocaleString('en-NG')}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 font-body text-sm text-gray-600">{asset.kind}</td>
                     <td className="py-4 font-body text-sm text-gray-600">{formatBytes(asset.sizeBytes)}</td>
@@ -253,5 +287,24 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
         }}
       />
     </div>
+  )
+}
+
+function AssetPreview({ asset }: { asset: MediaAssetRecord }) {
+  if (asset.kind === 'image') {
+    return (
+      <span className="relative inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={asset.url} alt={asset.altText || asset.label} className="h-full w-full object-cover" />
+      </span>
+    )
+  }
+
+  const Icon = asset.kind === 'document' ? File : ImageIcon
+
+  return (
+    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
+      <Icon className="h-5 w-5" aria-hidden="true" />
+    </span>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import { Camera, MessageSquare } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -418,8 +417,9 @@ export default function EventsBoard({
           {previewUrl ? (
             <div className="rounded-xl border p-3">
               <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700"><Camera className="h-4 w-4" /> Cover preview</p>
-              <div className="relative h-48 w-full overflow-hidden rounded-xl bg-slate-100">
-                <Image src={previewUrl} alt="Event cover preview" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" unoptimized={previewUrl.startsWith('blob:')} />
+              <div className="inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Event cover preview" className="max-h-72 max-w-full rounded-lg object-contain" />
               </div>
             </div>
           ) : null}

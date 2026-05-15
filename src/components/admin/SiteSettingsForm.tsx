@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera } from 'lucide-react'
 import { siteSettingsSchema, type SiteSettingsFormData } from '@/lib/validations'
@@ -27,16 +27,18 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<SiteSettingsFormData>({
     resolver: zodResolver(siteSettingsSchema),
     defaultValues: initialValues,
   })
 
-  const currentHeroImageUrl = watch('heroImageUrl')
+  const currentHeroImageUrl = useWatch({ control, name: 'heroImageUrl' })
+  const currentHeroImageAlt = useWatch({ control, name: 'heroImageAlt' })
+  const currentHeroHeadline = useWatch({ control, name: 'heroHeadline' })
   const heroPreviewUrl = useMemo(() => {
     if (heroImageFile) {
       return URL.createObjectURL(heroImageFile)
@@ -149,11 +151,9 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
           style={{ borderColor: 'var(--color-border)' }}
         />
         {heroPreviewUrl ? (
-          <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-            <div className="relative h-40 w-full overflow-hidden rounded-lg bg-slate-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroPreviewUrl} alt={watch('heroImageAlt') || watch('heroHeadline') || 'Hero image preview'} className="h-full w-full object-cover" />
-            </div>
+          <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={heroPreviewUrl} alt={currentHeroImageAlt || currentHeroHeadline || 'Hero image preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
           </div>
         ) : null}
         <p className="mt-2 font-body text-xs text-gray-500">

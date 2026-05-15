@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import { HeartHandshake, Quote, Star } from 'lucide-react'
 import ReviewHelpfulButton from '@/components/reviews/ReviewHelpfulButton'
 import ReviewSubmissionForm from '@/components/reviews/ReviewSubmissionForm'
@@ -18,7 +19,12 @@ export const metadata: Metadata = {
 
 export default async function ReviewPage() {
   const session = await getSession()
-  const reviews = await getPublishedReviews(session?.userId)
+  const cookieStore = await cookies()
+  const reviewVisitorKey = cookieStore.get('downbelow_review_visitor')?.value || null
+  const reviews = await getPublishedReviews({
+    userId: session?.userId || null,
+    visitorKey: session ? null : reviewVisitorKey,
+  })
   const averageRating = reviews.length
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
     : 0

@@ -136,11 +136,13 @@ export default function Navbar() {
             height={44}
             className="rounded-full object-cover"
           />
-          <span
-            className="font-heading font-bold text-lg hidden sm:block"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            {siteConfig.shortName}
+          <span className="hidden min-w-0 flex-col justify-center leading-none sm:flex" aria-label={`${siteConfig.shortName} with Dr. Didi`}>
+            <span className="font-heading text-[15px] font-bold uppercase tracking-normal" style={{ color: 'var(--color-primary)' }}>
+              DOWNBELOW
+            </span>
+            <span className="mt-0.5 font-body text-[10px] font-bold leading-none" style={{ color: 'var(--color-primary-light)' }}>
+              With Dr. Didi
+            </span>
           </span>
         </Link>
 
