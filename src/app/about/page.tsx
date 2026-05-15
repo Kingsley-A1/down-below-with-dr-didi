@@ -150,7 +150,7 @@ export default async function AboutPage() {
                     { icon: Award, text: 'CAC Name: DOWNBELOW FAMILY HEALTH INITIATIVE WITH DR DIDI' },
                     { icon: GraduationCap, text: 'Senior Medical Official — University of Calabar Teaching Hospital (UCTH)' },
                     { icon: CheckCircle, text: 'Focus Areas: healthy relationships, family dynamics, sexuality, and health education' },
-                    { icon: CheckCircle, text: 'Core Call: Expose love, educate, and heal' },
+                    { icon: CheckCircle, text: 'Core Call: Expose in Love, educate, and heal' },
                     { icon: CheckCircle, text: 'Target Audience: individuals, couples, and families worldwide' },
                   ].map(({ icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-3">
@@ -234,7 +234,7 @@ export default async function AboutPage() {
               What We Do
             </div>
             <h2 className="font-heading font-bold mb-4" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--color-primary)' }}>
-              Expose Love, Educate, and Heal
+              Expose in Love, Educate, and Heal
             </h2>
             <p className="font-body text-gray-600 max-w-xl mx-auto text-sm leading-relaxed">
               We provide a safe, inclusive, and non-judgmental space where people can ask real
