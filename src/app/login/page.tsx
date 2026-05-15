@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import AuthLegalLinks from '@/components/auth/AuthLegalLinks'
 import { LoginForm } from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
@@ -30,6 +31,7 @@ export default function LoginPage() {
               Create your account
             </Link>
           </p>
+          <AuthLegalLinks />
         </div>
       </div>
     </main>

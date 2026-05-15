@@ -1,54 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMediaAssetRecord, listMediaAssets } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { inferMediaKind, validateMediaFileMetadata } from '@/lib/admin/media-policy'
 import { uploadAssetToR2 } from '@/lib/storage/r2'
-
-function inferMediaKind(mimeType: string): 'image' | 'audio' | 'document' | 'video' | 'other' {
-  if (mimeType.startsWith('image/')) {
-    return 'image'
-  }
-
-  if (mimeType.startsWith('audio/')) {
-    return 'audio'
-  }
-
-  if (mimeType.startsWith('video/')) {
-    return 'video'
-  }
-
-  if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('sheet')) {
-    return 'document'
-  }
-
-  return 'other'
-}
-
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/avif',
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/webm',
-  'audio/ogg',
-  'audio/wav',
-  'video/mp4',
-  'video/webm',
-  'application/pdf',
-  'text/plain',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-])
-
-const MAX_BYTES_BY_KIND: Record<'image' | 'audio' | 'document' | 'video' | 'other', number> = {
-  image: 10 * 1024 * 1024,
-  audio: 80 * 1024 * 1024,
-  video: 200 * 1024 * 1024,
-  document: 20 * 1024 * 1024,
-  other: 5 * 1024 * 1024,
-}
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -90,35 +44,17 @@ export async function POST(request: NextRequest) {
 
     const mimeType = (file.type || 'application/octet-stream').toLowerCase()
 
-    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-      return NextResponse.json(
-        {
-          error: 'Unsupported file type. Allowed types are image, audio, video, and common documents.',
-        },
-        { status: 400 }
-      )
+    const validationError = validateMediaFileMetadata({
+      mimeType,
+      sizeBytes: file.size,
+      label,
+      altText,
+    })
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
     const kind = inferMediaKind(mimeType)
-    const maxAllowedSize = MAX_BYTES_BY_KIND[kind]
-
-    if (file.size <= 0 || file.size > maxAllowedSize) {
-      return NextResponse.json(
-        {
-          error: `File size exceeds allowed limit for ${kind} uploads (${Math.floor(maxAllowedSize / (1024 * 1024))}MB).`,
-        },
-        { status: 400 }
-      )
-    }
-
-    if (label.length > 120) {
-      return NextResponse.json({ error: 'Label must be 120 characters or less.' }, { status: 400 })
-    }
-
-    if (altText.length > 200) {
-      return NextResponse.json({ error: 'Alt text must be 200 characters or less.' }, { status: 400 })
-    }
-
     const arrayBuffer = await file.arrayBuffer()
     const upload = await uploadAssetToR2({
       fileName: file.name,

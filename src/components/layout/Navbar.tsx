@@ -19,6 +19,11 @@ const navLinks = [
   { href: '/about', label: 'About' },
 ]
 
+const legalLinks = [
+  { href: '/terms', label: 'Terms' },
+  { href: '/privacy', label: 'Privacy' },
+]
+
 export default function Navbar() {
   const pathname = usePathname()
   const isAdminRoute = pathname?.startsWith('/admin')
@@ -51,7 +56,9 @@ export default function Navbar() {
   }, [])
 
   useEffect(() => {
-    void loadSessionState()
+    const timeoutId = window.setTimeout(() => {
+      void loadSessionState()
+    }, 0)
 
     const handleAuthChange = () => {
       void loadSessionState()
@@ -68,6 +75,7 @@ export default function Navbar() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      window.clearTimeout(timeoutId)
       window.removeEventListener('focus', handleAuthChange)
       window.removeEventListener('auth-state-changed', handleAuthChange)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -186,6 +194,18 @@ export default function Navbar() {
           >
             {ctaLabel}
           </Link>
+          <div className="mt-2 flex items-center justify-center gap-3 text-xs text-slate-400">
+            {legalLinks.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="font-body hover:text-slate-600"
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 

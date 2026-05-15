@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import AuthLegalLinks from '@/components/auth/AuthLegalLinks'
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm'
 
 export default function ResetPasswordPage() {
@@ -19,6 +20,9 @@ export default function ResetPasswordPage() {
           >
             <ResetPasswordForm />
           </Suspense>
+          <div className="mt-6">
+            <AuthLegalLinks />
+          </div>
         </div>
       </div>
     </main>

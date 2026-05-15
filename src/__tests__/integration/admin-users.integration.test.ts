@@ -20,6 +20,10 @@ const describeWithDatabase = hasIntegrationDatabase ? describe : describe.skip
 
 jest.setTimeout(30_000)
 
+function userRouteContext(id: string) {
+  return { params: Promise.resolve({ id }) }
+}
+
 async function createAdminRequest(
   method: string,
   url: string,
@@ -196,7 +200,7 @@ describeWithDatabase('Admin Users Integration', () => {
       const req = await createAdminRequest('GET', `/api/admin/users/${user.id}`, undefined, undefined, admin.email)
 
       const { GET } = await import('@/app/api/admin/users/[id]/route')
-      const res = await GET(req, { params: { id: user.id } } as any)
+      const res = await GET(req, userRouteContext(user.id))
       const body = await parseResponseBody(res)
 
       expect(res.status).toBe(200)
@@ -227,7 +231,7 @@ describeWithDatabase('Admin Users Integration', () => {
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
-      const res = await POST(req, { params: { id: user.id } } as any)
+      const res = await POST(req, userRouteContext(user.id))
       const body = await parseResponseBody(res)
 
       expect(res.status).toBe(200)
@@ -261,7 +265,7 @@ describeWithDatabase('Admin Users Integration', () => {
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
-      const res = await POST(req, { params: { id: admin.id } } as any)
+      const res = await POST(req, userRouteContext(admin.id))
 
       expect(res.status).toBe(400)
       const body = await parseResponseBody(res)
@@ -289,7 +293,7 @@ describeWithDatabase('Admin Users Integration', () => {
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/activate/route')
-      const res = await POST(req, { params: { id: user.id } } as any)
+      const res = await POST(req, userRouteContext(user.id))
       const body = await parseResponseBody(res)
 
       expect(res.status).toBe(200)
@@ -325,7 +329,7 @@ describeWithDatabase('Admin Users Integration', () => {
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
-      await POST(req, { params: { id: user.id } } as any)
+      await POST(req, userRouteContext(user.id))
 
       const auditLog = await prisma.auditLog.findFirst({
         where: { entityId: user.id, entityType: 'User' },
@@ -351,7 +355,7 @@ describeWithDatabase('Admin Users Integration', () => {
       )
 
       const { POST } = await import('@/app/api/admin/users/[id]/deactivate/route')
-      await POST(req, { params: { id: user.id } } as any)
+      await POST(req, userRouteContext(user.id))
 
       const auditLog = await prisma.auditLog.findFirst({
         where: { entityId: user.id, entityType: 'User' },

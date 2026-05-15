@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Camera } from 'lucide-react'
 import UploadProgress from '@/components/admin/UploadProgress'
@@ -94,22 +95,29 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
   const [error, setError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedAsset, setUploadedAsset] = useState<UploadedAsset | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const modalRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
 
+  const resetUploadState = useCallback(() => {
+    setFile(null)
+    setLabel('')
+    setAltText('')
+    setMediaKind('image')
+    setDestination('media_library')
+    setError('')
+    setIsUploading(false)
+    setUploadProgress(0)
+    setUploadedAsset(null)
+  }, [])
+
   useEffect(() => {
     if (!open) {
-      setFile(null)
-      setLabel('')
-      setAltText('')
-      setMediaKind('image')
-      setDestination('media_library')
-      setError('')
-      setIsUploading(false)
-      setUploadedAsset(null)
+      const timeoutId = window.setTimeout(resetUploadState, 0)
+      return () => window.clearTimeout(timeoutId)
     }
-  }, [open])
+  }, [open, resetUploadState])
 
   useEffect(() => {
     if (!open) {
@@ -118,6 +126,8 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
 
     lastFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     closeButtonRef.current?.focus()
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -154,6 +164,7 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
       lastFocusedRef.current?.focus()
     }
   }, [isUploading, onClose, open])
@@ -192,9 +203,12 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
 
     setError('')
     setIsUploading(true)
+    setUploadProgress(0)
 
     try {
-      const asset = await uploadAdminMediaAsset(file, label.trim(), altText.trim())
+      const asset = await uploadAdminMediaAsset(file, label.trim(), altText.trim(), {
+        onProgress: setUploadProgress,
+      })
       setUploadedAsset(asset)
     } catch (uploadError) {
       const message = uploadError instanceof Error ? uploadError.message : 'Upload failed.'
@@ -204,12 +218,12 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
     }
   }
 
-  if (!open) {
+  if (!open || typeof document === 'undefined') {
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-70 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true" aria-label="Upload media asset">
+  return createPortal(
+    <div className="fixed inset-0 z-70 flex items-center justify-center overflow-y-auto overscroll-contain p-4 py-6" role="dialog" aria-modal="true" aria-label="Upload media asset">
       <button
         type="button"
         aria-label="Close upload modal"
@@ -332,6 +346,7 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
             active={isUploading}
             label="Uploading asset"
             detail="File is being validated and stored in R2"
+            value={uploadProgress}
           />
 
           {error ? <p className="font-body text-sm text-red-600" role="alert">{error}</p> : null}
@@ -387,6 +402,7 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -6,9 +6,6 @@
  * Or: pnpm dev && node scripts/admin-auth-diagnostic.js
  */
 
-const fetch = require('node-fetch');
-const crypto = require('crypto');
-
 const API_BASE = process.env.API_BASE || 'http://localhost:3000';
 
 async function diagnoseAdminAuth() {

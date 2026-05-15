@@ -1,4 +1,5 @@
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm'
+import AuthLegalLinks from '@/components/auth/AuthLegalLinks'
 
 export default function ForgotPasswordPage() {
   return (
@@ -12,6 +13,9 @@ export default function ForgotPasswordPage() {
             We&apos;ll verify your phone number to confirm your identity.
           </p>
           <ForgotPasswordForm />
+          <div className="mt-6">
+            <AuthLegalLinks />
+          </div>
         </div>
       </div>
     </main>

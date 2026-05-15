@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 
 export type AdminDashboardSummarySnapshot = {
@@ -196,6 +197,71 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
     }
   }, [activeCard])
 
+  useEffect(() => {
+    if (!activeCard) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [activeCard])
+
+  const activeCardDialog = activeCard ? (
+    <div className="fixed inset-0 z-60 flex items-center justify-center overflow-y-auto overscroll-contain p-4 py-6" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        aria-label="Close module details"
+        onClick={() => setActiveCardId(null)}
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
+      />
+      <div ref={dialogRef} className="admin-dialog-enter relative z-61 flex max-h-[min(720px,calc(100vh-2rem))] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl">
+        <div className="bg-slate-950 px-6 py-5 text-white">
+          <p className="font-body text-xs uppercase tracking-[0.2em] text-slate-300">Module details</p>
+          <h3 className="mt-2 font-heading text-3xl font-bold">{activeCard.title}</h3>
+          <p className="mt-2 font-body text-sm text-slate-300">{activeCard.description}</p>
+        </div>
+
+        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-500">Primary metric</p>
+            <p className="mt-1 font-heading text-3xl font-bold text-slate-900">{activeCard.metricValue}</p>
+            <p className="font-body text-sm text-slate-600">{activeCard.metricLabel}</p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-500">What this module controls</p>
+            {activeCard.highlights.map((highlight) => (
+              <p key={highlight} className="rounded-xl border border-slate-200 px-3 py-2 font-body text-sm text-slate-700">
+                {highlight}
+              </p>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-5">
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={() => setActiveCardId(null)}
+              className="admin-interactive rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
+            >
+              Close
+            </button>
+            <Link
+              href={activeCard.href}
+              className="admin-interactive rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white"
+            >
+              Open module
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   return (
     <>
       <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 admin-fade-in">
@@ -204,7 +270,7 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
             key={card.id}
             type="button"
             onClick={() => setActiveCardId(card.id)}
-            className="admin-interactive group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_18px_rgba(2,12,27,0.08)] sm:p-5"
+            className="admin-interactive group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(2,12,27,0.10)] sm:p-5"
           >
             <div className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full bg-linear-to-br from-slate-100 to-transparent" />
             <p className="font-body text-xs uppercase tracking-[0.2em] text-slate-400">{card.metricLabel}</p>
@@ -223,57 +289,7 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
         ))}
       </section>
 
-      {activeCard ? (
-        <div className="fixed inset-0 z-60 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            aria-label="Close module details"
-            onClick={() => setActiveCardId(null)}
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-          />
-          <div ref={dialogRef} className="admin-dialog-enter relative z-61 flex max-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl">
-            <div className="bg-slate-950 px-6 py-5 text-white">
-              <p className="font-body text-xs uppercase tracking-[0.2em] text-slate-300">Module details</p>
-              <h3 className="mt-2 font-heading text-3xl font-bold">{activeCard.title}</h3>
-              <p className="mt-2 font-body text-sm text-slate-300">{activeCard.description}</p>
-            </div>
-
-            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-500">Primary metric</p>
-                <p className="mt-1 font-heading text-3xl font-bold text-slate-900">{activeCard.metricValue}</p>
-                <p className="font-body text-sm text-slate-600">{activeCard.metricLabel}</p>
-              </div>
-
-              <div className="space-y-2">
-                <p className="font-body text-xs uppercase tracking-[0.18em] text-slate-500">What this module controls</p>
-                {activeCard.highlights.map((highlight) => (
-                  <p key={highlight} className="rounded-xl border border-slate-200 px-3 py-2 font-body text-sm text-slate-700">
-                    {highlight}
-                  </p>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-5">
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  onClick={() => setActiveCardId(null)}
-                  className="admin-interactive rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
-                >
-                  Close
-                </button>
-                <Link
-                  href={activeCard.href}
-                  className="admin-interactive rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white"
-                >
-                  Open module
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {activeCardDialog && typeof document !== 'undefined' ? createPortal(activeCardDialog, document.body) : null}
     </>
   )
 }

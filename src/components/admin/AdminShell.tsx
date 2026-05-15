@@ -169,7 +169,8 @@ export default function AdminShell({
   }
 
   useEffect(() => {
-    setNavOpen(false)
+    const timeoutId = window.setTimeout(() => setNavOpen(false), 0)
+    return () => window.clearTimeout(timeoutId)
   }, [pathname])
 
   useEffect(() => {
@@ -177,6 +178,8 @@ export default function AdminShell({
       return
     }
 
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     lastFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     navCloseButtonRef.current?.focus()
 
@@ -214,6 +217,7 @@ export default function AdminShell({
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
       lastFocusedElementRef.current?.focus()
     }
   }, [navOpen])
@@ -274,7 +278,7 @@ export default function AdminShell({
           <aside
             id="admin-nav-panel"
             ref={navPanelRef}
-            className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs border-r border-slate-200 bg-white p-4 shadow-2xl sm:max-w-sm lg:w-[320px] lg:max-w-[320px]"
+            className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 shadow-2xl sm:max-w-sm lg:w-[320px] lg:max-w-[320px]"
           >
             <div className="mb-4 flex items-center justify-between">
               <p className="font-heading text-lg font-bold text-slate-900">Admin Navigation</p>

@@ -1858,6 +1858,78 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
   }
 }
 
+function fallbackToGalleryRecord(item: PublicGalleryImage): GalleryImageRecord {
+  return {
+    ...item,
+    status: 'published',
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  }
+}
+
+function getSlugFromAuditMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null
+  }
+
+  const slug = (metadata as { slug?: unknown }).slug
+  return typeof slug === 'string' ? slug : null
+}
+
+async function ensureFallbackGalleryRecords(): Promise<void> {
+  const fallback = await getFallbackGalleryImages()
+  if (fallback.length === 0) {
+    return
+  }
+
+  const slugs = fallback.map((item) => item.slug)
+  const existingRecords = await prisma.galleryImage.findMany({
+    where: {
+      slug: {
+        in: slugs,
+      },
+    },
+    select: {
+      slug: true,
+    },
+  })
+  const existingSlugs = new Set(existingRecords.map((record) => record.slug))
+  const deletedSeedRecords = await prisma.auditLog.findMany({
+    where: {
+      action: 'gallery_image.deleted',
+      entityType: 'gallery_image',
+    },
+    select: {
+      metadata: true,
+    },
+  })
+  const deletedSeedSlugs = new Set(
+    deletedSeedRecords
+      .map((record) => getSlugFromAuditMetadata(record.metadata))
+      .filter((slug): slug is string => Boolean(slug))
+  )
+  const missingRecords = fallback.filter((item) => !existingSlugs.has(item.slug) && !deletedSeedSlugs.has(item.slug))
+
+  for (const item of missingRecords) {
+    await prisma.galleryImage.create({
+      data: {
+        slug: item.slug,
+        title: item.title,
+        description: item.description,
+        caption: item.caption,
+        imageUrl: item.imageUrl,
+        imageAlt: item.imageAlt,
+        category: item.category,
+        eventName: item.eventName,
+        location: item.location,
+        capturedAt: item.capturedAt ? new Date(item.capturedAt) : null,
+        sortOrder: item.sortOrder,
+        status: 'published',
+      },
+    })
+  }
+}
+
 export async function getPublishedGalleryImages(
   category?: GalleryImageCategory
 ): Promise<PublicGalleryImage[]> {
@@ -1971,32 +2043,17 @@ export async function getAllGalleryImages(): Promise<GalleryImageRecord[]> {
   if (!hasDatabaseConfig()) {
     const fallback = await getFallbackGalleryImages()
     return fallback
-      .map((item) => ({
-        ...item,
-        status: 'published' as const,
-        createdAt: new Date(0).toISOString(),
-        updatedAt: new Date(0).toISOString(),
-      }))
+      .map(fallbackToGalleryRecord)
       .sort((a, b) => a.sortOrder - b.sortOrder)
   }
+
+  await ensureFallbackGalleryRecords()
 
   const records = await prisma.galleryImage.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   })
 
-  const dbItems = records.map(mapGalleryImage)
-  const dbSlugs = new Set(dbItems.map((item) => item.slug))
-  const fallback = await getFallbackGalleryImages()
-  const fallbackOnly = fallback
-    .filter((item) => !dbSlugs.has(item.slug))
-    .map((item) => ({
-      ...item,
-      status: 'published' as const,
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
-    }))
-
-  return [...dbItems, ...fallbackOnly].sort((a, b) => {
+  return records.map(mapGalleryImage).sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) {
       return a.sortOrder - b.sortOrder
     }

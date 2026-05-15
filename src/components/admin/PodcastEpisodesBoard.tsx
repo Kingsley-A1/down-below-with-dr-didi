@@ -81,6 +81,9 @@ export default function PodcastEpisodesBoard({
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [slugManual, setSlugManual] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const coverPreviewUrl = useMemo(() => {
     if (coverFile) {
       return URL.createObjectURL(coverFile)
@@ -112,6 +115,9 @@ export default function PodcastEpisodesBoard({
     setForm(EMPTY_FORM)
     setAudioFile(null)
     setCoverFile(null)
+    setSlugManual(false)
+    setShowAdvanced(false)
+    setUploadProgress(0)
     setShowForm(true)
     setMessage('')
   }
@@ -138,6 +144,9 @@ export default function PodcastEpisodesBoard({
     })
     setAudioFile(null)
     setCoverFile(null)
+    setSlugManual(true)
+    setShowAdvanced(false)
+    setUploadProgress(0)
     setShowForm(true)
     setMessage('')
   }
@@ -148,6 +157,23 @@ export default function PodcastEpisodesBoard({
     setForm(EMPTY_FORM)
     setAudioFile(null)
     setCoverFile(null)
+    setSlugManual(false)
+    setShowAdvanced(false)
+    setUploadProgress(0)
+  }
+
+  async function readJsonResponse(response: Response) {
+    const text = await response.text()
+
+    if (!text.trim()) {
+      return {}
+    }
+
+    try {
+      return JSON.parse(text) as { error?: string; episodes?: PodcastEpisodeRecord[] }
+    } catch {
+      return { error: text.slice(0, 240) }
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -155,6 +181,7 @@ export default function PodcastEpisodesBoard({
     setBusy(true)
     setBusyLabel(editId ? 'Updating podcast episode' : 'Creating podcast episode')
     setBusyDetail('Preparing episode details')
+    setUploadProgress(0)
     setMessage('')
 
     try {
@@ -170,7 +197,9 @@ export default function PodcastEpisodesBoard({
       if (audioFile) {
         setBusyLabel('Uploading podcast audio')
         setBusyDetail(audioFile.name)
-        const upload = await uploadAdminMediaAsset(audioFile, `${form.title || 'Podcast'} audio`)
+        const upload = await uploadAdminMediaAsset(audioFile, `${form.title || 'Podcast'} audio`, '', {
+          onProgress: setUploadProgress,
+        })
         nextAudioUrl = upload.url
         nextAudioSize = upload.sizeBytes
         nextAudioType = upload.mimeType
@@ -183,7 +212,10 @@ export default function PodcastEpisodesBoard({
       if (coverFile) {
         setBusyLabel('Uploading cover image')
         setBusyDetail(coverFile.name)
-        const upload = await uploadAdminMediaAsset(coverFile, `${form.title || 'Podcast'} cover art`, form.title)
+        setUploadProgress(0)
+        const upload = await uploadAdminMediaAsset(coverFile, `${form.title || 'Podcast'} cover art`, form.title, {
+          onProgress: setUploadProgress,
+        })
         nextCoverImage = upload.url
       }
 
@@ -217,7 +249,7 @@ export default function PodcastEpisodesBoard({
         body: JSON.stringify(payload),
       })
 
-      const data = await res.json()
+      const data = await readJsonResponse(res)
 
       if (!res.ok) {
         throw new Error(data.error || 'Save failed')
@@ -303,20 +335,56 @@ export default function PodcastEpisodesBoard({
             </h2>
             <button
               type="button"
-              onClick={() => set('slug', slugify(form.title))}
+              onClick={() => { setSlugManual(false); set('slug', slugify(form.title)) }}
               className="font-body text-sm font-semibold px-4 py-2 rounded-xl border"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
             >
-              Generate slug
+              Reset auto slug
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Field label="Title *">
-              <input value={form.title} onChange={(e) => set('title', e.target.value)} required minLength={5} className="input-field" />
+              <input
+                value={form.title}
+                onChange={(e) => {
+                  const title = e.target.value
+                  set('title', title)
+                  if (!slugManual && !editId) {
+                    set('slug', slugify(title))
+                  }
+                }}
+                required
+                minLength={5}
+                className="input-field"
+              />
             </Field>
             <Field label="Slug *">
-              <input value={form.slug} onChange={(e) => set('slug', e.target.value)} required pattern="[a-z0-9-]+" className="input-field" />
+              {editId ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <code className="font-mono text-xs text-slate-700">{form.slug}</code>
+                </div>
+              ) : slugManual ? (
+                <div className="flex gap-2">
+                  <input
+                    value={form.slug}
+                    onChange={(e) => set('slug', slugify(e.target.value))}
+                    required
+                    pattern="[a-z0-9-]+"
+                    className="input-field"
+                  />
+                  <button type="button" onClick={() => { setSlugManual(false); set('slug', slugify(form.title)) }} className="rounded-xl border px-3 py-2 text-xs font-semibold text-slate-600">
+                    Auto
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <code className="flex-1 font-mono text-xs text-slate-500">{form.slug || 'generated from title'}</code>
+                  <button type="button" onClick={() => setSlugManual(true)} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    Edit
+                  </button>
+                </div>
+              )}
             </Field>
             <Field label="Upload audio">
               <input type="file" accept="audio/*" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="input-field" />
@@ -337,8 +405,7 @@ export default function PodcastEpisodesBoard({
               {coverPreviewUrl ? (
                 <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
                   <div className="relative h-32 w-full overflow-hidden rounded-lg bg-slate-200">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} className="h-full w-full object-cover" />
+                    <Image src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" unoptimized={coverPreviewUrl.startsWith('blob:')} />
                   </div>
                 </div>
               ) : null}
@@ -357,15 +424,9 @@ export default function PodcastEpisodesBoard({
             <Field label="Published date">
               <input type="datetime-local" value={form.publishedAt} onChange={(e) => set('publishedAt', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Guest name">
-              <input value={form.guestName} onChange={(e) => set('guestName', e.target.value)} className="input-field" />
-            </Field>
             <Field label="Topic tags">
               <input value={form.topicTags} onChange={(e) => set('topicTags', e.target.value)} placeholder="fertility, faith, wellness" className="input-field" />
               <p className="font-body text-xs text-gray-400">Separate tags with commas. Keep them short and public-friendly.</p>
-            </Field>
-            <Field label="Sort order">
-              <input type="number" min={0} value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className="input-field" />
             </Field>
             <Field label="Status">
               <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field">
@@ -375,9 +436,6 @@ export default function PodcastEpisodesBoard({
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="External source link">
-              <input value={form.externalSourceUrl} onChange={(e) => set('externalSourceUrl', e.target.value)} className="input-field" />
             </Field>
             <div className="lg:col-span-2">
               <Field label="Summary *">
@@ -390,15 +448,39 @@ export default function PodcastEpisodesBoard({
               </Field>
             </div>
             <div className="lg:col-span-2">
-              <Field label="Transcript">
-                <textarea value={form.transcript} onChange={(e) => set('transcript', e.target.value)} rows={6} className="input-field" />
-              </Field>
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((current) => !current)}
+                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                aria-expanded={showAdvanced}
+              >
+                {showAdvanced ? 'Hide optional fields' : 'Show optional fields'}
+              </button>
             </div>
+            {showAdvanced ? (
+              <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:col-span-2 lg:grid-cols-2">
+                <Field label="Guest name">
+                  <input value={form.guestName} onChange={(e) => set('guestName', e.target.value)} className="input-field" />
+                </Field>
+                <Field label="Sort order">
+                  <input type="number" min={0} value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className="input-field" />
+                </Field>
+                <Field label="External source link">
+                  <input value={form.externalSourceUrl} onChange={(e) => set('externalSourceUrl', e.target.value)} className="input-field" />
+                </Field>
+                <div className="lg:col-span-2">
+                  <Field label="Transcript">
+                    <textarea value={form.transcript} onChange={(e) => set('transcript', e.target.value)} rows={5} className="input-field" />
+                  </Field>
+                </div>
+              </div>
+            ) : null}
             <div className="lg:col-span-2">
               <UploadProgress
                 active={busy}
                 label={busyLabel || 'Saving episode'}
                 detail={busyDetail}
+                value={busy ? uploadProgress : undefined}
               />
             </div>
             <div className="lg:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -13,24 +13,25 @@ export default function WelcomeIntro() {
 
   useEffect(() => {
     if (pathname.startsWith('/admin')) {
-      setPhase('hidden')
-      return undefined
+      const timeoutId = window.setTimeout(() => setPhase('hidden'), 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     if (window.sessionStorage.getItem(SESSION_KEY) === '1') {
-      setPhase('hidden')
-      return undefined
+      const timeoutId = window.setTimeout(() => setPhase('hidden'), 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.sessionStorage.setItem(SESSION_KEY, '1')
-    setPhase('visible')
+    const showTimer = window.setTimeout(() => setPhase('visible'), 0)
 
     const hideTimer = window.setTimeout(() => {
       setPhase('hidden')
     }, reduceMotion ? REDUCED_MOTION_DURATION_MS : INTRO_DURATION_MS)
 
     return () => {
+      window.clearTimeout(showTimer)
       window.clearTimeout(hideTimer)
     }
   }, [pathname])

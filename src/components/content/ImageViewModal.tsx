@@ -41,7 +41,8 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
 
     const index = images.findIndex((image) => image.slug === initialImageSlug)
     if (index >= 0) {
-      setActiveIndex(index)
+      const timeoutId = window.setTimeout(() => setActiveIndex(index), 0)
+      return () => window.clearTimeout(timeoutId)
     }
   }, [activeIndex, images, initialImageSlug])
 
