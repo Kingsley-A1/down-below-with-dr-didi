@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import type { CSSProperties } from 'react'
+import { X } from 'lucide-react'
 
 type PublicAlert = {
   id: string
@@ -14,8 +15,14 @@ type PublicAlert = {
 export default function SiteAlertTicker() {
   const pathname = usePathname()
   const [alerts, setAlerts] = useState<PublicAlert[]>([])
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null)
+  const isHomePage = pathname === '/' || pathname === '/home'
 
   useEffect(() => {
+    if (!isHomePage) {
+      return
+    }
+
     let mounted = true
 
     const loadAlerts = async () => {
@@ -48,7 +55,26 @@ export default function SiteAlertTicker() {
       mounted = false
       window.clearInterval(intervalId)
     }
-  }, [])
+  }, [isHomePage])
+
+  const alertKey = useMemo(() => alerts.map((alert) => alert.id).join('|'), [alerts])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!alertKey) {
+        setDismissedKey(null)
+        return
+      }
+
+      try {
+        setDismissedKey(window.localStorage.getItem('downbelow.dismissedSiteAlert'))
+      } catch {
+        setDismissedKey(null)
+      }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [alertKey])
 
   const animationDuration = useMemo(() => {
     if (alerts.length === 0) {
@@ -66,12 +92,22 @@ export default function SiteAlertTicker() {
 
   const text = useMemo(() => alerts.map((alert) => alert.text.trim()).filter(Boolean).join('  •  '), [alerts])
 
-  if (pathname.startsWith('/admin')) {
+  if (!isHomePage || pathname.startsWith('/admin')) {
     return null
   }
 
-  if (!text) {
+  if (!text || dismissedKey === alertKey) {
     return null
+  }
+
+  function handleDismiss() {
+    setDismissedKey(alertKey)
+
+    try {
+      window.localStorage.setItem('downbelow.dismissedSiteAlert', alertKey)
+    } catch {
+      // Dismissal still works for this page view if storage is unavailable.
+    }
   }
 
   return (
@@ -88,6 +124,14 @@ export default function SiteAlertTicker() {
           </span>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="site-alert-ticker__close"
+        aria-label="Close site notice"
+      >
+        <X aria-hidden="true" size={14} strokeWidth={2.4} />
+      </button>
     </div>
   )
 }

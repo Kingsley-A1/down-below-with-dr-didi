@@ -250,6 +250,14 @@ function normalizePublicImageUrl(imageUrl: string): string {
   }
 
   if (trimmed.startsWith('/')) {
+    const [pathPart, suffix = ''] = trimmed.split(/([?#].*)/, 2)
+    const fileName = pathPart.split('/').pop()?.toLowerCase()
+    const alias = fileName ? GALLERY_ASSET_PATH_ALIASES.get(fileName) : null
+
+    if (alias && pathPart.startsWith('/assets/')) {
+      return `/assets/${alias}${suffix}`
+    }
+
     return trimmed
   }
 
@@ -1688,23 +1696,42 @@ const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
 const GALLERY_ASSET_EXCLUDE_NAMES = new Set([
   'founder-led-health-mobilization.jpg',
 ])
+const GALLERY_ASSET_PATH_ALIASES = new Map<string, string>([
+  ['4th_year_anniversary_1.jpg', '4th_year_annivessary_1.jpg'],
+  ['first_physical_meeting_2022.jpg', 'first_physcal_meeting_2022.jpg'],
+  ['hospital_bed_renewal_1.jpg', 'hopital_bed_renewal_1.jpg'],
+  ['mrs-glory-victor-etienem-head-of-administration.jpg', 'Mrs-Glory-Victor-Etienem-Head-of-Adminstration.jpg'],
+  ['mrs-ebani-clarkson-agbor-financial-secretary.jpg', 'Mrs-Ebani-Carkson-Agbor-Financial-Secretary.jpg'],
+  ['mr-etoma-eugene-secretariat.jpg', 'Mr-Etoma-Eugene-Secetrait.jpg'],
+])
 
 let localAssetFileSetCache: Set<string> | null = null
+let localAssetFileNameMapCache: Map<string, string> | null = null
+
+async function getLocalAssetFileNameMap(): Promise<Map<string, string>> {
+  if (localAssetFileNameMapCache) {
+    return localAssetFileNameMapCache
+  }
+
+  try {
+    const assetsDir = path.join(process.cwd(), 'public', 'assets')
+    const fileNames = await readdir(assetsDir)
+    localAssetFileNameMapCache = new Map(fileNames.map((fileName) => [fileName.toLowerCase(), fileName]))
+    return localAssetFileNameMapCache
+  } catch {
+    localAssetFileNameMapCache = new Map()
+    return localAssetFileNameMapCache
+  }
+}
 
 async function getLocalAssetFileSet(): Promise<Set<string>> {
   if (localAssetFileSetCache) {
     return localAssetFileSetCache
   }
 
-  try {
-    const assetsDir = path.join(process.cwd(), 'public', 'assets')
-    const fileNames = await readdir(assetsDir)
-    localAssetFileSetCache = new Set(fileNames.map((fileName) => fileName.toLowerCase()))
-    return localAssetFileSetCache
-  } catch {
-    localAssetFileSetCache = new Set()
-    return localAssetFileSetCache
-  }
+  const fileNameMap = await getLocalAssetFileNameMap()
+  localAssetFileSetCache = new Set(fileNameMap.keys())
+  return localAssetFileSetCache
 }
 
 function galleryTitleFromFileName(fileName: string): string {
@@ -1748,7 +1775,8 @@ function inferFallbackGalleryCategory(fileName: string): GalleryImageCategory {
 }
 
 async function getFallbackGalleryImages(category?: GalleryImageCategory): Promise<PublicGalleryImage[]> {
-  const assetFileSet = await getLocalAssetFileSet()
+  const assetFileNameMap = await getLocalAssetFileNameMap()
+  const assetFileSet = new Set(assetFileNameMap.keys())
   const teamImageFileNames = new Set(
     staticTeam
       .map((member) => member.image?.split('/').pop()?.toLowerCase())
@@ -1781,23 +1809,23 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
       .filter((value): value is string => Boolean(value))
   )
 
-  const discovered = Array.from(assetFileSet)
-    .filter((fileName) => IMAGE_FILE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
-    .filter((fileName) => !teamImageFileNames.has(fileName))
-    .filter((fileName) => !GALLERY_ASSET_EXCLUDE_NAMES.has(fileName))
-    .filter((fileName) => !seededFileNames.has(fileName))
-    .sort((a, b) => a.localeCompare(b))
-    .map((fileName, index) => {
-      const title = galleryTitleFromFileName(fileName)
+  const discovered = Array.from(assetFileNameMap.entries())
+    .filter(([fileName]) => IMAGE_FILE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
+    .filter(([fileName]) => !teamImageFileNames.has(fileName))
+    .filter(([fileName]) => !GALLERY_ASSET_EXCLUDE_NAMES.has(fileName))
+    .filter(([fileName]) => !seededFileNames.has(fileName))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([fileName, originalFileName], index) => {
+      const title = galleryTitleFromFileName(originalFileName)
       const imageCategory = inferFallbackGalleryCategory(fileName)
 
       return {
         id: `asset-${fileName}`,
-        slug: gallerySlugFromFileName(fileName),
+        slug: gallerySlugFromFileName(originalFileName),
         title,
         description: `Gallery highlight from Down Below Family Health Initiative featuring ${title.toLowerCase()}.`,
         caption: title,
-        imageUrl: `/assets/${fileName}`,
+        imageUrl: `/assets/${originalFileName}`,
         imageAlt: title,
         category: imageCategory,
         eventName: null,
@@ -1816,11 +1844,13 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
 }
 
 async function hasRenderableLocalAsset(imageUrl: string): Promise<boolean> {
-  if (!imageUrl.startsWith('/assets/')) {
+  const normalizedImageUrl = normalizePublicImageUrl(imageUrl)
+
+  if (!normalizedImageUrl.startsWith('/assets/')) {
     return true
   }
 
-  const fileName = imageUrl.split('/').pop()?.toLowerCase()
+  const fileName = normalizedImageUrl.split('/').pop()?.toLowerCase()
   if (!fileName) {
     return false
   }
@@ -1891,6 +1921,7 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
     return
   }
 
+  const assetFileSet = await getLocalAssetFileSet()
   const slugs = fallback.map((item) => item.slug)
   const existingRecords = await prisma.galleryImage.findMany({
     where: {
@@ -1927,9 +1958,26 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
       return false
     }
 
-    const currentFileName = normalizePublicImageUrl(existing.imageUrl).split('/').pop()?.toLowerCase()
+    const normalizedExistingImageUrl = normalizePublicImageUrl(existing.imageUrl)
+    const currentPath = normalizedExistingImageUrl.split(/[?#]/, 1)[0]
+    const currentFileName = normalizedExistingImageUrl.split('/').pop()?.toLowerCase()
     const nextFileName = item.imageUrl.split('/').pop()?.toLowerCase()
-    return Boolean(currentFileName && nextFileName && currentFileName !== nextFileName && GALLERY_ASSET_EXCLUDE_NAMES.has(currentFileName))
+    const currentLocalFileMissing = Boolean(currentFileName && normalizedExistingImageUrl.startsWith('/assets/') && !assetFileSet.has(currentFileName))
+    const currentLocalPathCasingMismatch = Boolean(
+      currentFileName &&
+        nextFileName &&
+        currentFileName === nextFileName &&
+        currentPath.startsWith('/assets/') &&
+        currentPath !== item.imageUrl
+    )
+
+    return Boolean(
+      currentFileName &&
+        nextFileName &&
+        (currentLocalPathCasingMismatch ||
+          (currentFileName !== nextFileName &&
+            (GALLERY_ASSET_EXCLUDE_NAMES.has(currentFileName) || currentLocalFileMissing)))
+    )
   })
 
   for (const item of missingRecords) {

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera } from 'lucide-react'
+import { Camera, ImageOff } from 'lucide-react'
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { GalleryImageRecord, GalleryImageCategory } from '@/lib/admin/repository'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -73,6 +74,10 @@ export default function GalleryImagesBoard({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [slugManual, setSlugManual] = useState(false)
+  const [openingEditId, setOpeningEditId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
   const previewUrl = useMemo(() => {
     if (imageFile) {
       return URL.createObjectURL(imageFile)
@@ -88,6 +93,19 @@ export default function GalleryImagesBoard({
       }
     }
   }, [imageFile, previewUrl])
+
+  useEffect(() => {
+    if (!showForm) {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setOpeningEditId(null)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [showForm, editId])
 
   async function refresh() {
     const res = await fetch('/api/admin/gallery', { cache: 'no-store' })
@@ -105,6 +123,7 @@ export default function GalleryImagesBoard({
   }
 
   function startEdit(img: GalleryImageRecord) {
+    setOpeningEditId(img.id)
     setEditId(img.id)
     setForm({
       slug: img.slug,
@@ -204,14 +223,17 @@ export default function GalleryImagesBoard({
     cancelForm()
   }
 
-  async function handleDelete(id: string, title: string) {
-    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
-    setBusy(true)
+  async function handleDelete() {
+    if (!deleteTarget) {
+      return
+    }
+
+    setDeletingId(deleteTarget.id)
     setMsg('')
 
-    const res = await fetch(`/api/admin/gallery/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    setBusy(false)
+    const res = await fetch(`/api/admin/gallery/${deleteTarget.id}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    setDeletingId(null)
 
     if (!res.ok) {
       setMsg(data.error ?? 'Delete failed')
@@ -219,6 +241,7 @@ export default function GalleryImagesBoard({
     }
 
     setMsg('Image deleted.')
+    setDeleteTarget(null)
     await refresh()
   }
 
@@ -258,7 +281,7 @@ export default function GalleryImagesBoard({
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="bg-white rounded-2xl border p-6 space-y-5" style={{ borderColor: 'var(--color-border)' }}>
+        <div ref={formRef} className="scroll-mt-24 bg-white rounded-2xl border p-6 space-y-5" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="font-heading text-xl font-bold" style={{ color: 'var(--color-primary)' }}>
             {editId ? 'Edit Image' : 'Add Gallery Image'}
           </h2>
@@ -429,13 +452,7 @@ export default function GalleryImagesBoard({
             return (
               <div key={img.id} className="group relative bg-white rounded-xl overflow-hidden border shadow-sm" style={{ borderColor: 'var(--color-border)' }}>
                 <div className="relative w-full" style={{ aspectRatio: '3/4' }}>
-                  <Image
-                    src={img.imageUrl}
-                    alt={img.imageAlt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  />
+                  <GalleryThumbnail image={img} />
                 </div>
                 <div className="p-3 space-y-1.5">
                   <div className="flex items-center justify-between gap-1">
@@ -451,17 +468,18 @@ export default function GalleryImagesBoard({
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={() => startEdit(img)}
-                      className="flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors"
+                      disabled={openingEditId === img.id || deletingId === img.id}
+                      className="flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:cursor-wait disabled:opacity-70"
                       style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
                     >
-                      Edit
+                      {openingEditId === img.id ? 'Opening...' : 'Edit'}
                     </button>
                     <button
-                      onClick={() => handleDelete(img.id, img.title)}
-                      disabled={busy}
+                      onClick={() => setDeleteTarget({ id: img.id, title: img.title })}
+                      disabled={deletingId === img.id}
                       className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
                     >
-                      Delete
+                      {deletingId === img.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>
@@ -470,7 +488,49 @@ export default function GalleryImagesBoard({
           })}
         </div>
       )}
+
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete gallery image?"
+        message={`This will remove "${deleteTarget?.title ?? 'this image'}" from the public gallery and admin records. This action cannot be undone.`}
+        confirmLabel="Delete image"
+        cancelLabel="Keep image"
+        confirmTone="danger"
+        busy={Boolean(deletingId)}
+        onConfirm={() => {
+          void handleDelete()
+        }}
+        onCancel={() => {
+          if (!deletingId) {
+            setDeleteTarget(null)
+          }
+        }}
+      />
     </section>
+  )
+}
+
+function GalleryThumbnail({ image }: { image: GalleryImageRecord }) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 p-4 text-center text-slate-500">
+        <ImageOff className="h-7 w-7" aria-hidden="true" />
+        <span className="font-body text-xs font-semibold">Image unavailable</span>
+      </div>
+    )
+  }
+
+  return (
+    <Image
+      src={image.imageUrl}
+      alt={image.imageAlt}
+      fill
+      className="object-cover"
+      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+      onError={() => setFailed(true)}
+    />
   )
 }
 

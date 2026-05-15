@@ -25,12 +25,29 @@ const legalLinks = [
   { href: '/privacy', label: 'Privacy' },
 ]
 
+type SessionUser = {
+  displayName?: string
+  email?: string
+}
+
+function getProfileInitials(user: SessionUser | null) {
+  const source = user?.displayName?.trim() || user?.email?.split('@')[0]?.trim() || 'Me'
+  const words = source.split(/\s+/).filter(Boolean)
+
+  if (words.length >= 2) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase()
+  }
+
+  return source.slice(0, 2).toUpperCase()
+}
+
 export default function Navbar() {
   const pathname = usePathname()
   const isAdminRoute = pathname?.startsWith('/admin')
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -46,13 +63,16 @@ export default function Navbar() {
 
       if (!response.ok) {
         setIsAuthenticated(false)
+        setSessionUser(null)
         return
       }
 
-      const data = (await response.json()) as { authenticated?: boolean }
+      const data = (await response.json()) as { authenticated?: boolean; user?: SessionUser | null }
       setIsAuthenticated(Boolean(data.authenticated))
+      setSessionUser(data.authenticated ? data.user ?? null : null)
     } catch {
       setIsAuthenticated(false)
+      setSessionUser(null)
     }
   }, [])
 
@@ -85,9 +105,10 @@ export default function Navbar() {
 
   const ctaHref = isAuthenticated ? '/contact' : '/register'
   const ctaLabel = isAuthenticated ? 'Book Now' : 'Register'
-  const navigationLinks = isAuthenticated
+  const mobileNavigationLinks = isAuthenticated
     ? [...navLinks, { href: '/me', label: 'My Space' }]
     : navLinks
+  const profileInitials = getProfileInitials(sessionUser)
 
   if (isAdminRoute) {
     return null
@@ -124,13 +145,13 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <ul className="hidden lg:flex items-center gap-5 xl:gap-8">
-          {navigationLinks.map(({ href, label }) => (
+        <ul className="hidden lg:flex items-center gap-3 xl:gap-5">
+          {navLinks.map(({ href, label }) => (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={pathname === href ? 'page' : undefined}
-                className="font-body font-medium text-sm transition-colors rounded-full px-1 py-2"
+                className="font-body font-medium text-[13px] transition-colors rounded-full px-1.5 py-2 xl:text-sm"
                 style={{
                   color: 'var(--color-primary)',
                   textDecoration: pathname === href ? 'underline' : 'none',
@@ -144,7 +165,7 @@ export default function Navbar() {
         </ul>
 
         {/* Book Now CTA */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:flex items-center gap-2.5">
           <Link
             href={ctaHref}
             className="bg-accent text-primary font-body font-semibold text-sm px-5 py-2.5 rounded-full transition-colors"
@@ -152,6 +173,17 @@ export default function Navbar() {
           >
             {ctaLabel}
           </Link>
+          {isAuthenticated ? (
+            <Link
+              href="/me"
+              aria-label="Open my space"
+              title="My Space"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border font-body text-xs font-bold shadow-sm transition-colors hover:bg-[var(--color-primary-muted)]"
+              style={{ borderColor: 'rgba(11, 78, 65, 0.22)', color: 'var(--color-primary)' }}
+            >
+              {profileInitials}
+            </Link>
+          ) : null}
         </div>
 
         {/* Mobile hamburger */}
@@ -175,7 +207,7 @@ export default function Navbar() {
             backgroundColor: 'var(--color-bg)',
           }}
         >
-          {navigationLinks.map(({ href, label }) => (
+          {mobileNavigationLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}

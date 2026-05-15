@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   ArrowUpRight,
@@ -24,6 +25,7 @@ import {
 import AdminSignOutButton from '@/components/admin/AdminSignOutButton'
 import AdminUploadModal from '@/components/admin/AdminUploadModal'
 import type { AdminRole } from '@/lib/admin/rbac'
+import { siteConfig } from '@/lib/site-config'
 
 type NavLinkItem = {
   href: string
@@ -109,7 +111,7 @@ function AdminNav({
                   onClick={onNavigate}
                   className={`admin-interactive flex items-center gap-2.5 rounded-xl border px-3 py-2.5 font-body text-sm font-semibold transition-colors ${
                     active
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                      ? 'border-[rgba(11,78,65,0.2)] bg-[var(--color-primary-muted)] text-[var(--color-primary)] shadow-sm'
                       : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                   aria-current={active ? 'page' : undefined}
@@ -180,8 +182,10 @@ export default function AdminShell({
       return
     }
 
-    const previousOverflow = document.body.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
     document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
     lastFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     navCloseButtonRef.current?.focus()
 
@@ -219,7 +223,8 @@ export default function AdminShell({
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
       lastFocusedElementRef.current?.focus()
     }
   }, [navOpen])
@@ -239,6 +244,13 @@ export default function AdminShell({
             >
               {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
+            <Image
+              src="/logo.jpg"
+              alt=""
+              width={40}
+              height={40}
+              className="hidden rounded-full border border-[rgba(11,78,65,0.14)] object-cover sm:block"
+            />
             <div className="min-w-0">
               <p className="truncate font-heading text-xl font-bold text-slate-900 md:text-2xl">Admin Console</p>
               <p className="truncate font-body text-xs text-slate-500 md:text-sm">Global content and operations control</p>
@@ -270,7 +282,7 @@ export default function AdminShell({
       </header>
 
       {navOpen ? (
-        <div className="fixed inset-0 z-60" role="dialog" aria-modal="true" aria-label="Admin navigation menu">
+        <div className="fixed inset-0 z-60 overflow-hidden" role="dialog" aria-modal="true" aria-label="Admin navigation menu">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/45"
@@ -280,19 +292,38 @@ export default function AdminShell({
           <aside
             id="admin-nav-panel"
             ref={navPanelRef}
-            className="admin-dialog-enter absolute left-0 top-0 h-full w-[86%] max-w-xs overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-4 shadow-2xl sm:max-w-sm lg:w-[320px] lg:max-w-[320px]"
+            className="admin-dialog-enter absolute left-0 top-0 h-[100dvh] max-h-[100dvh] w-[86%] max-w-xs overflow-y-auto overscroll-contain border-r border-[rgba(11,78,65,0.16)] bg-white p-4 pb-6 shadow-2xl sm:max-w-sm lg:w-[320px] lg:max-w-[320px]"
           >
-            <div className="mb-4 flex items-center justify-between">
-              <p className="font-heading text-lg font-bold text-slate-900">Admin Navigation</p>
-              <button
-                ref={navCloseButtonRef}
-                type="button"
-                onClick={() => setNavOpen(false)}
-                className="admin-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
-                aria-label="Close menu"
-              >
-                <X className="h-4 w-4" />
-              </button>
+            <div className="mb-4 rounded-2xl border border-[rgba(11,78,65,0.14)] bg-[var(--color-primary-muted)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Image
+                    src="/logo.jpg"
+                    alt=""
+                    width={42}
+                    height={42}
+                    className="rounded-full border border-white object-cover shadow-sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-heading text-sm font-bold text-[var(--color-primary)]">{siteConfig.shortName}</p>
+                    <p className="truncate font-body text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Admin Console
+                    </p>
+                  </div>
+                </div>
+                <button
+                  ref={navCloseButtonRef}
+                  type="button"
+                  onClick={() => setNavOpen(false)}
+                  className="admin-interactive inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(11,78,65,0.18)] bg-white text-slate-700"
+                  aria-label="Close menu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="mb-4">
+              <p className="font-heading text-lg font-bold text-slate-900">Navigation</p>
             </div>
             <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
               <p className="truncate font-body text-xs text-slate-500">Signed in as</p>
