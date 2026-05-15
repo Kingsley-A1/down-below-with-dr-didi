@@ -21,6 +21,67 @@ if (!connectionString) {
   throw new Error('Missing DATABASE_URL environment variable')
 }
 
+const SEED_MAX_ATTEMPTS = Number(process.env.SEED_MAX_ATTEMPTS || 5)
+const SEED_RETRY_BASE_MS = Number(process.env.SEED_RETRY_BASE_MS || 1500)
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function getErrorText(error) {
+  return [
+    error?.code,
+    error?.message,
+    error?.cause?.code,
+    error?.cause?.message,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function isTransientDatabaseError(error) {
+  const text = getErrorText(error)
+
+  return [
+    'EAI_AGAIN',
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'P1001',
+    'P1002',
+    'Connection terminated unexpectedly',
+    'getaddrinfo',
+    'connect timeout',
+  ].some((needle) => text.includes(needle))
+}
+
+async function runSeedWithRetry(seedFn) {
+  let lastError
+
+  for (let attempt = 1; attempt <= SEED_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.log(`Retrying seed attempt ${attempt}/${SEED_MAX_ATTEMPTS}...`)
+      }
+
+      await seedFn()
+      return
+    } catch (error) {
+      lastError = error
+
+      if (!isTransientDatabaseError(error) || attempt === SEED_MAX_ATTEMPTS) {
+        throw error
+      }
+
+      const delayMs = SEED_RETRY_BASE_MS * attempt
+      console.warn(`Transient database error during seed attempt ${attempt}/${SEED_MAX_ATTEMPTS}. Retrying in ${delayMs}ms.`)
+      console.warn(getErrorText(error))
+      await sleep(delayMs)
+    }
+  }
+
+  throw lastError
+}
+
 function withCockroachConnectionDefaults(value) {
   const url = new URL(value)
 
@@ -129,6 +190,9 @@ const teamMembers = [
 ]
 
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+const EXCLUDED_GALLERY_FILES = new Set([
+  'founder-led-health-mobilization.jpg',
+])
 
 function normalizeStem(fileName) {
   return fileName.replace(/\.[^.]+$/, '')
@@ -242,6 +306,7 @@ async function buildGalleryImages() {
   const galleryFiles = files
     .filter((fileName) => IMAGE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
     .filter((fileName) => !teamImageFiles.has(fileName.toLowerCase()))
+    .filter((fileName) => !EXCLUDED_GALLERY_FILES.has(fileName.toLowerCase()))
     .sort((a, b) => a.localeCompare(b))
 
   return galleryFiles.map((fileName, index) => {
@@ -274,6 +339,37 @@ const siteAlerts = [
     isActive: true,
     startsAt: new Date('2026-05-11T00:00:00.000Z'),
     endsAt: null,
+  },
+]
+
+const reviews = [
+  {
+    displayName: 'Blessing Akpan',
+    roleLabel: 'Community outreach participant',
+    location: 'Calabar South',
+    rating: 5,
+    body:
+      'Down Below made women in my community feel seen and respected. The team explained sensitive health topics clearly, gave practical support, and still treated every person with dignity.',
+    adminReply:
+      'Thank you, Blessing. This is exactly why we keep combining education, practical support, and compassionate presence in the field.',
+    status: 'published',
+    source: 'seed',
+    sortOrder: 0,
+    publishedAt: new Date('2026-05-15T00:00:00.000Z'),
+  },
+  {
+    displayName: 'Mary Udo',
+    roleLabel: 'Event attendee',
+    location: 'Cross River',
+    rating: 5,
+    body:
+      'The session helped me ask questions I used to keep quiet about. I left with better understanding, confidence, and a clear next step for getting proper care.',
+    adminReply:
+      'We are grateful this helped you take the next step. Quiet questions deserve clear, safe answers.',
+    status: 'published',
+    source: 'seed',
+    sortOrder: 1,
+    publishedAt: new Date('2026-05-15T00:00:00.000Z'),
   },
 ]
 
@@ -378,6 +474,37 @@ async function seedSiteAlerts() {
   console.log(`  ✓ ${siteAlerts.length} site alert seeded`)
 }
 
+async function seedReviews() {
+  console.log('Seeding reviews...')
+
+  for (const review of reviews) {
+    const existing = await prisma.review.findFirst({
+      where: {
+        displayName: review.displayName,
+        source: 'seed',
+      },
+    })
+
+    const data = {
+      ...review,
+      adminReplyAuthorEmail: 'seed@down-below.local',
+      adminRepliedAt: review.adminReply ? new Date('2026-05-15T00:00:00.000Z') : null,
+    }
+
+    if (existing) {
+      await prisma.review.update({
+        where: { id: existing.id },
+        data,
+      })
+      continue
+    }
+
+    await prisma.review.create({ data })
+  }
+
+  console.log(`  ✓ ${reviews.length} reviews seeded`)
+}
+
 async function main() {
   await prisma.siteSettings.upsert({
     where: { scope: 'global' },
@@ -404,9 +531,10 @@ async function main() {
   await seedTeamMembers()
   await seedGalleryImages()
   await seedSiteAlerts()
+  await seedReviews()
 }
 
-main()
+runSeedWithRetry(main)
   .then(async () => {
     await prisma.$disconnect()
   })

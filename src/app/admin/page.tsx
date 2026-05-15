@@ -48,7 +48,7 @@ export default async function AdminDashboardPage() {
               : 'Database is not configured in this environment. Set DATABASE_URL and DIRECT_URL before launch validation.'}
           </p>
           <p className="mt-3 font-body text-sm text-slate-600">
-            Total editorial modules online: <span className="font-semibold text-slate-900">8</span>
+            Total editorial modules online: <span className="font-semibold text-slate-900">9</span>
           </p>
         </article>
 
@@ -72,6 +72,12 @@ export default async function AdminDashboardPage() {
               className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
             >
               Open site alerts
+            </Link>
+            <Link
+              href="/admin/reviews"
+              className="rounded-full border border-slate-300 px-4 py-2 font-body text-sm font-semibold text-slate-700"
+            >
+              Open reviews
             </Link>
             <Link
               href="/admin/register"

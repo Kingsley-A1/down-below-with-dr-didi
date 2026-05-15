@@ -17,6 +17,7 @@ export type DashboardSummary = {
   contactSubmissions: number
   teamMembers: number
   galleryImages: number
+  reviews: number
   podcastEpisodes: number
   outreachEvents: number
   activeAlerts: number
@@ -1347,6 +1348,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       contactSubmissions: 0,
       teamMembers: 0,
       galleryImages: 0,
+      reviews: 0,
       podcastEpisodes: 0,
       outreachEvents: 0,
       activeAlerts: 0,
@@ -1363,6 +1365,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     contactSubmissions,
     teamMembers,
     galleryImages,
+    reviews,
     podcastEpisodes,
     outreachEvents,
     activeAlerts,
@@ -1375,6 +1378,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     prisma.contactSubmission.count(),
     prisma.teamMember.count().catch(() => 0),
     prisma.galleryImage.count().catch(() => 0),
+    prisma.review.count().catch(() => 0),
     prisma.podcastEpisode.count().catch(() => 0),
     prisma.outreachEvent.count().catch(() => 0),
     prisma.siteAlert
@@ -1397,6 +1401,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     contactSubmissions,
     teamMembers,
     galleryImages,
+    reviews,
     podcastEpisodes,
     outreachEvents,
     activeAlerts,
@@ -1680,6 +1685,9 @@ export type GalleryImageRecord = PublicGalleryImage & {
 }
 
 const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+const GALLERY_ASSET_EXCLUDE_NAMES = new Set([
+  'founder-led-health-mobilization.jpg',
+])
 
 let localAssetFileSetCache: Set<string> | null = null
 
@@ -1776,6 +1784,7 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
   const discovered = Array.from(assetFileSet)
     .filter((fileName) => IMAGE_FILE_EXTENSIONS.has(path.extname(fileName).toLowerCase()))
     .filter((fileName) => !teamImageFileNames.has(fileName))
+    .filter((fileName) => !GALLERY_ASSET_EXCLUDE_NAMES.has(fileName))
     .filter((fileName) => !seededFileNames.has(fileName))
     .sort((a, b) => a.localeCompare(b))
     .map((fileName, index) => {
@@ -1891,9 +1900,11 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
     },
     select: {
       slug: true,
+      imageUrl: true,
     },
   })
   const existingSlugs = new Set(existingRecords.map((record) => record.slug))
+  const existingRecordsBySlug = new Map(existingRecords.map((record) => [record.slug, record]))
   const deletedSeedRecords = await prisma.auditLog.findMany({
     where: {
       action: 'gallery_image.deleted',
@@ -1910,10 +1921,40 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
   )
   const missingRecords = fallback.filter((item) => !existingSlugs.has(item.slug) && !deletedSeedSlugs.has(item.slug))
 
+  const staleSeedRecords = fallback.filter((item) => {
+    const existing = existingRecordsBySlug.get(item.slug)
+    if (!existing || deletedSeedSlugs.has(item.slug)) {
+      return false
+    }
+
+    const currentFileName = normalizePublicImageUrl(existing.imageUrl).split('/').pop()?.toLowerCase()
+    const nextFileName = item.imageUrl.split('/').pop()?.toLowerCase()
+    return Boolean(currentFileName && nextFileName && currentFileName !== nextFileName && GALLERY_ASSET_EXCLUDE_NAMES.has(currentFileName))
+  })
+
   for (const item of missingRecords) {
     await prisma.galleryImage.create({
       data: {
         slug: item.slug,
+        title: item.title,
+        description: item.description,
+        caption: item.caption,
+        imageUrl: item.imageUrl,
+        imageAlt: item.imageAlt,
+        category: item.category,
+        eventName: item.eventName,
+        location: item.location,
+        capturedAt: item.capturedAt ? new Date(item.capturedAt) : null,
+        sortOrder: item.sortOrder,
+        status: 'published',
+      },
+    })
+  }
+
+  for (const item of staleSeedRecords) {
+    await prisma.galleryImage.update({
+      where: { slug: item.slug },
+      data: {
         title: item.title,
         description: item.description,
         caption: item.caption,

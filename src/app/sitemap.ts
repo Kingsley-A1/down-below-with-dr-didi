@@ -11,6 +11,7 @@ const publicRoutes = [
   { path: '/gallery', priority: 0.75, changeFrequency: 'weekly' as const },
   { path: '/library', priority: 0.9, changeFrequency: 'weekly' as const },
   { path: '/podcast', priority: 0.75, changeFrequency: 'weekly' as const },
+  { path: '/review', priority: 0.72, changeFrequency: 'weekly' as const },
   { path: '/events', priority: 0.85, changeFrequency: 'weekly' as const },
   { path: '/vault', priority: 0.8, changeFrequency: 'monthly' as const },
   { path: '/outreach', priority: 0.8, changeFrequency: 'monthly' as const },

@@ -75,14 +75,14 @@ export const gallerySeedItems: GallerySeedItem[] = [
   },
   {
     slug: 'founder-led-health-mobilization-calabar-2024',
-    title: 'Founder-Led Public Health Mobilization in Calabar',
+    title: 'Founder-Led Breast Cancer Awareness Outreach in Calabar',
     category: 'event',
-    eventName: 'Women\'s Health Mobilization Event',
+    eventName: 'Breast Cancer Awareness Outreach',
     location: 'Calabar, Cross River',
-    imageUrl: '/assets/founder-led-health-mobilization.jpg',
-    imageAlt: 'Dr. Didi speaking with a microphone during a women\'s health mobilization event',
+    imageUrl: '/assets/breast_cancer_outreach_dr_didi_speaking.jpg',
+    imageAlt: 'Dr. Didi speaking with a microphone during a breast cancer awareness outreach',
     description:
-      'Dr. Didi leads a public-facing mobilization moment focused on education, confidence, and action for women\'s health. The event atmosphere captures the initiative\'s core approach: clinical clarity, compassionate communication, and strong community participation.',
-    caption: 'Founder-led public health mobilization',
+      'Dr. Didi leads a public-facing awareness moment focused on education, early attention, and action for women\'s health. The event atmosphere captures the initiative\'s core approach: clinical clarity, compassionate communication, and strong community participation.',
+    caption: 'Founder-led breast cancer awareness outreach',
   },
 ]

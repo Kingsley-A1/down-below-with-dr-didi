@@ -210,6 +210,50 @@ export type GalleryImageFormData = z.infer<typeof galleryImageSchema>
 export type GalleryImageUpdateData = z.infer<typeof galleryImageUpdateSchema>
 
 // ─────────────────────────────────────────────
+// REVIEWS VALIDATION
+// ─────────────────────────────────────────────
+
+const reviewBaseSchema = z.object({
+  displayName: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
+  roleLabel: z.string().trim().max(120).optional().or(z.literal('')),
+  location: z.string().trim().max(120).optional().or(z.literal('')),
+  rating: z.number().int().min(1).max(5).optional().default(5),
+  body: z
+    .string()
+    .trim()
+    .min(40, 'Review must be at least 40 characters')
+    .max(900, 'Review may not exceed 900 characters'),
+  sortOrder: z.number().int().min(0).optional().default(0),
+  status: z.enum(['draft', 'published', 'archived']).optional().default('draft'),
+  adminReply: z.string().trim().max(900).optional().or(z.literal('')),
+})
+
+export const publicReviewSchema = reviewBaseSchema.pick({
+  displayName: true,
+  roleLabel: true,
+  location: true,
+  rating: true,
+  body: true,
+}).extend({
+  consentToPublish: z.literal(true, {
+    error: 'Please confirm that this review may be published.',
+  }),
+})
+
+export const adminReviewSchema = reviewBaseSchema.extend({
+  source: z.enum(['public_submission', 'admin_created', 'seed']).optional().default('admin_created'),
+  publishedAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+})
+
+export const adminReviewUpdateSchema = adminReviewSchema.partial().extend({
+  id: z.string().min(1, 'Review id is required'),
+})
+
+export type PublicReviewFormData = z.infer<typeof publicReviewSchema>
+export type AdminReviewFormData = z.infer<typeof adminReviewSchema>
+export type AdminReviewUpdateData = z.infer<typeof adminReviewUpdateSchema>
+
+// ─────────────────────────────────────────────
 // PODCAST EPISODE VALIDATION
 // ─────────────────────────────────────────────
 

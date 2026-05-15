@@ -101,6 +101,8 @@ model User {
   vaultEvents            VaultSubmissionEvent[] @relation("VaultEventUserActor")
   eventLikes             EventLike[]
   eventComments          EventComment[]
+  reviews                Review[]
+  reviewHelpfuls         ReviewHelpful[]
 
   @@index([isActive])
   @@index([role])
@@ -285,6 +287,43 @@ model ContactSubmission {
   createdAt     DateTime @default(now())
 }
 
+model Review {
+  id                    String            @id @default(cuid())
+  displayName           String
+  roleLabel             String?
+  location              String?
+  rating                Int               @default(5)
+  body                  String
+  status                PublicationStatus @default(draft)
+  source                ReviewSource      @default(public_submission)
+  sortOrder             Int               @default(0)
+  userId                String?
+  adminReply            String?
+  adminReplyAuthorEmail String?
+  adminRepliedAt        DateTime?
+  publishedAt           DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  user                  User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  helpfuls              ReviewHelpful[]
+
+  @@index([status, sortOrder, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ReviewHelpful {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@index([userId])
+}
+
 model TeamMember {
   id          String            @id @default(cuid())
   slug        String            @unique
@@ -386,6 +425,12 @@ enum VaultActorType {
   user
   admin
   system
+}
+
+enum ReviewSource {
+  public_submission
+  admin_created
+  seed
 }
 
 enum TeamTier {

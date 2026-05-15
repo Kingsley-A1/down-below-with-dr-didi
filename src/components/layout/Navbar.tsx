@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/outreach', label: 'Outreach' },
   { href: '/podcast', label: 'Podcast' },
   { href: '/vault', label: 'V-Vault' },
+  { href: '/review', label: 'Reviews' },
   { href: '/team', label: 'Team' },
   { href: '/gallery', label: 'Gallery' },
   { href: '/about', label: 'About' },

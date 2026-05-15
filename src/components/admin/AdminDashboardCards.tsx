@@ -13,6 +13,7 @@ export type AdminDashboardSummarySnapshot = {
   contactSubmissions: number
   teamMembers: number
   galleryImages: number
+  reviews: number
   podcastEpisodes: number
   outreachEvents: number
   activeAlerts: number
@@ -125,6 +126,16 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
         metricValue: summary.galleryImages,
         status: 'live',
         highlights: ['Category tagging', 'Publication status states', 'Upload-first curation flow'],
+      },
+      {
+        id: 'reviews',
+        title: 'Reviews',
+        href: '/admin/reviews',
+        description: 'Moderate public testimonials, publish selected reviews, and add optional team replies.',
+        metricLabel: 'Reviews',
+        metricValue: summary.reviews,
+        status: 'live',
+        highlights: ['Public submission moderation', 'Admin reply workflow', 'Helpful vote signal'],
       },
       {
         id: 'users',
