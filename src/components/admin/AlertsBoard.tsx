@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import type { SiteAlertRecord } from '@/lib/admin/repository'
 
 type AlertState = 'active' | 'scheduled' | 'inactive' | 'expired'
@@ -23,6 +24,12 @@ const EMPTY_FORM: FormState = {
   isActive: true,
   startsAt: new Date().toISOString().slice(0, 16),
   endsAt: '',
+}
+
+const ALERT_NEW_DRAFT_KEY = 'admin-draft:alerts:new'
+
+function alertEditDraftKey(id: string) {
+  return `admin-draft:alerts:${id}`
 }
 
 function toDateTimeLocal(value: string) {
@@ -94,6 +101,14 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
     [alerts, alertStateMap]
   )
 
+  useEffect(() => {
+    if (!showForm) {
+      return
+    }
+
+    writeAdminDraft(editId ? alertEditDraftKey(editId) : ALERT_NEW_DRAFT_KEY, form)
+  }, [editId, form, showForm])
+
   async function refresh() {
     const response = await fetch('/api/admin/alerts', { cache: 'no-store' })
     const data = await response.json()
@@ -105,30 +120,35 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
   }
 
   function startCreate() {
+    const draft = readAdminDraft<FormState>(ALERT_NEW_DRAFT_KEY)
     setEditId(null)
-    setForm({
+    setForm(draft?.value ?? {
       ...EMPTY_FORM,
       startsAt: new Date().toISOString().slice(0, 16),
     })
     setShowForm(true)
-    setMessage('')
+    setMessage(draft ? `Recovered an alert draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
   function startEdit(alert: SiteAlertRecord) {
+    const draftKey = alertEditDraftKey(alert.id)
+    const draft = readAdminDraft<FormState>(draftKey)
     setEditId(alert.id)
-    setForm({
+    const nextForm = {
       text: alert.text,
       speed: alert.speed,
       durationSeconds: alert.durationSeconds,
       isActive: alert.isActive,
       startsAt: toDateTimeLocal(alert.startsAt),
       endsAt: alert.endsAt ? toDateTimeLocal(alert.endsAt) : '',
-    })
+    }
+    setForm(draft?.value ?? nextForm)
     setShowForm(true)
-    setMessage('')
+    setMessage(draft ? `Recovered an alert draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
   function cancelForm() {
+    clearAdminDraft(editId ? alertEditDraftKey(editId) : ALERT_NEW_DRAFT_KEY)
     setShowForm(false)
     setEditId(null)
     setForm({

@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   Bell,
   CalendarDays,
+  Crown,
   GalleryHorizontal,
   ImageIcon,
   LayoutDashboard,
@@ -61,6 +62,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/vault', label: 'V-Vault Moderation', icon: Shield },
       { href: '/admin/alerts', label: 'Site Alerts', icon: Bell },
       { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
+      { href: '/admin/admin-users', label: 'Admin Accounts', icon: Crown },
     ],
   },
 ]
@@ -85,11 +87,13 @@ function AdminNav({
   pathname,
   onNavigate,
   onUpload,
+  role,
   showSignOut = true,
 }: {
   pathname: string
   onNavigate?: () => void
   onUpload: () => void
+  role: AdminRole
   showSignOut?: boolean
 }) {
   return (
@@ -100,7 +104,7 @@ function AdminNav({
             {section.title}
           </p>
           <div className="space-y-1.5">
-            {section.links.map((link) => {
+            {section.links.filter((link) => role === 'super_admin' || link.href !== '/admin/admin-users').map((link) => {
               const active = isActivePath(pathname, link.href)
               const Icon = link.icon
 
@@ -330,7 +334,7 @@ export default function AdminShell({
               <p className="truncate font-body text-sm font-semibold text-slate-800">{email}</p>
               <p className="mt-1 font-body text-[11px] uppercase tracking-[0.18em] text-slate-500">{role.replace('_', ' ')}</p>
             </div>
-            <AdminNav pathname={pathname} onNavigate={() => setNavOpen(false)} onUpload={() => setUploadOpen(true)} />
+            <AdminNav pathname={pathname} role={role} onNavigate={() => setNavOpen(false)} onUpload={() => setUploadOpen(true)} />
           </aside>
         </div>
       ) : null}

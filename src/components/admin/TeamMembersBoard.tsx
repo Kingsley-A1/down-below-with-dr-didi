@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Camera } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { TeamMemberRecord } from '@/lib/admin/repository'
+import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
 type Tier = 'founder' | 'leadership' | 'core'
@@ -12,6 +13,11 @@ type Status = 'draft' | 'published' | 'archived'
 
 const TIER_OPTIONS: Tier[] = ['founder', 'leadership', 'core']
 const STATUS_OPTIONS: Status[] = ['draft', 'published', 'archived']
+const TEAM_NEW_DRAFT_KEY = 'admin-draft:team:new'
+
+function teamEditDraftKey(id: string) {
+  return `admin-draft:team:${id}`
+}
 
 const EMPTY_FORM = {
   name: '',
@@ -79,6 +85,14 @@ export default function TeamMembersBoard({
     }
   }, [imageFile, previewUrl])
 
+  useEffect(() => {
+    if (!showForm) {
+      return
+    }
+
+    writeAdminDraft(editId ? teamEditDraftKey(editId) : TEAM_NEW_DRAFT_KEY, form)
+  }, [editId, form, showForm])
+
   async function refresh() {
     const res = await fetch('/api/admin/team', { cache: 'no-store' })
     const data = await res.json()
@@ -86,17 +100,20 @@ export default function TeamMembersBoard({
   }
 
   function startCreate() {
+    const draft = readAdminDraft<FormState>(TEAM_NEW_DRAFT_KEY)
     setEditId(null)
-    setForm(EMPTY_FORM)
+    setForm(draft?.value ?? EMPTY_FORM)
     setImageFile(null)
     setSlugManual(false)
     setShowForm(true)
-    setMsg('')
+    setMsg(draft ? `Recovered a team draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
   function startEdit(member: TeamMemberRecord) {
+    const draftKey = teamEditDraftKey(member.id)
+    const draft = readAdminDraft<FormState>(draftKey)
     setEditId(member.id)
-    setForm({
+    const nextForm = {
       name: member.name,
       slug: member.slug,
       role: member.role,
@@ -107,13 +124,15 @@ export default function TeamMembersBoard({
       imageUrl: member.imageUrl ?? '',
       imageAlt: member.imageAlt ?? '',
       status: member.status as Status,
-    })
+    }
+    setForm(draft?.value ?? nextForm)
     setImageFile(null)
     setShowForm(true)
-    setMsg('')
+    setMsg(draft ? `Recovered a team draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
   function cancelForm() {
+    clearAdminDraft(editId ? teamEditDraftKey(editId) : TEAM_NEW_DRAFT_KEY)
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)

@@ -171,6 +171,18 @@ type AdminAccountDbRecord = {
   updatedAt: Date
 }
 
+const defaultSiteAlerts = [
+  {
+    text:
+      'Work in Progress: The website is currently being improved. If you notice anything you dislike, please reach out on 09036826272.',
+    speed: 100,
+    durationSeconds: 24,
+    isActive: true,
+    startsAt: new Date('2026-05-11T00:00:00.000Z'),
+    endsAt: null,
+  },
+]
+
 function mapVaultSubmissionRecord(
   record: VaultSubmissionDbRecord,
   options?: { includeIdentity?: boolean }
@@ -419,6 +431,165 @@ export async function authenticateAdminUser(email: string, password: string) {
   return mapAdminAccountRecord(updated)
 }
 
+export async function listAdminAccounts(): Promise<AdminAccountRecord[]> {
+  if (!hasDatabaseConfig()) {
+    return []
+  }
+
+  const records = (await prisma.adminUser.findMany({
+    orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+  })) as AdminAccountDbRecord[]
+
+  return records.map(mapAdminAccountRecord)
+}
+
+async function assertAdminAccountCanLoseSuperAdminStatus(id: string, input: { role?: AdminRole; isActive?: boolean }) {
+  const existing = (await prisma.adminUser.findUnique({ where: { id } })) as AdminAccountDbRecord | null
+
+  if (!existing) {
+    throw new Error('Admin account not found')
+  }
+
+  const willRemainActiveSuperAdmin =
+    (input.role ?? existing.role) === 'super_admin' && (input.isActive ?? existing.isActive)
+
+  if (existing.role !== 'super_admin' || willRemainActiveSuperAdmin) {
+    return existing
+  }
+
+  const remainingSuperAdmins = await prisma.adminUser.count({
+    where: {
+      id: { not: id },
+      role: 'super_admin',
+      isActive: true,
+    },
+  })
+
+  if (remainingSuperAdmins === 0) {
+    throw new Error('At least one active super admin must remain')
+  }
+
+  return existing
+}
+
+export async function createAdminAccount(
+  input: {
+    name?: string
+    email: string
+    phone?: string
+    role: AdminRole
+    password: string
+    isActive?: boolean
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<AdminAccountRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const normalized = normalizeAdminIdentity(input)
+  const existing = await prisma.adminUser.findUnique({ where: { email: normalized.email } })
+
+  if (existing) {
+    throw new Error('Admin account already exists')
+  }
+
+  const passwordHash = await hashPassword(input.password)
+  const record = (await prisma.adminUser.create({
+    data: {
+      email: normalized.email,
+      name: normalized.name,
+      phone: normalized.phone,
+      role: input.role,
+      passwordHash,
+      isActive: input.isActive ?? true,
+    },
+  })) as AdminAccountDbRecord
+
+  await writeAuditLog({
+    action: 'admin_account.created',
+    entityType: 'admin_account',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Created admin account ${record.email}`,
+    metadata: { role: record.role, isActive: record.isActive },
+  })
+
+  return mapAdminAccountRecord(record)
+}
+
+export async function updateAdminAccount(
+  id: string,
+  input: Partial<{
+    name: string
+    email: string
+    phone: string
+    role: AdminRole
+    isActive: boolean
+    password: string
+  }>,
+  actor: { email: string; role: AdminRole }
+): Promise<AdminAccountRecord> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  const existing = await assertAdminAccountCanLoseSuperAdminStatus(id, input)
+  const normalizedEmail = input.email?.trim().toLowerCase()
+  const passwordHash = input.password ? await hashPassword(input.password) : undefined
+
+  const record = (await prisma.adminUser.update({
+    where: { id },
+    data: {
+      ...(input.name !== undefined && { name: input.name.trim() || null }),
+      ...(normalizedEmail !== undefined && { email: normalizedEmail }),
+      ...(input.phone !== undefined && { phone: input.phone.trim() || null }),
+      ...(input.role !== undefined && { role: input.role }),
+      ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(passwordHash !== undefined && { passwordHash }),
+    },
+  })) as AdminAccountDbRecord
+
+  await writeAuditLog({
+    action: 'admin_account.updated',
+    entityType: 'admin_account',
+    entityId: record.id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Updated admin account ${record.email}`,
+    metadata: {
+      previousEmail: existing.email,
+      changedFields: Object.keys(input),
+    },
+  })
+
+  return mapAdminAccountRecord(record)
+}
+
+export async function deleteAdminAccount(
+  id: string,
+  actor: { email: string; role: AdminRole }
+): Promise<void> {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database is not configured')
+  }
+
+  await assertAdminAccountCanLoseSuperAdminStatus(id, { isActive: false })
+
+  const record = (await prisma.adminUser.delete({ where: { id } })) as AdminAccountDbRecord
+
+  await writeAuditLog({
+    action: 'admin_account.deleted',
+    entityType: 'admin_account',
+    entityId: id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Deleted admin account ${record.email}`,
+    metadata: { role: record.role },
+  })
+}
+
 export async function writeAuditLog(entry: {
   action: string
   entityType: string
@@ -613,9 +784,19 @@ export async function listSiteAlerts(): Promise<SiteAlertRecord[]> {
     return []
   }
 
-  const records = await prisma.siteAlert.findMany({
+  let records = await prisma.siteAlert.findMany({
     orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
   })
+
+  if (records.length === 0) {
+    await prisma.siteAlert.createMany({
+      data: defaultSiteAlerts,
+    })
+
+    records = await prisma.siteAlert.findMany({
+      orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+    })
+  }
 
   return records.map((record: SiteAlertDbRecord) => mapSiteAlert(record))
 }
@@ -627,7 +808,7 @@ export async function listPublicActiveSiteAlerts(): Promise<PublicSiteAlertRecor
 
   const now = new Date()
 
-  const records = await prisma.siteAlert.findMany({
+  let records = await prisma.siteAlert.findMany({
     where: {
       isActive: true,
       startsAt: { lte: now },
@@ -636,6 +817,26 @@ export async function listPublicActiveSiteAlerts(): Promise<PublicSiteAlertRecor
     orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
     take: 6,
   })
+
+  if (records.length === 0) {
+    const totalAlerts = await prisma.siteAlert.count()
+
+    if (totalAlerts === 0) {
+      await prisma.siteAlert.createMany({
+        data: defaultSiteAlerts,
+      })
+
+      records = await prisma.siteAlert.findMany({
+        where: {
+          isActive: true,
+          startsAt: { lte: now },
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        },
+        orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
+        take: 6,
+      })
+    }
+  }
 
   return records.map((record: SiteAlertDbRecord) => ({
     id: record.id,
@@ -1503,13 +1704,50 @@ function mapTeamMember(r: {
 
 export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
   if (!hasDatabaseConfig()) {
-    return []
+    return staticTeam.map((member) => ({
+      id: `static-${member.slug}`,
+      slug: member.slug,
+      name: member.name,
+      role: member.role,
+      tier: member.tier,
+      sortOrder: member.sortOrder,
+      credentials: member.credentials,
+      bio: member.bio,
+      imageUrl: member.image,
+      imageAlt: member.name,
+    }))
   }
 
-  const records = await prisma.teamMember.findMany({
+  let records = await prisma.teamMember.findMany({
     where: { status: 'published' },
     orderBy: [{ sortOrder: 'asc' }],
   })
+
+  if (records.length === 0) {
+    const totalMembers = await prisma.teamMember.count()
+
+    if (totalMembers === 0) {
+      await prisma.teamMember.createMany({
+        data: staticTeam.map((member) => ({
+          slug: member.slug,
+          name: member.name,
+          role: member.role,
+          tier: member.tier,
+          sortOrder: member.sortOrder,
+          credentials: member.credentials,
+          bio: member.bio,
+          imageUrl: member.image,
+          imageAlt: member.name,
+          status: 'published' as const,
+        })),
+      })
+
+      records = await prisma.teamMember.findMany({
+        where: { status: 'published' },
+        orderBy: [{ sortOrder: 'asc' }],
+      })
+    }
+  }
 
   return records.map((r: {
     id: string
@@ -1538,12 +1776,48 @@ export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
 
 export async function getAllTeamMembers(): Promise<TeamMemberRecord[]> {
   if (!hasDatabaseConfig()) {
-    return []
+    const now = new Date().toISOString()
+    return staticTeam.map((member) => ({
+      id: `static-${member.slug}`,
+      slug: member.slug,
+      name: member.name,
+      role: member.role,
+      tier: member.tier,
+      sortOrder: member.sortOrder,
+      credentials: member.credentials,
+      bio: member.bio,
+      imageUrl: member.image,
+      imageAlt: member.name,
+      status: 'published',
+      createdAt: now,
+      updatedAt: now,
+    }))
   }
 
-  const records = await prisma.teamMember.findMany({
+  let records = await prisma.teamMember.findMany({
     orderBy: [{ sortOrder: 'asc' }],
   })
+
+  if (records.length === 0) {
+    await prisma.teamMember.createMany({
+      data: staticTeam.map((member) => ({
+        slug: member.slug,
+        name: member.name,
+        role: member.role,
+        tier: member.tier,
+        sortOrder: member.sortOrder,
+        credentials: member.credentials,
+        bio: member.bio,
+        imageUrl: member.image,
+        imageAlt: member.name,
+        status: 'published' as const,
+      })),
+    })
+
+    records = await prisma.teamMember.findMany({
+      orderBy: [{ sortOrder: 'asc' }],
+    })
+  }
 
   return records.map(mapTeamMember)
 }
@@ -2428,7 +2702,7 @@ export async function createPodcastEpisode(
     slug: string
     title: string
     summary: string
-    description: string
+    description?: string
     audioUrl: string
     audioSize?: number
     audioType?: string
@@ -2453,7 +2727,7 @@ export async function createPodcastEpisode(
       slug: input.slug.trim(),
       title: input.title.trim(),
       summary: input.summary.trim(),
-      description: input.description.trim(),
+      description: input.description?.trim() || '',
       audioUrl: input.audioUrl.trim(),
       audioSize: input.audioSize ?? null,
       audioType: input.audioType?.trim() || null,

@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { Camera } from 'lucide-react'
+import { Camera, Mic2 } from 'lucide-react'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { uploadAdminMediaAsset, type UploadedAsset } from '@/components/admin/media-upload'
 
@@ -275,6 +275,22 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
                 ))}
               </select>
               <p className="mt-2 font-body text-xs text-slate-500">{selectedDestination.helper}</p>
+              {destination === 'podcast' ? (
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <Mic2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-800" />
+                    <div>
+                      <p className="font-body text-xs font-semibold text-emerald-900">Full podcast publishing lives in Podcast Episodes.</p>
+                      <p className="mt-1 font-body text-xs text-emerald-800">
+                        Use this modal for reusable media assets, or open the podcast manager for title, summary, cover art, audio, status, and publish date.
+                      </p>
+                      <Link href="/admin/podcast" className="mt-2 inline-flex rounded-full bg-emerald-800 px-3 py-1.5 font-body text-xs font-semibold text-white">
+                        Create full episode
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

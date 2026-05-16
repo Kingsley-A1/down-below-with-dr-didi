@@ -6,6 +6,10 @@ import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
+import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
+import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+
+const MEDIA_DRAFT_KEY = 'admin-draft:media-upload'
 
 function formatBytes(size: number) {
   if (size < 1024) {
@@ -26,6 +30,9 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [isDeleting, setIsDeleting] = useState(false)
   const [pendingDeleteAsset, setPendingDeleteAsset] = useState<MediaAssetRecord | null>(null)
   const [uploadDetail, setUploadDetail] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [label, setLabel] = useState('')
+  const [altText, setAltText] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const selectedPreviewUrl = useMemo(() => {
     if (!selectedFile || !selectedFile.type.startsWith('image/')) {
@@ -43,6 +50,30 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }, [selectedPreviewUrl])
 
+  useEffect(() => {
+    const draft = readAdminDraft<{ label: string; altText: string }>(MEDIA_DRAFT_KEY)
+
+    if (!draft) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLabel(draft.value.label)
+      setAltText(draft.value.altText)
+      setStatus(`Recovered upload details from ${new Date(draft.savedAt).toLocaleString('en-NG')}. Choose the file again to continue.`)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [])
+
+  useEffect(() => {
+    if (!label && !altText) {
+      return
+    }
+
+    writeAdminDraft(MEDIA_DRAFT_KEY, { label, altText })
+  }, [altText, label])
+
   async function refreshAssets() {
     const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
     const refreshedResult = await refreshed.json()
@@ -51,34 +82,29 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = event.currentTarget
-    const formData = new FormData(form)
-    const selectedFile = formData.get('file')
-
     setStatus('')
-    setUploadDetail(selectedFile instanceof File ? selectedFile.name : 'Preparing file')
+    setUploadProgress(0)
+    setUploadDetail(selectedFile ? selectedFile.name : 'Preparing file')
     setIsUploading(true)
 
     try {
-      const response = await fetch('/api/admin/media', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        setStatus(result.error || 'Upload failed')
-        return
+      if (!selectedFile) {
+        throw new Error('Choose a file before uploading.')
       }
+
+      await uploadAdminMediaAsset(selectedFile, label.trim() || selectedFile.name, altText.trim(), {
+        onProgress: setUploadProgress,
+      })
 
       setUploadDetail('Refreshing media library')
       await refreshAssets()
       setStatus('Asset uploaded successfully.')
-      form.reset()
+      clearAdminDraft(MEDIA_DRAFT_KEY)
+      setLabel('')
+      setAltText('')
       setSelectedFile(null)
-    } catch {
-      setStatus('Upload failed. Check your connection and try again.')
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.')
     } finally {
       setIsUploading(false)
       setUploadDetail('')
@@ -125,7 +151,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }
 
-  const statusTone = status.toLowerCase().includes('failed') || status.toLowerCase().includes('cannot')
+  const statusTone = status.toLowerCase().includes('failed') || status.toLowerCase().includes('cannot') || status.toLowerCase().includes('could not') || status.toLowerCase().includes('choose')
     ? 'error'
     : 'success'
 
@@ -136,14 +162,14 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Upload Asset</h2>
           <p className="font-body text-sm text-gray-500">Add approved files to the managed media pipeline for use across the platform.</p>
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="block font-body text-sm font-semibold mb-2" htmlFor="label">Label</label>
-            <input id="label" name="label" className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+            <input id="label" name="label" value={label} onChange={(event) => setLabel(event.target.value)} className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
           </div>
           <div>
             <label className="block font-body text-sm font-semibold mb-2" htmlFor="altText">Alt text</label>
-            <input id="altText" name="altText" className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
+            <input id="altText" name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
           </div>
         </div>
         <div>
@@ -157,7 +183,13 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             name="file"
             type="file"
             required
-            onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null
+              setSelectedFile(file)
+              if (file && !label.trim()) {
+                setLabel(file.name.replace(/\.[^./\\]+$/, '').replace(/[_-]+/g, ' '))
+              }
+            }}
             className="w-full rounded-xl border px-4 py-3 text-sm"
             style={{ borderColor: 'var(--color-border)' }}
           />
@@ -172,6 +204,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           active={isUploading}
           label="Uploading asset"
           detail={uploadDetail}
+          value={uploadProgress}
         />
         <div className="flex items-center gap-4">
           <button type="submit" disabled={isUploading} className="admin-interactive rounded-full px-6 py-3 font-body font-semibold" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
@@ -191,7 +224,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             <p className="rounded-xl border border-dashed border-slate-200 p-5 font-body text-sm text-gray-500">No assets uploaded yet.</p>
           ) : (
             assets.map((asset) => (
-              <article key={asset.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <article key={asset.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <AssetPreview asset={asset} />
                   <div className="min-w-0 flex-1">
@@ -200,15 +233,15 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                     <p className="mt-1 font-body text-xs text-gray-400">{new Date(asset.createdAt).toLocaleString('en-NG')}</p>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center justify-between gap-2">
-                  <a href={asset.url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-slate-200 px-4 py-2 font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <a href={asset.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-2 font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
                     Open asset
                   </a>
                   <button
                     type="button"
                     onClick={() => requestDelete(asset)}
                     disabled={isDeleting || isUploading}
-                    className="admin-interactive rounded-full bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    className="admin-interactive rounded-full bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60"
                   >
                     Delete
                   </button>

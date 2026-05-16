@@ -56,7 +56,11 @@ function uploadFileToSignedUrl(file: File, uploadUrl: string, options: UploadAdm
     }
 
     request.onerror = () => {
-      reject(new Error(`Upload failed for ${file.name}. Check your connection and try again.`))
+      reject(
+        new Error(
+          `Upload failed for ${file.name}. The browser could not reach storage. Confirm Cloudflare R2 CORS allows PUT from this admin domain with the Content-Type header.`
+        )
+      )
     }
 
     request.onload = () => {

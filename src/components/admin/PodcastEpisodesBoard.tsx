@@ -5,11 +5,17 @@ import Image from 'next/image'
 import { Camera, Download, Music, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { PodcastEpisodeRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
+import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 
 type Status = 'draft' | 'published' | 'archived'
 
 const STATUS_OPTIONS: Status[] = ['draft', 'published', 'archived']
+const PODCAST_NEW_DRAFT_KEY = 'admin-draft:podcast:new'
+
+function podcastEditDraftKey(id: string) {
+  return `admin-draft:podcast:${id}`
+}
 
 const EMPTY_FORM = {
   title: '',
@@ -19,7 +25,6 @@ const EMPTY_FORM = {
   audioUrl: '',
   audioSize: '',
   audioType: '',
-  duration: '',
   coverImage: '',
   guestName: '',
   topicTags: '',
@@ -100,6 +105,14 @@ export default function PodcastEpisodesBoard({
     }
   }, [coverFile, coverPreviewUrl])
 
+  useEffect(() => {
+    if (!showForm) {
+      return
+    }
+
+    writeAdminDraft(editId ? podcastEditDraftKey(editId) : PODCAST_NEW_DRAFT_KEY, form)
+  }, [editId, form, showForm])
+
   async function refresh() {
     const res = await fetch('/api/admin/podcast', { cache: 'no-store' })
     const data = await res.json()
@@ -111,20 +124,23 @@ export default function PodcastEpisodesBoard({
   }
 
   function startCreate() {
+    const draft = readAdminDraft<FormState>(PODCAST_NEW_DRAFT_KEY)
     setEditId(null)
-    setForm(EMPTY_FORM)
+    setForm(draft?.value ?? EMPTY_FORM)
     setAudioFile(null)
     setCoverFile(null)
     setSlugManual(false)
     setShowAdvanced(false)
     setUploadProgress(0)
     setShowForm(true)
-    setMessage('')
+    setMessage(draft ? `Recovered a podcast draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
   function startEdit(episode: PodcastEpisodeRecord) {
+    const draftKey = podcastEditDraftKey(episode.id)
+    const draft = readAdminDraft<FormState>(draftKey)
     setEditId(episode.id)
-    setForm({
+    const nextForm = {
       title: episode.title,
       slug: episode.slug,
       summary: episode.summary,
@@ -132,7 +148,6 @@ export default function PodcastEpisodesBoard({
       audioUrl: episode.audioUrl,
       audioSize: episode.audioSize ? String(episode.audioSize) : '',
       audioType: episode.audioType ?? '',
-      duration: episode.duration ? String(episode.duration) : '',
       coverImage: episode.coverImage ?? '',
       guestName: episode.guestName ?? '',
       topicTags: episode.topicTags.join(', '),
@@ -141,17 +156,22 @@ export default function PodcastEpisodesBoard({
       publishedAt: toDatetimeLocal(episode.publishedAt),
       sortOrder: episode.sortOrder,
       status: episode.status as Status,
-    })
+    }
+    setForm(draft?.value ?? nextForm)
     setAudioFile(null)
     setCoverFile(null)
     setSlugManual(true)
     setShowAdvanced(false)
     setUploadProgress(0)
     setShowForm(true)
-    setMessage('')
+    setMessage(draft ? `Recovered a podcast draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
-  function cancelForm() {
+  function cancelForm(clearDraft = true) {
+    if (clearDraft) {
+      clearAdminDraft(editId ? podcastEditDraftKey(editId) : PODCAST_NEW_DRAFT_KEY)
+    }
+
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
@@ -230,7 +250,6 @@ export default function PodcastEpisodesBoard({
         audioUrl: nextAudioUrl,
         ...(nextAudioSize !== undefined && { audioSize: nextAudioSize }),
         ...(nextAudioType && { audioType: nextAudioType }),
-        ...(form.duration && { duration: Number(form.duration) }),
         ...(nextCoverImage && { coverImage: nextCoverImage }),
         ...(form.guestName && { guestName: form.guestName }),
         topicTags: parseTags(form.topicTags),
@@ -416,10 +435,6 @@ export default function PodcastEpisodesBoard({
                     : 'Optional: upload cover image from media pipeline.'}
               </p>
             </Field>
-            <Field label="Duration in seconds">
-              <input type="number" min={1} value={form.duration} onChange={(e) => set('duration', e.target.value)} className="input-field" />
-              <p className="font-body text-xs text-gray-400">Example: 1800 for a 30 minute episode.</p>
-            </Field>
             <Field label="Published date">
               <input type="datetime-local" value={form.publishedAt} onChange={(e) => set('publishedAt', e.target.value)} className="input-field" />
             </Field>
@@ -442,8 +457,9 @@ export default function PodcastEpisodesBoard({
               </Field>
             </div>
             <div className="lg:col-span-2">
-              <Field label="Show notes *">
-                <textarea value={form.description} onChange={(e) => set('description', e.target.value)} required minLength={40} rows={6} className="input-field" />
+              <Field label="Show notes">
+                <textarea value={form.description} onChange={(e) => set('description', e.target.value)} maxLength={5000} rows={6} className="input-field" />
+                <p className="font-body text-xs text-gray-400">Optional. Add notes when the episode needs context beyond the summary.</p>
               </Field>
             </div>
             <div className="lg:col-span-2">
@@ -483,7 +499,7 @@ export default function PodcastEpisodesBoard({
               />
             </div>
             <div className="lg:col-span-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button type="button" onClick={cancelForm} className="font-body text-sm px-5 py-3 rounded-xl border" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+              <button type="button" onClick={() => cancelForm()} className="font-body text-sm px-5 py-3 rounded-xl border" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
                 Cancel
               </button>
               <button

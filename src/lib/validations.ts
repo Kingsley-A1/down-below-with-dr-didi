@@ -62,6 +62,26 @@ export const adminRecoverySchema = z.object({
   accessCode: z.string().trim().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
 })
 
+const adminAccountBaseSchema = z.object({
+  name: z.string().trim().max(100, 'Name may not exceed 100 characters').optional().or(z.literal('')),
+  email: z.string().trim().email('Enter a valid admin email address').max(255),
+  phone: z.string().trim().max(32, 'Phone may not exceed 32 characters').optional().or(z.literal('')),
+  role: z.enum(['super_admin', 'founder_admin', 'editor', 'moderator']),
+  isActive: z.boolean(),
+})
+
+export const adminAccountCreateSchema = adminAccountBaseSchema.extend({
+  password: adminPasswordSchema,
+  isActive: z.boolean().optional().default(true),
+})
+
+export const adminAccountUpdateSchema = adminAccountBaseSchema
+  .partial()
+  .extend({
+    id: z.string().min(1, 'Admin account id is required'),
+    password: adminPasswordSchema.optional().or(z.literal('')),
+  })
+
 export const vaultModerationSchema = z.object({
   id: z.string().min(1, 'Submission id is required'),
   status: z.enum(['new', 'reviewed', 'answered_privately', 'approved_for_faq', 'archived']),
@@ -138,6 +158,8 @@ export type ContactFormData = z.infer<typeof contactSchema>
 export type AdminRegisterData = z.infer<typeof adminRegisterSchema>
 export type AdminLoginData = z.infer<typeof adminLoginSchema>
 export type AdminRecoveryData = z.infer<typeof adminRecoverySchema>
+export type AdminAccountCreateData = z.infer<typeof adminAccountCreateSchema>
+export type AdminAccountUpdateData = z.infer<typeof adminAccountUpdateSchema>
 export type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>
 export type VaultModerationData = z.infer<typeof vaultModerationSchema>
 export type VaultResponseData = z.infer<typeof vaultResponseSchema>
@@ -159,7 +181,7 @@ export const teamMemberSchema = z.object({
   role: z.string().min(2, 'Role must be at least 2 characters').max(100),
   tier: z.enum(['founder', 'leadership', 'core']),
   sortOrder: z.number().int().min(0).optional().default(0),
-  credentials: z.string().min(2).max(200),
+  credentials: z.string().max(200),
   bio: z
     .string()
     .min(40, 'Bio must be at least 40 characters')
@@ -270,8 +292,9 @@ export const podcastEpisodeSchema = z.object({
     .max(280, 'Summary may not exceed 280 characters'),
   description: z
     .string()
-    .min(40, 'Show notes must be at least 40 characters')
-    .max(5000, 'Show notes may not exceed 5000 characters'),
+    .max(5000, 'Show notes may not exceed 5000 characters')
+    .optional()
+    .or(z.literal('')),
   audioUrl: z.string().min(1, 'Audio URL is required').max(1000),
   audioSize: z.number().int().min(0).optional(),
   audioType: z.string().max(120).optional().or(z.literal('')),
