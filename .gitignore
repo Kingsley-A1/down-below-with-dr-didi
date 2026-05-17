@@ -29,6 +29,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.codex/
 
 # env files  NEVER COMMIT THIS FILE TO VERSION CONTROL. IT CONTAINS SENSITIVE INFORMATION.
 .env*
