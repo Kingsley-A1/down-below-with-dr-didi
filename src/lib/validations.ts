@@ -232,6 +232,41 @@ export type GalleryImageFormData = z.infer<typeof galleryImageSchema>
 export type GalleryImageUpdateData = z.infer<typeof galleryImageUpdateSchema>
 
 // ─────────────────────────────────────────────
+// LIBRARY ARTICLE VALIDATION
+// ─────────────────────────────────────────────
+
+export const libraryArticleSchema = z.object({
+  slug: z
+    .string()
+    .min(2)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, 'Slug may only contain lowercase letters, numbers, and hyphens'),
+  title: z.string().trim().min(8, 'Title must be at least 8 characters').max(180),
+  excerpt: z
+    .string()
+    .trim()
+    .min(30, 'Summary must be at least 30 characters')
+    .max(320, 'Summary may not exceed 320 characters'),
+  content: z
+    .string()
+    .trim()
+    .min(120, 'Article body must be at least 120 characters')
+    .max(30000, 'Article body may not exceed 30000 characters'),
+  category: z.enum(['menstrual', 'sexual-wellness', 'preventative', 'anatomy', 'fertility', 'family-health']),
+  coverImageUrl: z.string().max(1000).optional().or(z.literal('')),
+  readTime: z.number().int().min(1).max(60).optional(),
+  status: z.enum(['draft', 'published', 'archived']).optional().default('draft'),
+  publishedAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+})
+
+export const libraryArticleUpdateSchema = libraryArticleSchema.partial().extend({
+  id: z.string().min(1, 'Article id is required'),
+})
+
+export type LibraryArticleFormData = z.infer<typeof libraryArticleSchema>
+export type LibraryArticleUpdateData = z.infer<typeof libraryArticleUpdateSchema>
+
+// ─────────────────────────────────────────────
 // REVIEWS VALIDATION
 // ─────────────────────────────────────────────
 

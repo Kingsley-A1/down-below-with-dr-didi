@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
-import { articles } from '@/data/articles'
 import { getPublishedGalleryImages } from '@/lib/admin/repository'
 import { getPublishedEvents } from '@/lib/events/repository'
+import { getPublishedLibraryArticles } from '@/lib/library/repository'
 import { canonicalUrl } from '@/lib/site-config'
 
 const publicRoutes = [
@@ -29,15 +29,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route.priority,
   }))
 
-  const articleRoutes = articles.map((article) => ({
-    url: canonicalUrl(`/library/${article.slug}`),
-    lastModified: new Date(article.publishedAt),
-    changeFrequency: 'monthly' as const,
-    priority: 0.72,
-  }))
-
+  let articleRoutes: MetadataRoute.Sitemap = []
   let galleryRoutes: MetadataRoute.Sitemap = []
   let eventRoutes: MetadataRoute.Sitemap = []
+
+  try {
+    const articles = await getPublishedLibraryArticles()
+    articleRoutes = articles.map((article) => ({
+      url: canonicalUrl(`/library/${article.slug}`),
+      lastModified: new Date(article.publishedAt),
+      changeFrequency: 'monthly' as const,
+      priority: 0.72,
+    }))
+  } catch {
+    articleRoutes = []
+  }
 
   try {
     const galleryImages = await getPublishedGalleryImages()

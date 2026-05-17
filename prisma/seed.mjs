@@ -373,6 +373,108 @@ const reviews = [
   },
 ]
 
+const libraryArticles = [
+  {
+    slug: 'understanding-your-cycle',
+    title: 'Understanding Your Menstrual Cycle',
+    excerpt: 'A plain-language guide to the four phases of your cycle and what your body is doing at each stage.',
+    category: 'menstrual',
+    coverImageUrl: '/assets/IMG-20260508-WA0032.jpg',
+    readTime: 6,
+    publishedAt: new Date('2024-03-15T00:00:00.000Z'),
+    content: [
+      'Your menstrual cycle is a monthly hormonal process that prepares your body for possible pregnancy. Understanding it gives you power over your health, your fertility, and your wellbeing.',
+      'The average cycle is 28 days, though anywhere from 21 to 35 days is considered normal. It has four distinct phases, each driven by different hormones.',
+      'Menstruation begins the cycle. The uterine lining sheds because pregnancy did not occur, and oestrogen and progesterone are at their lowest.',
+      'The follicular phase starts as follicle-stimulating hormone prompts the ovaries to develop follicles. Oestrogen rises and thickens the uterine lining.',
+      'Ovulation happens when a surge in luteinising hormone releases a mature egg. This is your most fertile window, and the egg lives for about 12 to 24 hours.',
+      'Speak with a clinician if cycles are consistently under 21 days or over 35 days, bleeding is very heavy, or pain limits normal activity.',
+    ].join('\n\n'),
+  },
+  {
+    slug: 'menstrual-hygiene-guide',
+    title: 'The Complete Menstrual Hygiene Guide',
+    excerpt: 'Everything you need to know about period products and staying healthy during your period.',
+    category: 'menstrual',
+    coverImageUrl: '/assets/IMG-20260508-WA0033.jpg',
+    readTime: 8,
+    publishedAt: new Date('2024-02-20T00:00:00.000Z'),
+    content: [
+      'Good menstrual hygiene is essential for your health and comfort. Understanding your options lets you choose what fits your body, lifestyle, and budget.',
+      'Disposable pads are widely used and should be changed every four to six hours to reduce odour and irritation. Choose absorbency based on your flow.',
+      'Tampons absorb flow internally and should be changed every four to eight hours. Never leave a tampon in for more than eight hours.',
+      'Menstrual cups are reusable silicone cups that can be worn for up to 12 hours. They are cost-effective over time but require proper cleaning and sterilisation.',
+      'Always wash your hands before and after changing menstrual products. Do not flush pads, tampons, or wipes down the toilet.',
+      'A strong unpleasant odour, itching, pelvic pain, or unusual discharge should be checked by a clinician.',
+    ].join('\n\n'),
+  },
+  {
+    slug: 'sti-prevention-basics',
+    title: 'STI Prevention: What Every Woman Should Know',
+    excerpt: 'Understanding sexually transmitted infections, how they spread, and the most effective prevention strategies.',
+    category: 'sexual-wellness',
+    coverImageUrl: '/assets/IMG-20260508-WA0034.jpg',
+    readTime: 7,
+    publishedAt: new Date('2024-01-10T00:00:00.000Z'),
+    content: [
+      'Sexually transmitted infections are more common than many people realise, and many are preventable or treatable when handled early.',
+      'Common STIs include HIV, chlamydia, gonorrhoea, syphilis, herpes, HPV, and hepatitis B.',
+      'STIs can spread through vaginal, anal, or oral sex. Some infections can also spread through skin-to-skin genital contact.',
+      'Consistent and correct condom use reduces risk for many STIs. Vaccination also protects against HPV and hepatitis B.',
+      'Regular testing matters because many STIs have no early symptoms. A person can feel well and still transmit an infection.',
+      'If you think you may have an STI, avoid self-medication. See a qualified clinician for testing, treatment, and partner guidance.',
+    ].join('\n\n'),
+  },
+  {
+    slug: 'pap-smear-what-to-expect',
+    title: 'Pap Smear: What to Expect and Why It Matters',
+    excerpt: 'A step-by-step explanation of pap smear screening, what happens, and why it matters.',
+    category: 'preventative',
+    coverImageUrl: '/assets/IMG-20260508-WA0061.jpg',
+    readTime: 5,
+    publishedAt: new Date('2024-01-05T00:00:00.000Z'),
+    content: [
+      'A pap smear is a cervical screening test that detects abnormal cervical cells before they develop into cervical cancer.',
+      'The test checks for cell changes in the cervix, including changes linked to human papillomavirus, which is a major cause of cervical cancer.',
+      'During the test, a speculum is gently inserted so the cervix can be seen. A small brush collects cells from the cervix.',
+      'The procedure usually takes only a few minutes. You may feel pressure or mild discomfort, but it should not be painful.',
+      'Most results are normal. If abnormal cells are found, it does not automatically mean cancer. It means follow-up is needed.',
+    ].join('\n\n'),
+  },
+  {
+    slug: 'female-anatomy-overview',
+    title: 'Your Body, Explained: Female Reproductive Anatomy',
+    excerpt: 'A comprehensive overview of the female reproductive system in plain language.',
+    category: 'anatomy',
+    coverImageUrl: '/assets/IMG-20260508-WA0068.jpg',
+    readTime: 10,
+    publishedAt: new Date('2023-12-01T00:00:00.000Z'),
+    content: [
+      'Understanding your anatomy is a form of self-respect. Many women were never given accurate, judgment-free information about their bodies.',
+      'The vulva is the external genital area. It includes the mons pubis, labia majora, labia minora, clitoris, vaginal opening, and urethral opening.',
+      'The vagina and urethra are separate openings. The vagina connects to the cervix; the urethra is where urine exits.',
+      'The cervix is the lower part of the uterus. The uterus is a muscular organ that sheds its lining during menstruation and can carry pregnancy.',
+      'The fallopian tubes carry eggs from the ovaries toward the uterus, and fertilisation often happens there. The ovaries produce eggs and hormones.',
+    ].join('\n\n'),
+  },
+  {
+    slug: 'contraception-options',
+    title: 'Contraception Options: A Complete Guide',
+    excerpt: 'Comparing contraception methods, effectiveness, side effects, and what may be right for you.',
+    category: 'sexual-wellness',
+    coverImageUrl: '/assets/IMG-20260508-WA0073.jpg',
+    readTime: 9,
+    publishedAt: new Date('2023-11-15T00:00:00.000Z'),
+    content: [
+      'Choosing contraception is personal. The right option depends on your health, relationship, lifestyle, and future family plans.',
+      'Condoms are barrier methods and are the only contraceptives that also reduce STI risk when used correctly.',
+      'Hormonal options include pills, implants, injectables, and other clinician-prescribed methods. They work in different ways and may have side effects.',
+      'Long-acting reversible contraceptives, such as implants and IUDs, are highly effective and useful for people who want reliable protection without daily action.',
+      'No method is perfect for everyone. Speak with a qualified clinician before choosing or changing contraception, especially if you have medical conditions.',
+    ].join('\n\n'),
+  },
+]
+
 async function seedTeamMembers() {
   console.log('Seeding team members...')
 
@@ -505,6 +607,32 @@ async function seedReviews() {
   console.log(`  ✓ ${reviews.length} reviews seeded`)
 }
 
+async function seedLibraryArticles() {
+  console.log('Seeding library articles...')
+
+  for (const article of libraryArticles) {
+    await prisma.article.upsert({
+      where: { slug: article.slug },
+      update: {
+        title: article.title,
+        excerpt: article.excerpt,
+        content: article.content,
+        category: article.category,
+        coverImageUrl: article.coverImageUrl,
+        readTime: article.readTime,
+        status: 'published',
+        publishedAt: article.publishedAt,
+      },
+      create: {
+        ...article,
+        status: 'published',
+      },
+    })
+  }
+
+  console.log(`  ✓ ${libraryArticles.length} library articles seeded`)
+}
+
 async function main() {
   await prisma.siteSettings.upsert({
     where: { scope: 'global' },
@@ -531,6 +659,7 @@ async function main() {
   await seedTeamMembers()
   await seedGalleryImages()
   await seedSiteAlerts()
+  await seedLibraryArticles()
   await seedReviews()
 }
 

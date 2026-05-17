@@ -2,17 +2,19 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight } from 'lucide-react'
-import { articles } from '@/data/articles'
 import { formatDate } from '@/lib/utils'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl, siteConfig } from '@/lib/site-config'
 import { getPublicVaultPreviewItems } from '@/lib/vault/public-preview'
+import { getPublishedLibraryArticles } from '@/lib/library/repository'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
   'sexual-wellness': 'Sexual Wellness',
   preventative: 'Preventative Care',
   anatomy: 'Anatomy',
+  fertility: 'Fertility',
+  'family-health': 'Family Health',
 }
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -20,6 +22,8 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   'sexual-wellness': { bg: '#ede9fe', text: '#7c3aed' },
   preventative: { bg: '#dcfce7', text: '#166534' },
   anatomy: { bg: '#dbeafe', text: '#1e40af' },
+  fertility: { bg: '#ffedd5', text: '#9a3412' },
+  'family-health': { bg: '#e0f2fe', text: '#075985' },
 }
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +42,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const siteSettings = await getPublicSiteSettings()
   const vaultPreviewItems = await getPublicVaultPreviewItems(4)
+  const articles = await getPublishedLibraryArticles()
   const latestArticles = [...articles]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)

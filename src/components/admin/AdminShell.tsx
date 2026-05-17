@@ -15,6 +15,7 @@ import {
   Menu,
   MessageSquare,
   Mic2,
+  Newspaper,
   Plus,
   Settings,
   Shield,
@@ -49,6 +50,7 @@ const NAV_SECTIONS: NavSection[] = [
     links: [
       { href: '/admin/settings', label: 'Site Settings', icon: Settings },
       { href: '/admin/team', label: 'Team Members', icon: UserSquare2 },
+      { href: '/admin/library', label: 'Health Library', icon: Newspaper },
       { href: '/admin/gallery', label: 'Gallery Images', icon: GalleryHorizontal },
       { href: '/admin/reviews', label: 'Reviews', icon: MessageSquare },
       { href: '/admin/podcast', label: 'Podcast Episodes', icon: Mic2 },
@@ -104,7 +106,17 @@ function AdminNav({
             {section.title}
           </p>
           <div className="space-y-1.5">
-            {section.links.filter((link) => role === 'super_admin' || link.href !== '/admin/admin-users').map((link) => {
+            {section.links.filter((link) => {
+              if (link.href === '/admin/admin-users') {
+                return role === 'super_admin'
+              }
+
+              if (link.href === '/admin/library') {
+                return role === 'super_admin' || role === 'founder_admin'
+              }
+
+              return true
+            }).map((link) => {
               const active = isActivePath(pathname, link.href)
               const Icon = link.icon
 

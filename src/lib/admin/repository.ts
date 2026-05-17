@@ -51,10 +51,10 @@ type MediaAssetDbRecord = {
 }
 
 export type MediaAssetUsageRecord = {
-  entityType: 'site_settings' | 'team_member' | 'gallery_image' | 'podcast_episode'
+  entityType: 'site_settings' | 'team_member' | 'gallery_image' | 'podcast_episode' | 'article'
   entityId: string
   entityLabel: string
-  field: 'heroImageUrl' | 'imageUrl' | 'audioUrl' | 'coverImage'
+  field: 'heroImageUrl' | 'imageUrl' | 'audioUrl' | 'coverImage' | 'coverImageUrl'
 }
 
 export type VaultSubmissionRecord = {
@@ -1071,7 +1071,7 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
     throw new Error('Media asset not found')
   }
 
-  const [heroRef, teamRefs, galleryRefs, podcastRefs] = await Promise.all([
+  const [heroRef, teamRefs, galleryRefs, podcastRefs, articleRefs] = await Promise.all([
     prisma.siteSettings.findFirst({
       where: { heroImageUrl: asset.url },
       select: { id: true, scope: true },
@@ -1091,6 +1091,11 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
         OR: [{ audioUrl: asset.url }, { coverImage: asset.url }],
       },
       select: { id: true, title: true, audioUrl: true, coverImage: true },
+      take: 10,
+    }),
+    prisma.article.findMany({
+      where: { coverImageUrl: asset.url },
+      select: { id: true, title: true },
       take: 10,
     }),
   ])
@@ -1130,6 +1135,15 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
       entityId: episode.id,
       entityLabel: episode.title,
       field: (episode.audioUrl === asset.url ? 'audioUrl' : 'coverImage') as 'audioUrl' | 'coverImage',
+    }))
+  )
+
+  usages.push(
+    ...articleRefs.map((article: { id: string; title: string }) => ({
+      entityType: 'article' as const,
+      entityId: article.id,
+      entityLabel: article.title,
+      field: 'coverImageUrl' as const,
     }))
   )
 

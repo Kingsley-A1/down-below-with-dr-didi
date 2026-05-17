@@ -46,6 +46,12 @@ const DESTINATION_OPTIONS = [
     href: '/admin/gallery',
   },
   {
+    value: 'library',
+    label: 'Health Library',
+    helper: 'Article covers and teaching visuals.',
+    href: '/admin/library',
+  },
+  {
     value: 'podcast',
     label: 'Podcast Episodes',
     helper: 'Covers and audio-related assets.',

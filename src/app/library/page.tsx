@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Search, Clock, ArrowRight } from 'lucide-react'
-import { articles } from '@/data/articles'
 import { formatDate } from '@/lib/utils'
 import MedicalDisclaimer from '@/components/content/MedicalDisclaimer'
 import { canonicalUrl } from '@/lib/site-config'
+import { getPublishedLibraryArticles } from '@/lib/library/repository'
 
 export const metadata: Metadata = {
   title: 'Health Library',
@@ -14,6 +14,8 @@ export const metadata: Metadata = {
     canonical: canonicalUrl('/library'),
   },
 }
+
+export const dynamic = 'force-dynamic'
 
 interface Props {
   searchParams: Promise<{ q?: string; category?: string }>
@@ -25,6 +27,8 @@ const categories = [
   { slug: 'sexual-wellness', label: 'Sexual Wellness' },
   { slug: 'preventative', label: 'Preventative Care' },
   { slug: 'anatomy', label: 'General Anatomy' },
+  { slug: 'fertility', label: 'Fertility' },
+  { slug: 'family-health', label: 'Family Health' },
 ]
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
@@ -32,6 +36,8 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   'sexual-wellness': { bg: '#ede9fe', text: '#7c3aed' },
   preventative: { bg: '#dcfce7', text: '#166534' },
   anatomy: { bg: '#dbeafe', text: '#1e40af' },
+  fertility: { bg: '#ffedd5', text: '#9a3412' },
+  'family-health': { bg: '#e0f2fe', text: '#075985' },
 }
 
 const categoryLabels: Record<string, string> = {
@@ -39,10 +45,13 @@ const categoryLabels: Record<string, string> = {
   'sexual-wellness': 'Sexual Wellness',
   preventative: 'Preventative Care',
   anatomy: 'Anatomy',
+  fertility: 'Fertility',
+  'family-health': 'Family Health',
 }
 
 export default async function LibraryPage({ searchParams }: Props) {
   const { q = '', category: rawCategory = 'all' } = await searchParams
+  const articles = await getPublishedLibraryArticles()
   const activeCategory = categories.some((category) => category.slug === rawCategory) ? rawCategory : 'all'
   const query = q.trim()
   const sortedArticles = [...articles].sort(
