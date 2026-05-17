@@ -32,6 +32,10 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 export const dynamic = 'force-dynamic'
 
+function topicLabel(topic: string) {
+  return categoryLabels[topic] ?? topic
+}
+
 export async function generateStaticParams() {
   const articles = await getPublishedLibraryArticles()
   return articles.map((article) => ({ slug: article.slug }))
@@ -92,7 +96,7 @@ export default async function ArticlePage({ params }: Props) {
               className="rounded-full px-2.5 py-1 font-body text-xs font-semibold"
               style={{ backgroundColor: col.bg, color: col.text }}
             >
-              {categoryLabels[article.category] ?? article.category}
+              {topicLabel(article.category)}
             </span>
             <span className="flex items-center gap-1 font-body text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
               <Clock size={12} /> {article.readTime} min read

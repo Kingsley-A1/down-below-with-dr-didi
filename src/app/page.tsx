@@ -26,6 +26,10 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
   'family-health': { bg: '#e0f2fe', text: '#075985' },
 }
 
+function topicLabel(topic: string) {
+  return categoryLabels[topic] ?? topic
+}
+
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -414,7 +418,7 @@ export default async function HomePage() {
                           className="text-xs font-body font-semibold px-2.5 py-1 rounded-full"
                           style={{ backgroundColor: col.bg, color: col.text }}
                         >
-                          {categoryLabels[article.category]}
+                          {topicLabel(article.category)}
                         </span>
                         <span className="text-xs text-gray-400 font-body">{article.readTime} min read</span>
                       </div>

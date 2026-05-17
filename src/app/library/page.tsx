@@ -21,7 +21,7 @@ interface Props {
   searchParams: Promise<{ q?: string; category?: string }>
 }
 
-const categories = [
+const baseCategories = [
   { slug: 'all', label: 'All Topics' },
   { slug: 'menstrual', label: 'Menstrual Hygiene' },
   { slug: 'sexual-wellness', label: 'Sexual Wellness' },
@@ -49,9 +49,17 @@ const categoryLabels: Record<string, string> = {
   'family-health': 'Family Health',
 }
 
+function topicLabel(topic: string) {
+  return categoryLabels[topic] ?? topic
+}
+
 export default async function LibraryPage({ searchParams }: Props) {
   const { q = '', category: rawCategory = 'all' } = await searchParams
   const articles = await getPublishedLibraryArticles()
+  const customCategories = Array.from(new Set(articles.map((article) => article.category)))
+    .filter((category) => !baseCategories.some((baseCategory) => baseCategory.slug === category))
+    .map((category) => ({ slug: category, label: topicLabel(category) }))
+  const categories = [...baseCategories, ...customCategories]
   const activeCategory = categories.some((category) => category.slug === rawCategory) ? rawCategory : 'all'
   const query = q.trim()
   const sortedArticles = [...articles].sort(
@@ -192,7 +200,7 @@ export default async function LibraryPage({ searchParams }: Props) {
                           className="text-xs font-body font-semibold px-2.5 py-1 rounded-full"
                           style={{ backgroundColor: col.bg, color: col.text }}
                         >
-                          {categoryLabels[article.category]}
+                          {topicLabel(article.category)}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-gray-400 font-body">
                           <Clock size={12} /> {article.readTime} min

@@ -252,7 +252,12 @@ export const libraryArticleSchema = z.object({
     .trim()
     .min(120, 'Article body must be at least 120 characters')
     .max(30000, 'Article body may not exceed 30000 characters'),
-  category: z.enum(['menstrual', 'sexual-wellness', 'preventative', 'anatomy', 'fertility', 'family-health']),
+  category: z
+    .string()
+    .trim()
+    .min(2, 'Topic must be at least 2 characters')
+    .max(80, 'Topic may not exceed 80 characters')
+    .regex(/^[\p{L}\p{N}][\p{L}\p{N}\s&/+\-.]*$/u, 'Topic may use letters, numbers, spaces, and simple separators'),
   coverImageUrl: z.string().max(1000).optional().or(z.literal('')),
   readTime: z.number().int().min(1).max(60).optional(),
   status: z.enum(['draft', 'published', 'archived']).optional().default('draft'),

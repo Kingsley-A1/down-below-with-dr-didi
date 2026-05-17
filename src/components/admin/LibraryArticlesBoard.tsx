@@ -35,7 +35,7 @@ const EMPTY_FORM: FormState = {
   publishedAt: '',
 }
 
-const CATEGORY_OPTIONS = [
+const TOPIC_SUGGESTIONS = [
   { value: 'menstrual', label: 'Menstrual Health' },
   { value: 'sexual-wellness', label: 'Sexual Wellness' },
   { value: 'preventative', label: 'Preventative Care' },
@@ -74,7 +74,7 @@ function estimateReadTime(content: string) {
 }
 
 function categoryLabel(category: string) {
-  return CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? category
+  return TOPIC_SUGGESTIONS.find((option) => option.value === category)?.label ?? category
 }
 
 async function readJsonResponse(response: Response) {
@@ -103,6 +103,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
   const [uploadProgress, setUploadProgress] = useState(0)
   const [message, setMessage] = useState('')
   const [pendingDelete, setPendingDelete] = useState<LibraryArticleRecord | null>(null)
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState('')
 
   const coverPreviewUrl = useMemo(() => {
     if (coverFile) {
@@ -127,16 +128,20 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     }
   }, [coverFile, coverPreviewUrl])
 
-  useEffect(() => {
+  function set<K extends keyof FormState>(field: K, value: FormState[K]) {
+    updateForm({ ...form, [field]: value })
+  }
+
+  function updateForm(nextForm: FormState) {
+    setForm(nextForm)
+
     if (!showForm) {
       return
     }
 
-    writeAdminDraft(editId ? libraryEditDraftKey(editId) : LIBRARY_NEW_DRAFT_KEY, form)
-  }, [editId, form, showForm])
-
-  function set<K extends keyof FormState>(field: K, value: FormState[K]) {
-    setForm((previous) => ({ ...previous, [field]: value }))
+    const savedAt = new Date().toISOString()
+    writeAdminDraft(editId ? libraryEditDraftKey(editId) : LIBRARY_NEW_DRAFT_KEY, nextForm)
+    setLastDraftSavedAt(savedAt)
   }
 
   async function refresh() {
@@ -158,6 +163,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setCoverFile(null)
     setUploadProgress(0)
     setShowForm(true)
+    setLastDraftSavedAt(draft?.savedAt ?? '')
     setMessage(draft ? `Recovered a library draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -180,6 +186,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setCoverFile(null)
     setUploadProgress(0)
     setShowForm(true)
+    setLastDraftSavedAt(draft?.savedAt ?? '')
     setMessage(draft ? `Recovered a library draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -191,6 +198,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setSlugManual(false)
     setCoverFile(null)
     setUploadProgress(0)
+    setLastDraftSavedAt('')
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -327,10 +335,11 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                   value={form.title}
                   onChange={(event) => {
                     const title = event.target.value
-                    set('title', title)
-                    if (!slugManual && !editId) {
-                      set('slug', slugify(title))
-                    }
+                    updateForm({
+                      ...form,
+                      title,
+                      slug: !slugManual && !editId ? slugify(title) : form.slug,
+                    })
                   }}
                   required
                   minLength={8}
@@ -396,13 +405,26 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
 
             <aside className="space-y-4">
               <Field label="Topic *">
-                <select value={form.category} onChange={(event) => set('category', event.target.value)} className="input-field">
-                  {CATEGORY_OPTIONS.map((category) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
+                <input
+                  list="library-topic-suggestions"
+                  value={form.category}
+                  onChange={(event) => set('category', event.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  className="input-field"
+                  placeholder="Type a topic or pick a suggestion"
+                />
+                <datalist id="library-topic-suggestions">
+                  {TOPIC_SUGGESTIONS.map((topic) => (
+                    <option key={topic.value} value={topic.value}>
+                      {topic.label}
                     </option>
                   ))}
-                </select>
+                </datalist>
+                <p className="font-body text-xs text-slate-500">
+                  Choose a suggested topic or type a new one for this article.
+                </p>
               </Field>
               <Field label="Status *">
                 <select value={form.status} onChange={(event) => set('status', event.target.value as Status)} className="input-field">
@@ -442,7 +464,14 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Public Preview</p>
                 <h4 className="mt-2 font-heading text-lg font-bold text-slate-900">{form.title || 'Article title'}</h4>
+                <p className="mt-1 font-body text-xs font-semibold text-emerald-800">{categoryLabel(form.category) || 'Topic'}</p>
                 <p className="mt-2 font-body text-sm text-slate-600 line-clamp-4">{form.excerpt || 'Summary appears here.'}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Draft autosave</p>
+                <p className="mt-1 font-body text-xs text-emerald-800">
+                  {lastDraftSavedAt ? `Saved locally ${new Date(lastDraftSavedAt).toLocaleTimeString('en-NG')}` : 'Your draft saves locally as you write.'}
+                </p>
               </div>
             </aside>
           </div>
