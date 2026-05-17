@@ -369,7 +369,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                     value={form.slug}
                     onChange={(event) => set('slug', slugify(event.target.value))}
                     required
-                    pattern="[a-z0-9-]+"
+                    pattern="[a-z0-9\-]+"
                     className="mt-3 input-field"
                   />
                 ) : null}

@@ -389,7 +389,7 @@ export default function PodcastEpisodesBoard({
                     value={form.slug}
                     onChange={(e) => set('slug', slugify(e.target.value))}
                     required
-                    pattern="[a-z0-9-]+"
+                    pattern="[a-z0-9\-]+"
                     className="input-field"
                   />
                   <button type="button" onClick={() => { setSlugManual(false); set('slug', slugify(form.title)) }} className="rounded-xl border px-3 py-2 text-xs font-semibold text-slate-600">

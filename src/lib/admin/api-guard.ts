@@ -37,5 +37,9 @@ export function mapApiError(
     return NextResponse.json({ error: message }, { status: 404 })
   }
 
+  if (message.startsWith('Validation failed:')) {
+    return NextResponse.json({ error: message.replace('Validation failed: ', '') }, { status: 400 })
+  }
+
   return NextResponse.json({ error: message }, { status: 500 })
 }

@@ -312,7 +312,7 @@ export default function GalleryImagesBoard({
                     value={form.slug}
                     onChange={(e) => set('slug', e.target.value)}
                     required
-                    pattern="[a-z0-9-]+"
+                    pattern="[a-z0-9\-]+"
                     title="Lowercase letters, numbers, hyphens only"
                     className="input-field flex-1"
                   />

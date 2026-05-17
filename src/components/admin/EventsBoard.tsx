@@ -26,7 +26,7 @@ const EMPTY_FORM = {
   engagementEnabled: true,
   status: 'draft' as EventStatus,
   publishedAt: '',
-  sortOrder: 0,
+  sortOrder: '',
 }
 
 type FormState = typeof EMPTY_FORM
@@ -42,10 +42,34 @@ function slugify(value: string) {
 
 function getTone(message: string) {
   const value = message.toLowerCase()
-  if (value.includes('failed') || value.includes('error') || value.includes('required')) {
+  if (value.includes('failed') || value.includes('error') || value.includes('required') || value.includes('invalid') || value.includes('already')) {
     return 'error' as const
   }
   return 'success' as const
+}
+
+async function readAdminResponse(response: Response) {
+  const text = await response.text()
+
+  if (!text.trim()) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(text) as { error?: string; issues?: { message?: string; path?: Array<string | number> }[]; events?: EventRecord[]; event?: EventRecord }
+  } catch {
+    return { error: text.slice(0, 240) }
+  }
+}
+
+function adminErrorMessage(data: { error?: string; issues?: { message?: string; path?: Array<string | number> }[] }, fallback: string) {
+  const firstIssue = data.issues?.[0]
+  if (firstIssue?.message) {
+    const path = firstIssue.path?.join('.')
+    return path ? `${path}: ${firstIssue.message}` : firstIssue.message
+  }
+
+  return data.error || fallback
 }
 
 function toDatetimeInput(value: string | null) {
@@ -98,11 +122,11 @@ export default function EventsBoard({
 
   async function refresh() {
     const response = await fetch('/api/admin/events', { cache: 'no-store' })
-    const data = await response.json()
+    const data = await readAdminResponse(response)
     setEvents(data.events || [])
   }
 
-  function set(field: keyof FormState, value: string | number | boolean) {
+  function set(field: keyof FormState, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -134,7 +158,7 @@ export default function EventsBoard({
       engagementEnabled: event.engagementEnabled,
       status: event.status,
       publishedAt: toDatetimeInput(event.publishedAt),
-      sortOrder: event.sortOrder,
+      sortOrder: String(event.sortOrder),
     })
     setCoverFile(null)
     setShowForm(true)
@@ -155,6 +179,16 @@ export default function EventsBoard({
     setMsg('')
 
     let coverImageUrl = form.coverImageUrl
+    const sortOrderValue = form.sortOrder.trim()
+
+    if (sortOrderValue) {
+      const parsedSortOrder = Number(sortOrderValue)
+      if (!Number.isInteger(parsedSortOrder) || parsedSortOrder < 0) {
+        setBusy(false)
+        setMsg('Sort order must be a whole number of 0 or higher.')
+        return
+      }
+    }
 
     if (coverFile) {
       setUploading(true)
@@ -178,9 +212,14 @@ export default function EventsBoard({
     const method = editId ? 'PUT' : 'POST'
 
     const payload = {
-      ...form,
+      slug: form.slug,
+      title: form.title,
+      summary: form.summary,
+      isLive: form.isLive,
+      engagementEnabled: form.engagementEnabled,
+      status: form.status,
       coverImageUrl,
-      body: form.body || undefined,
+      body: form.body.trim() || undefined,
       coverImageAlt: form.coverImageAlt || undefined,
       communityLabel: form.communityLabel || undefined,
       location: form.location || undefined,
@@ -189,6 +228,7 @@ export default function EventsBoard({
       streamUrl: form.streamUrl || undefined,
       streamProvider: form.streamProvider || undefined,
       publishedAt: form.publishedAt ? new Date(form.publishedAt).toISOString() : undefined,
+      ...(sortOrderValue && { sortOrder: Number(sortOrderValue) }),
     }
 
     const response = await fetch(endpoint, {
@@ -197,11 +237,11 @@ export default function EventsBoard({
       body: JSON.stringify(payload),
     })
 
-    const data = await response.json()
+    const data = await readAdminResponse(response)
     setBusy(false)
 
     if (!response.ok) {
-      setMsg(data.error || 'Save failed')
+      setMsg(adminErrorMessage(data, 'Save failed'))
       return
     }
 
@@ -219,11 +259,11 @@ export default function EventsBoard({
     setMsg('')
 
     const response = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' })
-    const data = await response.json()
+    const data = await readAdminResponse(response)
     setBusy(false)
 
     if (!response.ok) {
-      setMsg(data.error || 'Delete failed')
+      setMsg(adminErrorMessage(data, 'Delete failed'))
       return
     }
 
@@ -319,9 +359,10 @@ export default function EventsBoard({
                   value={form.slug}
                   onChange={(e) => {
                     setSlugManual(true)
-                    set('slug', e.target.value)
+                    set('slug', slugify(e.target.value))
                   }}
                   readOnly={Boolean(editId)}
+                  pattern="[a-z0-9\-]+"
                   required
                 />
                 {!editId ? (
@@ -341,6 +382,7 @@ export default function EventsBoard({
             <label className="space-y-2 text-sm">
               <span className="font-semibold text-slate-700">Body</span>
               <textarea className="w-full rounded-xl border px-3 py-2" value={form.body} onChange={(e) => set('body', e.target.value)} />
+              <span className="block text-xs text-slate-500">Optional. Use this only when the event needs a longer description.</span>
             </label>
           </div>
 
@@ -355,7 +397,17 @@ export default function EventsBoard({
             </label>
             <label className="space-y-2 text-sm">
               <span className="font-semibold text-slate-700">Sort Order</span>
-              <input type="number" min={0} className="w-full rounded-xl border px-3 py-2" value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value || 0))} />
+              <input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                className="w-full rounded-xl border px-3 py-2"
+                value={form.sortOrder}
+                onChange={(e) => set('sortOrder', e.target.value)}
+                placeholder={editId ? 'Keep current position' : 'Auto: first position'}
+              />
+              <span className="block text-xs text-slate-500">Optional. Leave blank to place a new event first, or type a unique number.</span>
             </label>
           </div>
 

@@ -16,11 +16,11 @@ export default async function MePage() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-10 md:px-6 md:py-14" style={{ backgroundColor: 'var(--color-surface)' }}>
+    <main className="min-h-screen px-4 pb-12 pt-24 md:px-6 md:pb-16 md:pt-28" style={{ backgroundColor: 'var(--color-surface)' }}>
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <section
           className="overflow-hidden rounded-[28px] border bg-white"
-          style={{ borderColor: 'var(--color-border)', boxShadow: '0 12px 30px rgba(2, 12, 27, 0.08)' }}
+          style={{ borderColor: 'var(--color-border)', boxShadow: '0 8px 22px rgba(2, 12, 27, 0.045)' }}
         >
           <div
             className="border-b px-6 py-6 md:px-8"

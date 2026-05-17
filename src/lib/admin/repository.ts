@@ -2992,9 +2992,11 @@ function eventDateFromIso(value?: string | null): Date | null {
 const eventsModels = prisma as unknown as {
   outreachEvent: {
     findMany: (...args: unknown[]) => Promise<unknown[]>
+    findFirst: (...args: unknown[]) => Promise<unknown>
     findUnique: (...args: unknown[]) => Promise<unknown>
     create: (...args: unknown[]) => Promise<unknown>
     update: (...args: unknown[]) => Promise<unknown>
+    updateMany: (...args: unknown[]) => Promise<unknown>
     delete: (...args: unknown[]) => Promise<unknown>
   }
   eventComment: {
@@ -3074,34 +3076,62 @@ export async function createEvent(
     throw new Error('Database is not configured')
   }
 
-  const record = (await eventsModels.outreachEvent.create({
-    data: {
-      slug: input.slug.trim(),
-      title: input.title.trim(),
-      summary: input.summary.trim(),
-      body: input.body?.trim() || null,
-      coverImageUrl: input.coverImageUrl?.trim() || null,
-      coverImageAlt: input.coverImageAlt?.trim() || null,
-      communityLabel: input.communityLabel?.trim() || null,
-      location: input.location?.trim() || null,
-      scheduledAt: eventDateFromIso(input.scheduledAt),
-      endedAt: eventDateFromIso(input.endedAt),
-      streamUrl: input.streamUrl?.trim() || null,
-      streamProvider: input.streamProvider?.trim() || null,
-      isLive: input.isLive ?? false,
-      engagementEnabled: input.engagementEnabled ?? true,
-      status: normalizeEventStatus(input.status),
-      publishedAt: eventDateFromIso(input.publishedAt),
-      sortOrder: input.sortOrder ?? 0,
-    },
-    include: {
-      _count: {
-        select: {
-          likes: true,
-          comments: true,
+  const nextSortOrder = input.sortOrder ?? 0
+
+  const record = (await prisma.$transaction(async (tx) => {
+    const txEvents = tx as unknown as {
+      outreachEvent: {
+        findFirst: (...args: unknown[]) => Promise<unknown>
+        updateMany: (...args: unknown[]) => Promise<unknown>
+        create: (...args: unknown[]) => Promise<unknown>
+      }
+    }
+
+    if (input.sortOrder !== undefined) {
+      const existingAtPosition = await txEvents.outreachEvent.findFirst({
+        where: { sortOrder: nextSortOrder },
+        select: { id: true, title: true },
+      }) as { id: string; title: string } | null
+
+      if (existingAtPosition) {
+        throw new Error(`Validation failed: Sort order ${nextSortOrder} is already used by "${existingAtPosition.title}". Choose another position or leave it blank for automatic placement.`)
+      }
+    } else {
+      await txEvents.outreachEvent.updateMany({
+        where: { sortOrder: { gte: 0 } },
+        data: { sortOrder: { increment: 1 } },
+      })
+    }
+
+    return txEvents.outreachEvent.create({
+      data: {
+        slug: input.slug.trim(),
+        title: input.title.trim(),
+        summary: input.summary.trim(),
+        body: input.body?.trim() || null,
+        coverImageUrl: input.coverImageUrl?.trim() || null,
+        coverImageAlt: input.coverImageAlt?.trim() || null,
+        communityLabel: input.communityLabel?.trim() || null,
+        location: input.location?.trim() || null,
+        scheduledAt: eventDateFromIso(input.scheduledAt),
+        endedAt: eventDateFromIso(input.endedAt),
+        streamUrl: input.streamUrl?.trim() || null,
+        streamProvider: input.streamProvider?.trim() || null,
+        isLive: input.isLive ?? false,
+        engagementEnabled: input.engagementEnabled ?? true,
+        status: normalizeEventStatus(input.status),
+        publishedAt: eventDateFromIso(input.publishedAt),
+        sortOrder: nextSortOrder,
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
         },
       },
-    },
+    })
   })) as EventDbRecord
 
   await writeAuditLog({
@@ -3148,35 +3178,58 @@ export async function updateEvent(
     throw new Error('Database is not configured')
   }
 
-  const record = (await eventsModels.outreachEvent.update({
-    where: { id },
-    data: {
-      ...(input.slug !== undefined && { slug: input.slug.trim() }),
-      ...(input.title !== undefined && { title: input.title.trim() }),
-      ...(input.summary !== undefined && { summary: input.summary.trim() }),
-      ...(input.body !== undefined && { body: input.body?.trim() || null }),
-      ...(input.coverImageUrl !== undefined && { coverImageUrl: input.coverImageUrl?.trim() || null }),
-      ...(input.coverImageAlt !== undefined && { coverImageAlt: input.coverImageAlt?.trim() || null }),
-      ...(input.communityLabel !== undefined && { communityLabel: input.communityLabel?.trim() || null }),
-      ...(input.location !== undefined && { location: input.location?.trim() || null }),
-      ...(input.scheduledAt !== undefined && { scheduledAt: eventDateFromIso(input.scheduledAt) }),
-      ...(input.endedAt !== undefined && { endedAt: eventDateFromIso(input.endedAt) }),
-      ...(input.streamUrl !== undefined && { streamUrl: input.streamUrl?.trim() || null }),
-      ...(input.streamProvider !== undefined && { streamProvider: input.streamProvider?.trim() || null }),
-      ...(input.isLive !== undefined && { isLive: input.isLive }),
-      ...(input.engagementEnabled !== undefined && { engagementEnabled: input.engagementEnabled }),
-      ...(input.status !== undefined && { status: normalizeEventStatus(input.status) }),
-      ...(input.publishedAt !== undefined && { publishedAt: eventDateFromIso(input.publishedAt) }),
-      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
-    },
-    include: {
-      _count: {
-        select: {
-          likes: true,
-          comments: true,
+  const record = (await prisma.$transaction(async (tx) => {
+    const txEvents = tx as unknown as {
+      outreachEvent: {
+        findFirst: (...args: unknown[]) => Promise<unknown>
+        update: (...args: unknown[]) => Promise<unknown>
+      }
+    }
+
+    if (input.sortOrder !== undefined) {
+      const existingAtPosition = await txEvents.outreachEvent.findFirst({
+        where: {
+          sortOrder: input.sortOrder,
+          id: { not: id },
+        },
+        select: { id: true, title: true },
+      }) as { id: string; title: string } | null
+
+      if (existingAtPosition) {
+        throw new Error(`Validation failed: Sort order ${input.sortOrder} is already used by "${existingAtPosition.title}". Choose another position.`)
+      }
+    }
+
+    return txEvents.outreachEvent.update({
+      where: { id },
+      data: {
+        ...(input.slug !== undefined && { slug: input.slug.trim() }),
+        ...(input.title !== undefined && { title: input.title.trim() }),
+        ...(input.summary !== undefined && { summary: input.summary.trim() }),
+        ...(input.body !== undefined && { body: input.body?.trim() || null }),
+        ...(input.coverImageUrl !== undefined && { coverImageUrl: input.coverImageUrl?.trim() || null }),
+        ...(input.coverImageAlt !== undefined && { coverImageAlt: input.coverImageAlt?.trim() || null }),
+        ...(input.communityLabel !== undefined && { communityLabel: input.communityLabel?.trim() || null }),
+        ...(input.location !== undefined && { location: input.location?.trim() || null }),
+        ...(input.scheduledAt !== undefined && { scheduledAt: eventDateFromIso(input.scheduledAt) }),
+        ...(input.endedAt !== undefined && { endedAt: eventDateFromIso(input.endedAt) }),
+        ...(input.streamUrl !== undefined && { streamUrl: input.streamUrl?.trim() || null }),
+        ...(input.streamProvider !== undefined && { streamProvider: input.streamProvider?.trim() || null }),
+        ...(input.isLive !== undefined && { isLive: input.isLive }),
+        ...(input.engagementEnabled !== undefined && { engagementEnabled: input.engagementEnabled }),
+        ...(input.status !== undefined && { status: normalizeEventStatus(input.status) }),
+        ...(input.publishedAt !== undefined && { publishedAt: eventDateFromIso(input.publishedAt) }),
+        ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
         },
       },
-    },
+    })
   })) as EventDbRecord
 
   await writeAuditLog({
