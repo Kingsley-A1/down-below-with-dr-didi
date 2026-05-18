@@ -7,7 +7,7 @@ import { listSiteAlerts } from '@/lib/admin/repository'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminAlertsPage() {
-  await requireAdminPageSession({ nextPath: '/admin/alerts' })
+  await requireAdminPageSession({ nextPath: '/admin/alerts', requiredRole: 'editor' })
 
   let alerts: Awaited<ReturnType<typeof listSiteAlerts>>
   let loadWarning: { requestId: string; userMessage: string } | null = null

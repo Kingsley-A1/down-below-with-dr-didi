@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'moderator')
+  const roleError = requireAdminRole(session, 'editor')
   if (roleError) {
     return roleError
   }

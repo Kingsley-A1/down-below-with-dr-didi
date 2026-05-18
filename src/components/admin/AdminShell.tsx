@@ -115,6 +115,10 @@ function AdminNav({
                 return role === 'super_admin' || role === 'founder_admin'
               }
 
+              if (link.href === '/admin/alerts') {
+                return role === 'super_admin' || role === 'founder_admin' || role === 'editor'
+              }
+
               return true
             }).map((link) => {
               const active = isActivePath(pathname, link.href)
