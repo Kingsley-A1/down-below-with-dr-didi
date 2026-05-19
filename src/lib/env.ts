@@ -29,6 +29,11 @@ const envSchema = z.object({
 
 const adminEnvSchema = z.object({
   ADMIN_SESSION_SECRET: z.string().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
+  ADMIN_ACCESS_CODE: z
+    .string()
+    .optional()
+    .default('')
+    .refine((value) => value === '' || /^\d{6}$/.test(value), 'ADMIN_ACCESS_CODE must be exactly 6 digits'),
   ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_SUPER_ADMIN_ACCESS_CODE must be exactly 6 digits'),
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_FOUNDER_ADMIN_ACCESS_CODE must be exactly 6 digits'),
   ADMIN_EDITOR_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_EDITOR_ACCESS_CODE must be exactly 6 digits'),
@@ -94,6 +99,7 @@ export function getAdminEnv() {
 
   const adminEnv = adminEnvSchema.parse({
     ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
+    ADMIN_ACCESS_CODE: process.env.ADMIN_ACCESS_CODE,
     ADMIN_SUPER_ADMIN_ACCESS_CODE: process.env.ADMIN_SUPER_ADMIN_ACCESS_CODE,
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: process.env.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
     ADMIN_EDITOR_ACCESS_CODE: process.env.ADMIN_EDITOR_ACCESS_CODE,
@@ -107,10 +113,11 @@ export function getAdminEnv() {
   }
 
   const adminCodes = [
+    adminEnv.ADMIN_ACCESS_CODE,
     adminEnv.ADMIN_SUPER_ADMIN_ACCESS_CODE,
     adminEnv.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
     adminEnv.ADMIN_EDITOR_ACCESS_CODE,
-  ]
+  ].filter(Boolean)
 
   if (new Set(adminCodes).size !== adminCodes.length) {
     throw new Error('[env] Admin registration codes must be unique per role.')

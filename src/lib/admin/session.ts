@@ -3,9 +3,7 @@ import { normaliseAdminRole, type AdminRole } from '@/lib/admin/rbac'
 
 export const ADMIN_SESSION_COOKIE = 'dbfh_admin_session'
 
-const adminRegistrationRoles = ['super_admin', 'founder_admin', 'editor'] as const
-
-type AdminRegistrationRole = (typeof adminRegistrationRoles)[number]
+type AdminRegistrationRole = 'super_admin' | 'founder_admin' | 'editor' | 'moderator'
 
 export type AdminSession = {
   email: string
@@ -156,11 +154,13 @@ export function resolveAdminRegistrationRole(accessCode: string): AdminRegistrat
   }
 
   const adminEnv = getAdminEnv()
-  const roleCodes: Array<{ role: AdminRegistrationRole; code: string }> = [
+  const configuredRoleCodes: Array<{ role: AdminRegistrationRole; code: string }> = [
+    { role: 'moderator', code: adminEnv.ADMIN_ACCESS_CODE },
     { role: 'super_admin', code: adminEnv.ADMIN_SUPER_ADMIN_ACCESS_CODE },
     { role: 'founder_admin', code: adminEnv.ADMIN_FOUNDER_ADMIN_ACCESS_CODE },
     { role: 'editor', code: adminEnv.ADMIN_EDITOR_ACCESS_CODE },
   ]
+  const roleCodes = configuredRoleCodes.filter((entry) => entry.code)
 
   for (const entry of roleCodes) {
     if (safeEqual(entry.code, trimmedAccessCode)) {
