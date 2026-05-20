@@ -16,28 +16,35 @@ const envSchema = z.object({
   R2_BUCKET: z.string().optional().default(''),
   R2_PUBLIC_URL: z.string().optional().default(''),
   // Admin secrets are validated lazily via getAdminEnv().
-  ADMIN_SESSION_SECRET: z.string().optional().default(''),
-  ADMIN_ACCESS_CODE: z.string().optional().default(''),
-  ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().optional().default(''),
-  ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().optional().default(''),
-  ADMIN_EDITOR_ACCESS_CODE: z.string().optional().default(''),
-  ADMIN_SUPPORT_PHONE: z.string().optional().default('09036826272'),
+  ADMIN_SESSION_SECRET: z.string().trim().optional().default(''),
+  ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
+  ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
+  ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
+  ADMIN_EDITOR_ACCESS_CODE: z.string().trim().optional().default(''),
+  ADMIN_SUPPORT_PHONE: z.string().trim().optional().default('09036826272'),
   ADMIN_ALLOWED_USERS: z.string().default('deblessedking001@gmail.com:super_admin'),
   VAULT_SUBMISSIONS_ENABLED: z.string().optional().default('true'),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com'),
 })
 
-const adminEnvSchema = z.object({
-  ADMIN_SESSION_SECRET: z.string().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
-  ADMIN_ACCESS_CODE: z
+const optionalAdminAccessCodeSchema = (key: string) =>
+  z
     .string()
+    .trim()
     .optional()
     .default('')
-    .refine((value) => value === '' || /^\d{6}$/.test(value), 'ADMIN_ACCESS_CODE must be exactly 6 digits'),
-  ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_SUPER_ADMIN_ACCESS_CODE must be exactly 6 digits'),
-  ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_FOUNDER_ADMIN_ACCESS_CODE must be exactly 6 digits'),
-  ADMIN_EDITOR_ACCESS_CODE: z.string().regex(/^\d{6}$/, 'ADMIN_EDITOR_ACCESS_CODE must be exactly 6 digits'),
-  ADMIN_SUPPORT_PHONE: z.string().regex(/^\+?\d{7,15}$/, 'ADMIN_SUPPORT_PHONE must be a valid phone number'),
+    .refine((value) => value === '' || /^\d{6}$/.test(value), `${key} must be exactly 6 digits`)
+
+const requiredAdminAccessCodeSchema = (key: string) =>
+  z.string().trim().regex(/^\d{6}$/, `${key} must be exactly 6 digits`)
+
+const adminEnvSchema = z.object({
+  ADMIN_SESSION_SECRET: z.string().trim().min(32, 'ADMIN_SESSION_SECRET must be at least 32 characters'),
+  ADMIN_ACCESS_CODE: optionalAdminAccessCodeSchema('ADMIN_ACCESS_CODE'),
+  ADMIN_SUPER_ADMIN_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_SUPER_ADMIN_ACCESS_CODE'),
+  ADMIN_FOUNDER_ADMIN_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_FOUNDER_ADMIN_ACCESS_CODE'),
+  ADMIN_EDITOR_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_EDITOR_ACCESS_CODE'),
+  ADMIN_SUPPORT_PHONE: z.string().trim().regex(/^\+?\d{7,15}$/, 'ADMIN_SUPPORT_PHONE must be a valid phone number'),
 })
 
 function normalizeSiteUrl(value: string | undefined) {
@@ -90,21 +97,30 @@ const parsed = envSchema.parse({
 
 export const env = parsed
 
-let adminEnvCache: z.infer<typeof adminEnvSchema> | null = null
+type AdminEnv = z.infer<typeof adminEnvSchema>
 
-export function getAdminEnv() {
-  if (adminEnvCache) {
-    return adminEnvCache
-  }
+let adminEnvCache: { signature: string; value: AdminEnv } | null = null
 
-  const adminEnv = adminEnvSchema.parse({
+function getRawAdminEnv() {
+  return {
     ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
     ADMIN_ACCESS_CODE: process.env.ADMIN_ACCESS_CODE,
     ADMIN_SUPER_ADMIN_ACCESS_CODE: process.env.ADMIN_SUPER_ADMIN_ACCESS_CODE,
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: process.env.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
     ADMIN_EDITOR_ACCESS_CODE: process.env.ADMIN_EDITOR_ACCESS_CODE,
     ADMIN_SUPPORT_PHONE: process.env.ADMIN_SUPPORT_PHONE,
-  })
+  }
+}
+
+export function getAdminEnv() {
+  const rawAdminEnv = getRawAdminEnv()
+  const signature = JSON.stringify(rawAdminEnv)
+
+  if (adminEnvCache?.signature === signature) {
+    return adminEnvCache.value
+  }
+
+  const adminEnv = adminEnvSchema.parse(rawAdminEnv)
 
   if (KNOWN_INSECURE_SECRETS.has(adminEnv.ADMIN_SESSION_SECRET)) {
     throw new Error(
@@ -123,8 +139,8 @@ export function getAdminEnv() {
     throw new Error('[env] Admin registration codes must be unique per role.')
   }
 
-  adminEnvCache = adminEnv
-  return adminEnvCache
+  adminEnvCache = { signature, value: adminEnv }
+  return adminEnvCache.value
 }
 
 export function hasDatabaseConfig() {

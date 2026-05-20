@@ -60,15 +60,16 @@ function textToBytes(value: string) {
   return new TextEncoder().encode(value)
 }
 
-let cachedSecretKeyPromise: Promise<CryptoKey> | null = null
+let cachedSecretKey: { secret: string; promise: Promise<CryptoKey> } | null = null
 
 function getAdminSecretKey() {
-  if (cachedSecretKeyPromise) {
-    return cachedSecretKeyPromise
+  const adminEnv = getAdminEnv()
+
+  if (cachedSecretKey?.secret === adminEnv.ADMIN_SESSION_SECRET) {
+    return cachedSecretKey.promise
   }
 
-  const adminEnv = getAdminEnv()
-  cachedSecretKeyPromise = crypto.subtle.importKey(
+  const promise = crypto.subtle.importKey(
     'raw',
     textToBytes(adminEnv.ADMIN_SESSION_SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
@@ -76,7 +77,8 @@ function getAdminSecretKey() {
     ['sign']
   )
 
-  return cachedSecretKeyPromise
+  cachedSecretKey = { secret: adminEnv.ADMIN_SESSION_SECRET, promise }
+  return promise
 }
 
 async function signPayload(payload: string) {
