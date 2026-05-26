@@ -19,11 +19,11 @@ export const dynamic = 'force-dynamic'
 
 function getTeamImageObjectPosition(name: string): string {
   if (name === 'Mr. Etoma Eugene') {
-    return 'center 16%'
+    return 'center top'
   }
 
   if (name === 'Mrs. Ebani Clarkson Agbor') {
-    return 'center 18%'
+    return 'center top'
   }
 
   if (name === 'Dr. Mrs Edidiong Ekereuke') {
@@ -229,7 +229,7 @@ function TeamMemberCard({ member }: { member: PublicTeamMember }) {
       style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
     >
       {/* Photo */}
-      <div className="relative w-full" style={{ aspectRatio: '3/4', maxHeight: '260px' }}>
+      <div className="relative h-[260px] w-full">
         {member.imageUrl ? (
           <Image
             src={member.imageUrl}

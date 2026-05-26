@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
 
-const PUBLIC_ADMIN_PATHS = new Set(['/admin/sign-in', '/admin/register'])
+const PUBLIC_ADMIN_PATHS = new Set([
+  '/admin/sign-in',
+  '/admin/register',
+  '/admin/verify-email',
+  '/admin/forgot-password',
+  '/admin/reset-password',
+])
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl

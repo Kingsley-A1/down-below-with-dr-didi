@@ -16,6 +16,7 @@ function buildSession(role: AdminRole): AdminSession {
     email: `${role}@example.com`,
     role,
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    tokenVersion: 0,
   }
 }
 

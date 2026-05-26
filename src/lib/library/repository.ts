@@ -1,6 +1,8 @@
+import { Prisma } from '@prisma/client'
 import { articles as staticArticles } from '@/data/articles'
 import { hasDatabaseConfig } from '@/lib/env'
 import { prisma } from '@/lib/prisma'
+import { readPublicDatabase } from '@/lib/public-database'
 import { writeAuditLog } from '@/lib/admin/repository'
 import type { AdminRole } from '@/lib/admin/rbac'
 
@@ -45,6 +47,21 @@ type ArticleDbRecord = {
 const DEFAULT_COVER_IMAGE = '/assets/IMG-20260508-WA0032.jpg'
 const DEFAULT_AUTHOR = 'Dr. Didi'
 
+const articleSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  excerpt: true,
+  content: true,
+  category: true,
+  coverImageUrl: true,
+  readTime: true,
+  status: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ArticleSelect
+
 function splitContentBlocks(content: string) {
   return content
     .split(/\n{2,}/)
@@ -65,6 +82,47 @@ function tagsFromArticle(input: { title: string; category: string }) {
     .slice(0, 4)
 
   return Array.from(new Set([input.category, ...titleTags]))
+}
+
+function isKnownPrismaError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
+  return error instanceof Prisma.PrismaClientKnownRequestError
+}
+
+function toLibraryErrorPayload(error: unknown): { name: string; message: string; code?: string } {
+  if (isKnownPrismaError(error)) {
+    return { name: error.name, message: error.message, code: error.code }
+  }
+
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message }
+  }
+
+  return { name: 'UnknownError', message: String(error) }
+}
+
+function logPublicLibraryFallback(context: string, error: unknown): void {
+  if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
+  console.warn('[library.public.fallback]', {
+    context,
+    timestamp: new Date().toISOString(),
+    ...toLibraryErrorPayload(error),
+  })
+}
+
+async function readPublicLibraryWithFallback<T>(
+  context: string,
+  fallback: T,
+  query: () => Promise<T>
+): Promise<T> {
+  return readPublicDatabase({
+    context,
+    fallback,
+    query,
+    onError: logPublicLibraryFallback,
+  })
 }
 
 function staticArticleRecords(): LibraryArticleRecord[] {
@@ -152,22 +210,22 @@ async function ensureSeedArticles() {
       status: 'published' as const,
       publishedAt: new Date(article.publishedAt),
     })),
+    skipDuplicates: true,
   })
 }
 
 export async function getPublishedLibraryArticles(): Promise<PublicLibraryArticle[]> {
-  if (!hasDatabaseConfig()) {
-    return staticArticleRecords()
-  }
+  return readPublicLibraryWithFallback('articles.published', staticArticleRecords(), async () => {
+    await ensureSeedArticles()
 
-  await ensureSeedArticles()
+    const records = await prisma.article.findMany({
+      where: { status: 'published' },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      select: articleSelect,
+    })
 
-  const records = await prisma.article.findMany({
-    where: { status: 'published' },
-    orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+    return records.map((record: ArticleDbRecord) => toPublicArticle(record))
   })
-
-  return records.map((record: ArticleDbRecord) => toPublicArticle(record))
 }
 
 export async function getAllLibraryArticles(): Promise<LibraryArticleRecord[]> {
@@ -179,23 +237,25 @@ export async function getAllLibraryArticles(): Promise<LibraryArticleRecord[]> {
 
   const records = await prisma.article.findMany({
     orderBy: [{ updatedAt: 'desc' }],
+    select: articleSelect,
   })
 
   return records.map((record: ArticleDbRecord) => mapArticle(record))
 }
 
 export async function getLibraryArticleBySlug(slug: string): Promise<PublicLibraryArticle | null> {
-  if (!hasDatabaseConfig()) {
-    return staticArticleRecords().find((article) => article.slug === slug && article.status === 'published') ?? null
-  }
+  const fallback = staticArticleRecords().find((article) => article.slug === slug && article.status === 'published') ?? null
 
-  await ensureSeedArticles()
+  return readPublicLibraryWithFallback('articles.by_slug', fallback, async () => {
+    await ensureSeedArticles()
 
-  const record = await prisma.article.findFirst({
-    where: { slug, status: 'published' },
+    const record = await prisma.article.findFirst({
+      where: { slug, status: 'published' },
+      select: articleSelect,
+    })
+
+    return record ? toPublicArticle(record as ArticleDbRecord) : null
   })
-
-  return record ? toPublicArticle(record as ArticleDbRecord) : null
 }
 
 export async function createLibraryArticle(

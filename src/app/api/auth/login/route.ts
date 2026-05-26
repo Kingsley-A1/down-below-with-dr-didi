@@ -110,6 +110,18 @@ export async function POST(request: NextRequest) {
     await resetFailedLoginAttempts(user.id)
     limiter.reset(loginRateLimitKey)
 
+    // Email verification is mandatory before a session is issued.
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Please verify your email before signing in. Check your inbox for the verification link.',
+          requiresEmailVerification: true,
+        },
+        { status: 403 }
+      )
+    }
+
     // Create session
     await createSession({
       userId: user.id,

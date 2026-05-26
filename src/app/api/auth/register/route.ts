@@ -3,6 +3,9 @@ import { createUser } from '@/lib/admin/user-repository'
 import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
 import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userRegisterSchema } from '@/lib/validations'
+import { sendEmail } from '@/lib/email/send'
+import { verifyEmail as verifyEmailTemplate } from '@/lib/email/templates'
+import { env } from '@/lib/env'
 
 function isMissingUserTableError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -10,6 +13,11 @@ function isMissingUserTableError(error: unknown) {
   }
 
   return error.message.includes('The table `public.User` does not exist')
+}
+
+function buildVerifyUrl(token: string) {
+  const base = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+  return `${base}/verify-email?token=${encodeURIComponent(token)}`
 }
 
 export async function POST(request: NextRequest) {
@@ -42,7 +50,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Validate input
     const validation = userRegisterSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
@@ -58,7 +65,6 @@ export async function POST(request: NextRequest) {
     const { email, displayName, password, phone } = validation.data
     const normalizedEmail = email.trim().toLowerCase()
 
-    // Create user
     const result = await createUser(normalizedEmail, displayName, password, phone)
     if (!result) {
       return NextResponse.json(
@@ -67,11 +73,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const verifyUrl = buildVerifyUrl(result.verificationToken)
+    const template = verifyEmailTemplate({
+      recipientName: result.user.displayName,
+      actionUrl: verifyUrl,
+      expiresInMinutes: Math.round((result.verificationExpiresAt.getTime() - Date.now()) / 60_000),
+    })
+
+    const sendResult = await sendEmail({
+      to: result.user.email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    })
+
+    // Don't fail the request if email send fails — the user can request a resend.
+    // In production we surface the failure so the UI can show a "request a new
+    // link" CTA. In dev we still want the registration to succeed cleanly.
     return NextResponse.json(
       {
         success: true,
-        message: 'Registration successful. You can now sign in immediately.',
+        message: 'Registration successful. Check your email to verify your account before signing in.',
         user: result.user,
+        emailSent: sendResult.ok,
       },
       { status: 201 }
     )
@@ -89,10 +113,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error && error.message.toLowerCase().includes('already exists')) {
+      // Generic message — don't confirm existence of an account.
       return NextResponse.json(
         {
           success: false,
-          error: 'A user with this email already exists.',
+          error: 'Registration could not be completed. If you already have an account, sign in instead.',
         },
         { status: 409 }
       )

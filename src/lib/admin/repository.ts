@@ -3,10 +3,12 @@ import { hasDatabaseConfig } from '@/lib/env'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
 import { canViewVaultIdentity, type AdminRole } from '@/lib/admin/rbac'
+import { generateEmailVerificationToken } from '@/lib/auth/token'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { gallerySeedItems } from '@/data/gallery'
 import { team as staticTeam } from '@/data/team'
+import { withPrismaRetry } from '@/lib/prisma-retry'
 
 export type DashboardSummary = {
   adminUsers: number
@@ -169,19 +171,15 @@ type AdminAccountDbRecord = {
   lastLoginAt: Date | null
   createdAt: Date
   updatedAt: Date
+  emailVerified: boolean
+  emailVerifyToken: string | null
+  emailVerifyTokenExpiry: Date | null
+  resetToken: string | null
+  resetTokenExpiry: Date | null
+  failedLoginAttempts: number
+  lockoutUntil: Date | null
+  tokenVersion: number
 }
-
-const defaultSiteAlerts = [
-  {
-    text:
-      'Work in Progress: The website is currently being improved. If you notice anything you dislike, please reach out on 09036826272.',
-    speed: 100,
-    durationSeconds: 24,
-    isActive: true,
-    startsAt: new Date('2026-05-11T00:00:00.000Z'),
-    endsAt: null,
-  },
-]
 
 function mapVaultSubmissionRecord(
   record: VaultSubmissionDbRecord,
@@ -347,7 +345,10 @@ export async function registerAdminUserAccount(input: {
   phone: string
   password: string
   role: AdminRole
-}) {
+}): Promise<
+  | (AdminAccountRecord & { verificationToken: string; verificationExpiresAt: Date })
+  | null
+> {
   if (!hasDatabaseConfig()) {
     return null
   }
@@ -363,6 +364,7 @@ export async function registerAdminUserAccount(input: {
 
   const passwordHash = await hashPassword(input.password)
   const includePhone = supportsAdminUserField('phone')
+  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
 
   const writeAccount = async (withPhone: boolean) => {
     return existing
@@ -374,6 +376,14 @@ export async function registerAdminUserAccount(input: {
             passwordHash,
             role: input.role,
             isActive: true,
+            // Schema default is `true` (so the migration backfills existing
+            // admins as verified). New registrations explicitly start
+            // unverified — they have to click the email link before login.
+            emailVerified: false,
+            emailVerifyToken: verificationToken,
+            emailVerifyTokenExpiry: verificationExpiresAt,
+            failedLoginAttempts: 0,
+            lockoutUntil: null,
           },
         })) as AdminAccountDbRecord)
       : ((await prisma.adminUser.create({
@@ -384,6 +394,9 @@ export async function registerAdminUserAccount(input: {
             passwordHash,
             role: input.role,
             isActive: true,
+            emailVerified: false,
+            emailVerifyToken: verificationToken,
+            emailVerifyTokenExpiry: verificationExpiresAt,
           },
         })) as AdminAccountDbRecord)
   }
@@ -400,7 +413,205 @@ export async function registerAdminUserAccount(input: {
     }
   }
 
-  return mapAdminAccountRecord(account)
+  return {
+    ...mapAdminAccountRecord(account),
+    verificationToken,
+    verificationExpiresAt,
+  }
+}
+
+/**
+ * Verify an admin's email by token. Returns the verified admin or null on
+ * invalid/expired tokens. Single-use: the token is cleared on success.
+ */
+export async function verifyAdminEmailToken(
+  token: string
+): Promise<AdminAccountRecord | null> {
+  if (!hasDatabaseConfig() || !token) {
+    return null
+  }
+
+  const account = (await prisma.adminUser.findUnique({
+    where: { emailVerifyToken: token },
+  })) as (AdminAccountDbRecord & { emailVerifyTokenExpiry: Date | null }) | null
+
+  if (!account) {
+    return null
+  }
+
+  if (account.emailVerifyTokenExpiry && account.emailVerifyTokenExpiry.getTime() < Date.now()) {
+    return null
+  }
+
+  const updated = (await prisma.adminUser.update({
+    where: { id: account.id },
+    data: {
+      emailVerified: true,
+      emailVerifyToken: null,
+      emailVerifyTokenExpiry: null,
+    },
+  })) as AdminAccountDbRecord
+
+  return mapAdminAccountRecord(updated)
+}
+
+/**
+ * Re-issue an admin's email verification token. Returns null if no admin
+ * matches the email or the admin is already verified. Callers should respond
+ * with a generic OK to avoid leaking which emails have admin accounts.
+ */
+export async function regenerateAdminEmailVerificationToken(
+  email: string
+): Promise<
+  | { account: AdminAccountRecord; verificationToken: string; verificationExpiresAt: Date }
+  | null
+> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const account = (await prisma.adminUser.findUnique({
+    where: { email: normalizedEmail },
+  })) as AdminAccountDbRecord | null
+
+  if (!account || account.emailVerified) {
+    return null
+  }
+
+  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+
+  const updated = (await prisma.adminUser.update({
+    where: { id: account.id },
+    data: {
+      emailVerifyToken: verificationToken,
+      emailVerifyTokenExpiry: verificationExpiresAt,
+    },
+  })) as AdminAccountDbRecord
+
+  return {
+    account: mapAdminAccountRecord(updated),
+    verificationToken,
+    verificationExpiresAt,
+  }
+}
+
+/**
+ * Issue a password reset token for an admin and return it for emailing.
+ * Returns null if the admin doesn't exist (callers should still respond OK).
+ */
+export async function requestAdminPasswordReset(
+  email: string
+): Promise<{ account: AdminAccountRecord; resetToken: string; resetTokenExpiry: Date } | null> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const account = (await prisma.adminUser.findUnique({
+    where: { email: normalizedEmail },
+  })) as AdminAccountDbRecord | null
+
+  if (!account) {
+    return null
+  }
+
+  const resetToken = generateEmailVerificationToken().token // 32-byte hex is fine
+  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1h
+
+  const updated = (await prisma.adminUser.update({
+    where: { id: account.id },
+    data: { resetToken, resetTokenExpiry },
+  })) as AdminAccountDbRecord
+
+  return {
+    account: mapAdminAccountRecord(updated),
+    resetToken,
+    resetTokenExpiry,
+  }
+}
+
+/**
+ * Apply a new password using a reset token. Single-use. Bumps `tokenVersion`
+ * so any sessions issued before the reset are invalidated.
+ */
+export async function resetAdminPassword(
+  token: string,
+  newPassword: string
+): Promise<AdminAccountRecord | null> {
+  if (!hasDatabaseConfig() || !token) {
+    return null
+  }
+
+  const account = (await prisma.adminUser.findUnique({
+    where: { resetToken: token },
+  })) as (AdminAccountDbRecord & { resetTokenExpiry: Date | null; tokenVersion: number }) | null
+
+  if (!account) {
+    return null
+  }
+
+  if (account.resetTokenExpiry && account.resetTokenExpiry.getTime() < Date.now()) {
+    return null
+  }
+
+  const passwordHash = await hashPassword(newPassword)
+
+  const updated = (await prisma.adminUser.update({
+    where: { id: account.id },
+    data: {
+      passwordHash,
+      resetToken: null,
+      resetTokenExpiry: null,
+      tokenVersion: { increment: 1 },
+      failedLoginAttempts: 0,
+      lockoutUntil: null,
+    },
+  })) as AdminAccountDbRecord
+
+  return mapAdminAccountRecord(updated)
+}
+
+/**
+ * Change an authenticated admin's password. Verifies the current password
+ * before applying the new one. Bumps tokenVersion so other sessions are
+ * invalidated. Returns true on success, false on bad credentials.
+ */
+export async function changeAdminPassword(input: {
+  email: string
+  currentPassword: string
+  newPassword: string
+}): Promise<{ ok: boolean; reason?: 'NOT_FOUND' | 'INVALID_PASSWORD' }> {
+  if (!hasDatabaseConfig()) {
+    return { ok: false, reason: 'NOT_FOUND' }
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase()
+  const account = (await prisma.adminUser.findUnique({
+    where: { email: normalizedEmail },
+  })) as AdminAccountDbRecord | null
+
+  if (!account || !account.passwordHash) {
+    return { ok: false, reason: 'NOT_FOUND' }
+  }
+
+  const valid = await verifyPassword(input.currentPassword, account.passwordHash)
+  if (!valid) {
+    return { ok: false, reason: 'INVALID_PASSWORD' }
+  }
+
+  const passwordHash = await hashPassword(input.newPassword)
+  await prisma.adminUser.update({
+    where: { id: account.id },
+    data: {
+      passwordHash,
+      tokenVersion: { increment: 1 },
+      failedLoginAttempts: 0,
+      lockoutUntil: null,
+    },
+  })
+
+  return { ok: true }
 }
 
 export async function authenticateAdminUser(email: string, password: string) {
@@ -621,22 +832,21 @@ export async function writeAuditLog(entry: {
   })
 }
 
-export async function getSiteSettings(): Promise<SiteSettingsState> {
-  if (!hasDatabaseConfig()) {
-    return defaultSiteSettings
-  }
+type SiteSettingsDbRecord = {
+  siteName: string
+  tagline: string
+  motto: string
+  siteUrl: string
+  primaryWhatsapp: string
+  contactEmail: string
+  heroHeadline: string
+  heroBody: string
+  heroImageUrl: string | null
+  heroImageAlt: string | null
+  footerBlurb: string
+}
 
-  const record = await prisma.siteSettings.upsert({
-    where: { scope: 'global' },
-    update: {},
-    create: {
-      scope: 'global',
-      ...defaultSiteSettings,
-      heroImageUrl: null,
-      heroImageAlt: null,
-    },
-  })
-
+function mapSiteSettings(record: SiteSettingsDbRecord): SiteSettingsState {
   return {
     siteName: record.siteName,
     tagline: record.tagline,
@@ -650,6 +860,41 @@ export async function getSiteSettings(): Promise<SiteSettingsState> {
     heroImageAlt: record.heroImageAlt || '',
     footerBlurb: record.footerBlurb,
   }
+}
+
+export async function readSiteSettings(): Promise<SiteSettingsState> {
+  if (!hasDatabaseConfig()) {
+    return defaultSiteSettings
+  }
+
+  const record = await withPrismaRetry(() =>
+    prisma.siteSettings.findUnique({
+      where: { scope: 'global' },
+    })
+  )
+
+  return record ? mapSiteSettings(record) : defaultSiteSettings
+}
+
+export async function getSiteSettings(): Promise<SiteSettingsState> {
+  if (!hasDatabaseConfig()) {
+    return defaultSiteSettings
+  }
+
+  const record = await withPrismaRetry(() =>
+    prisma.siteSettings.upsert({
+      where: { scope: 'global' },
+      update: {},
+      create: {
+        scope: 'global',
+        ...defaultSiteSettings,
+        heroImageUrl: null,
+        heroImageAlt: null,
+      },
+    })
+  )
+
+  return mapSiteSettings(record)
 }
 
 export async function saveSiteSettings(input: SiteSettingsState, actor: { email: string; role: AdminRole }) {
@@ -784,19 +1029,11 @@ export async function listSiteAlerts(): Promise<SiteAlertRecord[]> {
     return []
   }
 
-  let records = await prisma.siteAlert.findMany({
-    orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
-  })
-
-  if (records.length === 0) {
-    await prisma.siteAlert.createMany({
-      data: defaultSiteAlerts,
-    })
-
-    records = await prisma.siteAlert.findMany({
+  const records = await withPrismaRetry(() =>
+    prisma.siteAlert.findMany({
       orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
     })
-  }
+  )
 
   return records.map((record: SiteAlertDbRecord) => mapSiteAlert(record))
 }
@@ -808,35 +1045,17 @@ export async function listPublicActiveSiteAlerts(): Promise<PublicSiteAlertRecor
 
   const now = new Date()
 
-  let records = await prisma.siteAlert.findMany({
-    where: {
-      isActive: true,
-      startsAt: { lte: now },
-      OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-    },
-    orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
-    take: 6,
-  })
-
-  if (records.length === 0) {
-    const totalAlerts = await prisma.siteAlert.count()
-
-    if (totalAlerts === 0) {
-      await prisma.siteAlert.createMany({
-        data: defaultSiteAlerts,
-      })
-
-      records = await prisma.siteAlert.findMany({
-        where: {
-          isActive: true,
-          startsAt: { lte: now },
-          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        },
-        orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
-        take: 6,
-      })
-    }
-  }
+  const records = await withPrismaRetry(() =>
+    prisma.siteAlert.findMany({
+      where: {
+        isActive: true,
+        startsAt: { lte: now },
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      orderBy: [{ startsAt: 'desc' }, { updatedAt: 'desc' }],
+      take: 6,
+    })
+  )
 
   return records.map((record: SiteAlertDbRecord) => ({
     id: record.id,
@@ -1734,7 +1953,7 @@ export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
 
   let records = await prisma.teamMember.findMany({
     where: { status: 'published' },
-    orderBy: [{ sortOrder: 'asc' }],
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   })
 
   if (records.length === 0) {
@@ -1758,7 +1977,7 @@ export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
 
       records = await prisma.teamMember.findMany({
         where: { status: 'published' },
-        orderBy: [{ sortOrder: 'asc' }],
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       })
     }
   }
@@ -1809,7 +2028,7 @@ export async function getAllTeamMembers(): Promise<TeamMemberRecord[]> {
   }
 
   let records = await prisma.teamMember.findMany({
-    orderBy: [{ sortOrder: 'asc' }],
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   })
 
   if (records.length === 0) {
@@ -1829,7 +2048,7 @@ export async function getAllTeamMembers(): Promise<TeamMemberRecord[]> {
     })
 
     records = await prisma.teamMember.findMany({
-      orderBy: [{ sortOrder: 'asc' }],
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     })
   }
 

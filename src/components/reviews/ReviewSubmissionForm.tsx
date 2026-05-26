@@ -59,7 +59,7 @@ export default function ReviewSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_24px_rgba(2,12,27,0.06)]">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
       <div>
         <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Share your experience</p>
         <h2 className="mt-2 font-heading text-2xl font-bold text-slate-900">Add a review</h2>
@@ -69,7 +69,7 @@ export default function ReviewSubmissionForm() {
       </div>
 
       {submittedReview ? (
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
             <div>
@@ -84,16 +84,16 @@ export default function ReviewSubmissionForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name *">
-          <input value={form.displayName} onChange={(event) => set('displayName', event.target.value)} required minLength={2} maxLength={100} className="input-field" />
+          <input value={form.displayName} onChange={(event) => set('displayName', event.target.value)} required minLength={2} maxLength={100} className="input-field min-h-11" />
         </Field>
         <Field label="Role or context">
-          <input value={form.roleLabel} onChange={(event) => set('roleLabel', event.target.value)} maxLength={120} placeholder="Event attendee, parent, volunteer" className="input-field" />
+          <input value={form.roleLabel} onChange={(event) => set('roleLabel', event.target.value)} maxLength={120} placeholder="Event attendee, parent, volunteer" className="input-field min-h-11" />
         </Field>
         <Field label="Location">
-          <input value={form.location} onChange={(event) => set('location', event.target.value)} maxLength={120} className="input-field" />
+          <input value={form.location} onChange={(event) => set('location', event.target.value)} maxLength={120} className="input-field min-h-11" />
         </Field>
         <Field label="Rating">
-          <div className="flex min-h-11 items-center gap-1 rounded-xl border border-slate-200 px-3">
+          <div className="flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 px-3">
             {[1, 2, 3, 4, 5].map((rating) => (
               <button
                 key={rating}
@@ -117,12 +117,12 @@ export default function ReviewSubmissionForm() {
           minLength={40}
           maxLength={900}
           rows={5}
-          className="input-field"
+          className="input-field min-h-36"
           placeholder="What changed for you after the outreach, session, or support?"
         />
       </Field>
 
-      <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 font-body text-sm text-slate-700">
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 font-body text-sm text-slate-700">
         <input
           type="checkbox"
           checked={form.consentToPublish}
@@ -133,13 +133,13 @@ export default function ReviewSubmissionForm() {
         <span>I confirm this review may be reviewed by the team and published on the website.</span>
       </label>
 
-      {message && !submittedReview ? <p className="rounded-xl bg-emerald-50 px-3 py-2 font-body text-sm font-semibold text-emerald-800">{message}</p> : null}
-      {error ? <p className="rounded-xl bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700">{error}</p> : null}
+      {message && !submittedReview ? <p className="rounded-lg bg-emerald-50 px-3 py-2 font-body text-sm font-semibold text-emerald-800">{message}</p> : null}
+      {error ? <p className="rounded-lg bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700">{error}</p> : null}
 
       <button
         type="submit"
         disabled={busy}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
       >
         <Send className="h-4 w-4" />
         {busy ? 'Submitting...' : 'Submit review'}

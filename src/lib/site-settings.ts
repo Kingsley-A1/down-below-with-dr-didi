@@ -1,4 +1,6 @@
-import { getSiteSettings } from '@/lib/admin/repository'
+import { cache } from 'react'
+import { readSiteSettings } from '@/lib/admin/repository'
+import { readPublicDatabase } from '@/lib/public-database'
 import { defaultSiteSettings, siteConfig, type SiteSettingsState } from '@/lib/site-config'
 
 const LEGACY_SITE_NAMES = new Set([
@@ -17,11 +19,24 @@ function normalizeLegacySettings(settings: SiteSettingsState): SiteSettingsState
   }
 }
 
-export async function getPublicSiteSettings() {
-  try {
-    return normalizeLegacySettings(await getSiteSettings())
-  } catch {
-    // Public pages should still render if the database is temporarily unreachable.
-    return defaultSiteSettings
+function logPublicSettingsFallback(context: string, error: unknown): void {
+  if (process.env.NODE_ENV === 'test') {
+    return
   }
+
+  const message = error instanceof Error ? error.message : String(error)
+  console.warn('[site-settings.public.fallback]', {
+    context,
+    message,
+    timestamp: new Date().toISOString(),
+  })
 }
+
+export const getPublicSiteSettings = cache(async (): Promise<SiteSettingsState> => {
+  return readPublicDatabase({
+    context: 'site.settings',
+    fallback: defaultSiteSettings,
+    query: async () => normalizeLegacySettings(await readSiteSettings()),
+    onError: logPublicSettingsFallback,
+  })
+})

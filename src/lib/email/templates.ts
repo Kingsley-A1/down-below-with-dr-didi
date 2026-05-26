@@ -1,0 +1,479 @@
+/**
+ * Email templates. Each template is a pure function that returns a fully
+ * composed `{ subject, html, text }` payload. Keep markup inline so it renders
+ * in every email client; no JavaScript. Promote to @react-email/render later
+ * without changing callers.
+ */
+
+const BRAND_SHORT_NAME = 'DownBelow'
+const BRAND_NAME = 'DownBelow Family Health Initiative'
+const BRAND_TAGLINE = 'with Dr. Didi'
+const BRAND_FULL_NAME = `${BRAND_NAME} ${BRAND_TAGLINE}`
+
+// Palette aligned with the admin / site brand (emerald-forward).
+const COLOR = {
+  ink: '#0f172a',          // primary text
+  body: '#1f2937',         // body copy
+  muted: '#64748b',         // secondary text
+  border: '#e2e8f0',        // hairline borders
+  accent: '#0b4e41',        // primary brand emerald
+  accentSoft: '#ecfdf5',    // tonal accent background
+  accentInk: '#065f46',     // text on tonal accents
+  bg: '#f6f7f9',            // page background
+  card: '#ffffff',
+  divider: '#eef2f5',
+  warningBg: '#fffbeb',
+  warningBorder: '#f59e0b',
+  warningInk: '#92400e',
+}
+
+interface TemplateOutput {
+  subject: string
+  html: string
+  text: string
+}
+
+interface DetailListItem {
+  label: string
+  value: string
+}
+
+function escape(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function shell({
+  title,
+  preheader,
+  kicker,
+  heading,
+  bodyHtml,
+  footerNote = `You received this because this email is connected to a ${BRAND_SHORT_NAME} account or request.`,
+}: {
+  title: string
+  preheader: string
+  kicker: string
+  heading: string
+  bodyHtml: string
+  footerNote?: string
+}) {
+  const year = new Date().getUTCFullYear()
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>${escape(title)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:${COLOR.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${COLOR.body};-webkit-font-smoothing:antialiased;">
+    <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:${COLOR.bg};">${escape(preheader)}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${COLOR.bg};">
+      <tr>
+        <td align="center" style="padding:36px 16px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+            <tr>
+              <td style="padding:0 2px 14px 2px;">
+                <p style="margin:0;font-size:12px;line-height:1.4;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${COLOR.accentInk};">${escape(BRAND_SHORT_NAME)}</p>
+                <p style="margin:3px 0 0 0;font-size:13px;line-height:1.45;color:${COLOR.muted};">${escape(BRAND_TAGLINE)}</p>
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:${COLOR.card};border-radius:8px;overflow:hidden;border:1px solid ${COLOR.border};box-shadow:0 1px 2px rgba(15,23,42,0.04),0 10px 28px rgba(15,23,42,0.06);">
+            <tr>
+              <td style="height:4px;background:${COLOR.accent};font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td bgcolor="${COLOR.accentSoft}" style="padding:0;background:${COLOR.accentSoft};border-bottom:1px solid ${COLOR.divider};">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td style="padding:28px 36px 8px 36px;">
+                      <span style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:${COLOR.accentInk};">${escape(kicker)}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 36px 28px 36px;">
+                      <h1 style="margin:0;font-size:25px;line-height:1.25;font-weight:700;color:${COLOR.ink};letter-spacing:0;">${escape(heading)}</h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 36px 10px 36px;">
+                ${bodyHtml}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 36px 30px 36px;">
+                <div style="height:1px;background:${COLOR.divider};margin:0 0 18px 0;"></div>
+                <p style="margin:0;font-size:12px;line-height:1.55;color:${COLOR.muted};">
+                  Sent from <strong style="color:${COLOR.ink};font-weight:600;">${escape(BRAND_FULL_NAME)}</strong><br/>
+                  ${escape(footerNote)}
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:16px 0 0 0;font-size:11px;line-height:1.45;color:#94a3b8;">© ${year} ${escape(BRAND_FULL_NAME)}</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
+}
+
+function ctaButton(label: string, href: string) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 6px 0;"><tr><td style="border-radius:8px;background:${COLOR.accent};"><a href="${escape(href)}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-weight:700;text-decoration:none;border-radius:8px;font-size:14.5px;line-height:1.2;letter-spacing:0;">${escape(label)}</a></td></tr></table>`
+}
+
+function paragraph(text: string) {
+  return `<p style="margin:0 0 16px 0;line-height:1.6;font-size:15px;color:${COLOR.body};">${text}</p>`
+}
+
+function muted(text: string) {
+  return `<p style="margin:16px 0 0 0;line-height:1.55;font-size:13px;color:${COLOR.muted};">${text}</p>`
+}
+
+function fallbackLink(href: string) {
+  return `<p style="margin:18px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};">${escape(href)}</span></p>`
+}
+
+function callout(text: string, tone: 'info' | 'warning' = 'info') {
+  const styles = tone === 'warning'
+    ? {
+        background: COLOR.warningBg,
+        border: COLOR.warningBorder,
+        text: COLOR.warningInk,
+      }
+    : {
+        background: COLOR.accentSoft,
+        border: COLOR.accent,
+        text: COLOR.accentInk,
+      }
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:18px 0 6px 0;"><tr><td style="background:${styles.background};border-left:3px solid ${styles.border};border-radius:8px;padding:14px 16px;font-size:13.5px;line-height:1.55;color:${styles.text};">${text}</td></tr></table>`
+}
+
+function detailList(items: readonly DetailListItem[]) {
+  const rows = items
+    .map((item) => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid ${COLOR.divider};font-size:12px;line-height:1.45;color:${COLOR.muted};font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">${escape(item.label)}</td>
+        <td align="right" style="padding:10px 0;border-bottom:1px solid ${COLOR.divider};font-size:14px;line-height:1.45;color:${COLOR.ink};font-weight:600;">${escape(item.value)}</td>
+      </tr>
+    `)
+    .join('')
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:18px 0;border-top:1px solid ${COLOR.divider};">${rows}</table>`
+}
+
+function mailtoLink(email: string, label: string = email) {
+  return `<a href="mailto:${escape(email)}" style="color:${COLOR.accentInk};font-weight:700;text-decoration:underline;">${escape(label)}</a>`
+}
+
+function truncateText(value: string, maxLength: number) {
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  if (normalized.length <= maxLength) return normalized
+
+  return `${normalized.slice(0, maxLength - 3).trim()}...`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function verifyEmail(props: {
+  recipientName: string
+  actionUrl: string
+  expiresInMinutes: number
+}): TemplateOutput {
+  const { recipientName, actionUrl, expiresInMinutes } = props
+  const html = shell({
+    title: 'Verify your DownBelow email',
+    preheader: 'Confirm your email to finish creating your DownBelow account.',
+    kicker: 'Email verification',
+    heading: `Hi ${recipientName}, verify your email`,
+    bodyHtml: `
+      ${paragraph('Confirm this is you and activate your DownBelow account by tapping the button below.')}
+      ${ctaButton('Verify email', actionUrl)}
+      ${muted(`This link expires in ${expiresInMinutes} minutes. After that you'll need to request a new one from the sign-in page.`)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Verify your DownBelow email',
+    html,
+    text: `Hi ${recipientName},\n\nConfirm your email to finish creating your DownBelow account: ${actionUrl}\n\nThis link expires in ${expiresInMinutes} minutes.`,
+  }
+}
+
+export function passwordReset(props: {
+  recipientName: string
+  actionUrl: string
+  expiresInMinutes: number
+}): TemplateOutput {
+  const { recipientName, actionUrl, expiresInMinutes } = props
+  const html = shell({
+    title: 'Reset your DownBelow password',
+    preheader: 'A request was made to reset your DownBelow password.',
+    kicker: 'Password reset',
+    heading: `Hi ${recipientName}, let's reset your password`,
+    bodyHtml: `
+      ${paragraph('We received a request to reset your password. Click below to choose a new one.')}
+      ${ctaButton('Reset password', actionUrl)}
+      ${muted(`This link expires in ${expiresInMinutes} minutes. If you didn't ask to reset your password, you can safely ignore this email.`)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Reset your DownBelow password',
+    html,
+    text: `Hi ${recipientName},\n\nReset your DownBelow password here: ${actionUrl}\n\nThis link expires in ${expiresInMinutes} minutes.`,
+  }
+}
+
+export function welcomeUser(props: {
+  recipientName: string
+  actionUrl: string
+}): TemplateOutput {
+  const { recipientName, actionUrl } = props
+  const html = shell({
+    title: 'Welcome to DownBelow',
+    preheader: 'Your DownBelow account is verified and ready.',
+    kicker: 'Welcome',
+    heading: `Welcome, ${recipientName}`,
+    bodyHtml: `
+      ${paragraph('Your email is verified and your DownBelow account is fully active.')}
+      ${ctaButton('Open DownBelow', actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Welcome to DownBelow',
+    html,
+    text: `Welcome, ${recipientName}! Your email is verified. Open DownBelow: ${actionUrl}`,
+  }
+}
+
+export function passwordChanged(props: {
+  recipientName: string
+  actionUrl: string
+  supportEmail: string
+}): TemplateOutput {
+  const { recipientName, actionUrl, supportEmail } = props
+  const html = shell({
+    title: 'Your DownBelow password was changed',
+    preheader: 'Confirming a recent password change on your account.',
+    kicker: 'Security update',
+    heading: `Your password was changed`,
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} — your DownBelow password was just changed. If this was you, no action is needed.`)}
+      ${callout(`Didn't make this change? <a href="mailto:${escape(supportEmail)}" style="color:${COLOR.accentInk};font-weight:600;text-decoration:underline;">Email us</a> immediately and reset your password.`)}
+      ${ctaButton('Sign in', actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow password was changed',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow password was just changed. If this wasn't you, contact ${supportEmail} immediately.\n\nSign in: ${actionUrl}`,
+  }
+}
+
+export function accountDeactivated(props: {
+  recipientName: string
+  supportEmail: string
+}): TemplateOutput {
+  const { recipientName, supportEmail } = props
+  const html = shell({
+    title: 'Your DownBelow account was deactivated',
+    preheader: 'Your DownBelow sign-in access has been paused.',
+    kicker: 'Account update',
+    heading: 'Your account has been deactivated',
+    footerNote: 'You received this account-status notice because this email is connected to a DownBelow account.',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - your ${escape(BRAND_SHORT_NAME)} account has been deactivated by our team, so you cannot sign in right now.`)}
+      ${detailList([
+        { label: 'Account status', value: 'Deactivated' },
+        { label: 'Sign-in access', value: 'Paused' },
+      ])}
+      ${callout(`If you believe this was a mistake or need help with your account, contact us at ${mailtoLink(supportEmail)}.`)}
+      ${muted(`Thank you for being part of ${escape(BRAND_SHORT_NAME)}.`)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow account was deactivated',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow account has been deactivated by our team, so you cannot sign in right now.\n\nIf you believe this was a mistake or need help with your account, contact us at ${supportEmail}.`,
+  }
+}
+
+export function accountDeleted(props: {
+  recipientName: string
+  supportEmail: string
+}): TemplateOutput {
+  const { recipientName, supportEmail } = props
+  const html = shell({
+    title: 'Your DownBelow account was deleted',
+    preheader: 'Your DownBelow account access has been removed.',
+    kicker: 'Account update',
+    heading: 'Your account has been deleted',
+    footerNote: 'You received this final account-status notice because this email was connected to a DownBelow account.',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - your ${escape(BRAND_SHORT_NAME)} account has been deleted by our team, so this email address can no longer be used to sign in.`)}
+      ${detailList([
+        { label: 'Account status', value: 'Deleted' },
+        { label: 'Sign-in access', value: 'Removed' },
+      ])}
+      ${paragraph('If this was expected, no further action is needed. Some operational records may be retained only where required for safety, compliance, or audit obligations.')}
+      ${callout(`If you believe this happened by mistake, contact us at ${mailtoLink(supportEmail)}.`, 'warning')}
+      ${muted(`Thank you for being part of ${escape(BRAND_SHORT_NAME)}.`)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow account was deleted',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow account has been deleted by our team, so this email address can no longer be used to sign in.\n\nIf this was expected, no further action is needed. Some operational records may be retained only where required for safety, compliance, or audit obligations.\n\nIf you believe this happened by mistake, contact us at ${supportEmail}.`,
+  }
+}
+
+export function vaultResponseReady(props: {
+  recipientName: string
+  questionPreview: string
+  actionUrl: string
+}): TemplateOutput {
+  const { recipientName, questionPreview, actionUrl } = props
+  const messageReference = questionPreview.trim()
+    ? 'your recent anonymous V-Vault message'
+    : 'your anonymous V-Vault message'
+  const plainMessageReference = truncateText(messageReference, 120)
+  const html = shell({
+    title: 'You have a new V-Vault response',
+    preheader: 'Dr. Didi has replied to your anonymous V-Vault message.',
+    kicker: 'V-Vault reply',
+    heading: 'Dr. Didi replied to your message',
+    footerNote: 'You received this because your DownBelow account has private V-Vault inbox activity.',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - Dr. Didi has responded to ${escape(messageReference)}.`)}
+      ${detailList([
+        { label: 'Status', value: 'Response ready' },
+        { label: 'Where to read', value: 'Secure V-Vault inbox' },
+      ])}
+      ${callout("For privacy, this email does not include your message content or Dr. Didi's full response. Sign in to read it securely.")}
+      ${ctaButton('Read the reply', actionUrl)}
+      ${fallbackLink(actionUrl)}
+      ${muted('Your public anonymity is unchanged. Account sign-in is used only to deliver your private reply securely.')}
+    `,
+  })
+  return {
+    subject: 'Dr. Didi replied to your V-Vault message',
+    html,
+    text: `Hi ${recipientName},\n\nDr. Didi has responded to ${plainMessageReference}.\n\nFor privacy, this email does not include your message content or Dr. Didi's full response.\n\nRead the reply securely: ${actionUrl}`,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin templates
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function verifyAdminEmail(props: {
+  recipientName: string
+  actionUrl: string
+  expiresInMinutes: number
+  role: string
+}): TemplateOutput {
+  const { recipientName, actionUrl, expiresInMinutes, role } = props
+  const html = shell({
+    title: 'Verify your DownBelow admin email',
+    preheader: 'Confirm your address to activate your admin access.',
+    kicker: 'Admin · email verification',
+    heading: `Welcome, ${recipientName}`,
+    bodyHtml: `
+      ${paragraph(`You've registered for ${escape(BRAND_NAME)} admin access with the <strong>${escape(role)}</strong> role. Verify your email to activate your account.`)}
+      ${ctaButton('Verify admin email', actionUrl)}
+      ${muted(`This link expires in ${expiresInMinutes} minutes. You won't be able to sign in until verification is complete.`)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Verify your DownBelow admin email',
+    html,
+    text: `Hi ${recipientName},\n\nVerify your DownBelow admin email (${role}): ${actionUrl}\n\nLink expires in ${expiresInMinutes} minutes.`,
+  }
+}
+
+export function welcomeAdmin(props: {
+  recipientName: string
+  actionUrl: string
+  role: string
+}): TemplateOutput {
+  const { recipientName, actionUrl, role } = props
+  const html = shell({
+    title: 'Your DownBelow admin access is live',
+    preheader: 'Admin verification complete — you can sign in now.',
+    kicker: 'Admin · access live',
+    heading: `You're in, ${recipientName}`,
+    bodyHtml: `
+      ${paragraph(`Your <strong>${escape(role)}</strong> admin account is verified and active.`)}
+      ${ctaButton('Open admin', actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin access is live',
+    html,
+    text: `Hi ${recipientName},\n\nYour ${role} admin account is verified. Sign in: ${actionUrl}`,
+  }
+}
+
+export function adminPasswordReset(props: {
+  recipientName: string
+  actionUrl: string
+  expiresInMinutes: number
+}): TemplateOutput {
+  const { recipientName, actionUrl, expiresInMinutes } = props
+  const html = shell({
+    title: 'Reset your DownBelow admin password',
+    preheader: 'A request was made to reset your admin password.',
+    kicker: 'Admin · password reset',
+    heading: `Reset your admin password`,
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} — use the button below to set a new password for your DownBelow admin account.`)}
+      ${ctaButton('Reset admin password', actionUrl)}
+      ${muted(`This link expires in ${expiresInMinutes} minutes. If you didn't ask for this, ignore the email and your password stays the same.`)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Reset your DownBelow admin password',
+    html,
+    text: `Hi ${recipientName},\n\nReset your DownBelow admin password: ${actionUrl}\n\nLink expires in ${expiresInMinutes} minutes.`,
+  }
+}
+
+export function adminAccountReactivated(props: {
+  recipientName: string
+  actionUrl: string
+}): TemplateOutput {
+  const { recipientName, actionUrl } = props
+  const html = shell({
+    title: 'Your DownBelow admin account is reactivated',
+    preheader: 'Recovery complete — sign in to confirm your access.',
+    kicker: 'Admin · reactivated',
+    heading: `Your admin account is back`,
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} — your DownBelow admin account has been recovered and reactivated.`)}
+      ${ctaButton('Sign in to admin', actionUrl)}
+      ${callout(`If you didn't initiate a recovery, contact your super admin immediately.`)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin account is reactivated',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow admin account is reactivated. Sign in: ${actionUrl}\n\nIf you didn't request this, contact your super admin.`,
+  }
+}

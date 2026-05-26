@@ -3,20 +3,20 @@ import { normaliseAdminRole, type AdminRole } from '@/lib/admin/rbac'
 
 export const ADMIN_SESSION_COOKIE = 'dbfh_admin_session'
 
-const adminRegistrationRoles = ['super_admin', 'founder_admin', 'editor'] as const
-
-type AdminRegistrationRole = (typeof adminRegistrationRoles)[number]
+type AdminRegistrationRole = 'super_admin' | 'founder_admin' | 'editor' | 'moderator'
 
 export type AdminSession = {
   email: string
   role: AdminRole
   expiresAt: string
+  tokenVersion: number
 }
 
 type SessionPayload = {
   email: string
   role: AdminRole
   exp: number
+  v?: number // tokenVersion — `v` to keep cookie small
 }
 
 function toBase64(value: string | Uint8Array) {
@@ -62,15 +62,16 @@ function textToBytes(value: string) {
   return new TextEncoder().encode(value)
 }
 
-let cachedSecretKeyPromise: Promise<CryptoKey> | null = null
+let cachedSecretKey: { secret: string; promise: Promise<CryptoKey> } | null = null
 
 function getAdminSecretKey() {
-  if (cachedSecretKeyPromise) {
-    return cachedSecretKeyPromise
+  const adminEnv = getAdminEnv()
+
+  if (cachedSecretKey?.secret === adminEnv.ADMIN_SESSION_SECRET) {
+    return cachedSecretKey.promise
   }
 
-  const adminEnv = getAdminEnv()
-  cachedSecretKeyPromise = crypto.subtle.importKey(
+  const promise = crypto.subtle.importKey(
     'raw',
     textToBytes(adminEnv.ADMIN_SESSION_SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
@@ -78,7 +79,8 @@ function getAdminSecretKey() {
     ['sign']
   )
 
-  return cachedSecretKeyPromise
+  cachedSecretKey = { secret: adminEnv.ADMIN_SESSION_SECRET, promise }
+  return promise
 }
 
 async function signPayload(payload: string) {
@@ -103,12 +105,17 @@ function safeEqual(left: string, right: string) {
   return result === 0
 }
 
-export async function createAdminSessionToken(input: { email: string; role: AdminRole }) {
+export async function createAdminSessionToken(input: {
+  email: string
+  role: AdminRole
+  tokenVersion?: number
+}) {
   const expiresAt = Date.now() + 1000 * 60 * 60 * 8
   const payload: SessionPayload = {
     email: input.email.trim().toLowerCase(),
     role: input.role,
     exp: expiresAt,
+    v: input.tokenVersion ?? 0,
   }
 
   const payloadJson = JSON.stringify(payload)
@@ -145,6 +152,7 @@ export async function verifyAdminSession(token: string | undefined) {
     email: parsed.email,
     role: normaliseAdminRole(parsed.role),
     expiresAt: new Date(parsed.exp).toISOString(),
+    tokenVersion: typeof parsed.v === 'number' ? parsed.v : 0,
   } satisfies AdminSession
 }
 
@@ -156,11 +164,13 @@ export function resolveAdminRegistrationRole(accessCode: string): AdminRegistrat
   }
 
   const adminEnv = getAdminEnv()
-  const roleCodes: Array<{ role: AdminRegistrationRole; code: string }> = [
+  const configuredRoleCodes: Array<{ role: AdminRegistrationRole; code: string }> = [
+    { role: 'moderator', code: adminEnv.ADMIN_ACCESS_CODE },
     { role: 'super_admin', code: adminEnv.ADMIN_SUPER_ADMIN_ACCESS_CODE },
     { role: 'founder_admin', code: adminEnv.ADMIN_FOUNDER_ADMIN_ACCESS_CODE },
     { role: 'editor', code: adminEnv.ADMIN_EDITOR_ACCESS_CODE },
   ]
+  const roleCodes = configuredRoleCodes.filter((entry) => entry.code)
 
   for (const entry of roleCodes) {
     if (safeEqual(entry.code, trimmedAccessCode)) {
@@ -174,8 +184,11 @@ export function resolveAdminRegistrationRole(accessCode: string): AdminRegistrat
 export function sessionCookieOptions(expiresAt: string) {
   return {
     httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    // Default-secure: only allow plaintext cookies in explicit local dev.
+    // Staging/preview environments (where NODE_ENV !== 'production') still
+    // get Secure cookies so they can't be sniffed over HTTP.
+    secure: env.NODE_ENV !== 'development',
     path: '/',
     expires: new Date(expiresAt),
   }

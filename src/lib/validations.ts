@@ -42,10 +42,10 @@ const adminPasswordSchema = z
 export const adminRegisterSchema = z.object({
   name: z.string().trim().min(2, 'Enter the admin name').max(100, 'Name may not exceed 100 characters'),
   email: z.string().trim().email('Enter a valid admin email address').max(255),
-  phone: z.string().regex(/^(\+234|0)[789][01]\d{8}$/, 'Enter a valid Nigerian phone number'),
+  phone: z.string().trim().regex(/^(\+234|0)[789][01]\d{8}$/, 'Enter a valid Nigerian phone number'),
   password: adminPasswordSchema,
   confirmPassword: z.string(),
-  accessCode: z.string().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
+  accessCode: z.string().trim().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],

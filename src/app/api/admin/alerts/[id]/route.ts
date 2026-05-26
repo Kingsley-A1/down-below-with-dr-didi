@@ -28,12 +28,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
     }
 
-    const { id: _id, startsAt, endsAt, ...rest } = parsed.data
+    const { startsAt, endsAt, text, speed, durationSeconds, isActive } = parsed.data
 
     const alert = await updateSiteAlert(
       id,
       {
-        ...rest,
+        ...(text !== undefined && { text }),
+        ...(speed !== undefined && { speed }),
+        ...(durationSeconds !== undefined && { durationSeconds }),
+        ...(isActive !== undefined && { isActive }),
         ...(startsAt ? { startsAt } : {}),
         ...(endsAt !== undefined && { endsAt: endsAt || null }),
       },
@@ -56,7 +59,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'super_admin')
+  const roleError = requireAdminRole(session, 'editor')
   if (roleError) {
     return roleError
   }

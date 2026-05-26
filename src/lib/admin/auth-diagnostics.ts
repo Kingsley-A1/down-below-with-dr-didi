@@ -11,9 +11,12 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { hashPassword, verifyPassword } from '@/lib/auth/password'
+import { verifyPassword } from '@/lib/auth/password'
 import { hasDatabaseConfig } from '@/lib/env'
 import type { AdminRole } from '@/lib/admin/rbac'
+
+const LOCKOUT_THRESHOLD = 5
+const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
 
 export type AdminAuthDiagnostics = {
   email: string
@@ -164,7 +167,7 @@ export async function authenticateAdminUserWithDiagnostics(
   options?: { logAttempt?: boolean }
 ): Promise<{
   success: boolean
-  account?: { email: string; role: AdminRole; isActive: boolean }
+  account?: { email: string; role: AdminRole; isActive: boolean; tokenVersion: number }
   attempt: AdminAuthAttempt
 }> {
   const { logAttempt = true } = options || {}
@@ -190,6 +193,10 @@ export async function authenticateAdminUserWithDiagnostics(
         role: true,
         isActive: true,
         passwordHash: true,
+        emailVerified: true,
+        failedLoginAttempts: true,
+        lockoutUntil: true,
+        tokenVersion: true,
       }
     })
 
@@ -197,11 +204,23 @@ export async function authenticateAdminUserWithDiagnostics(
     if (!account) {
       attempt.reason = 'ACCOUNT_NOT_FOUND'
       attempt.diagnostics = await diagnoseAdminAuth(normalizedEmail)
-      
+
       if (logAttempt) {
         await logAuthAttempt(attempt)
       }
-      
+
+      return { success: false, attempt }
+    }
+
+    // Account locked from too many failed attempts. Refuse even on the correct
+    // password until the lockout window elapses.
+    if (account.lockoutUntil && account.lockoutUntil.getTime() > Date.now()) {
+      attempt.reason = 'ACCOUNT_LOCKED'
+
+      if (logAttempt) {
+        await logAuthAttempt(attempt)
+      }
+
       return { success: false, attempt }
     }
 
@@ -209,11 +228,11 @@ export async function authenticateAdminUserWithDiagnostics(
     if (!account.isActive) {
       attempt.reason = 'ACCOUNT_INACTIVE'
       attempt.diagnostics = await diagnoseAdminAuth(normalizedEmail)
-      
+
       if (logAttempt) {
         await logAuthAttempt(attempt)
       }
-      
+
       return { success: false, attempt }
     }
 
@@ -221,11 +240,11 @@ export async function authenticateAdminUserWithDiagnostics(
     if (!account.passwordHash) {
       attempt.reason = 'PASSWORD_HASH_MISSING'
       attempt.diagnostics = await diagnoseAdminAuth(normalizedEmail)
-      
+
       if (logAttempt) {
         await logAuthAttempt(attempt)
       }
-      
+
       return { success: false, attempt }
     }
 
@@ -233,18 +252,59 @@ export async function authenticateAdminUserWithDiagnostics(
     const passwordValid = await verifyPassword(password, account.passwordHash)
 
     if (!passwordValid) {
-      attempt.reason = 'INVALID_PASSWORD'
-      
+      const nextAttempts = (account.failedLoginAttempts ?? 0) + 1
+      const shouldLock = nextAttempts >= LOCKOUT_THRESHOLD
+      const lockoutUntil = shouldLock ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null
+
+      try {
+        await prisma.adminUser.update({
+          where: { email: normalizedEmail },
+          data: {
+            // Reset counter when we trip the lock; otherwise just increment.
+            failedLoginAttempts: shouldLock ? 0 : nextAttempts,
+            ...(shouldLock && { lockoutUntil }),
+          },
+        })
+      } catch (updateError) {
+        console.error('Failed to record admin login failure', updateError)
+      }
+
+      attempt.reason = shouldLock ? 'ACCOUNT_LOCKED_NOW' : 'INVALID_PASSWORD'
+
       if (logAttempt) {
         await logAuthAttempt(attempt)
       }
-      
+
       return { success: false, attempt }
     }
 
-    // Success!
+    // Email must be verified before login is allowed.
+    if (!account.emailVerified) {
+      attempt.reason = 'EMAIL_NOT_VERIFIED'
+
+      if (logAttempt) {
+        await logAuthAttempt(attempt)
+      }
+
+      return { success: false, attempt }
+    }
+
+    // Success — reset lockout counters and stamp last-login.
+    try {
+      await prisma.adminUser.update({
+        where: { email: normalizedEmail },
+        data: {
+          lastLoginAt: new Date(),
+          failedLoginAttempts: 0,
+          lockoutUntil: null,
+        },
+      })
+    } catch (updateError) {
+      console.error('Failed to stamp admin lastLoginAt', updateError)
+    }
+
     attempt.success = true
-    
+
     if (logAttempt) {
       await logAuthAttempt(attempt)
     }
@@ -254,7 +314,8 @@ export async function authenticateAdminUserWithDiagnostics(
       account: {
         email: account.email,
         role: account.role,
-        isActive: account.isActive
+        isActive: account.isActive,
+        tokenVersion: account.tokenVersion ?? 0,
       },
       attempt
     }

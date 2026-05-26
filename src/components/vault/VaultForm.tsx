@@ -1,8 +1,9 @@
 'use client'
+
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Shield, CheckCircle, AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, ChevronDown, Shield } from 'lucide-react'
 import { vaultSchema, type VaultFormData } from '@/lib/validations'
 import faqData from '@/content/faq.json'
 
@@ -24,37 +25,34 @@ const categories = [
 
 function FaqAccordionItem({ item }: { item: FaqItem }) {
   const [open, setOpen] = useState(false)
+
   return (
-    <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="overflow-hidden rounded-lg border bg-white" style={{ borderColor: 'var(--color-border)' }}>
       <button
-        className="w-full flex items-center justify-between px-6 py-4 text-left bg-white transition-colors hover:bg-gray-50"
-        onClick={() => setOpen(!open)}
+        type="button"
+        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-slate-50 sm:items-center sm:px-5"
+        onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <span className="min-w-0 space-y-2 sm:flex sm:items-center sm:gap-3 sm:space-y-0">
           <span
-            className="shrink-0 text-xs font-body font-semibold px-2.5 py-1 rounded-full"
+            className="inline-flex rounded-full px-2.5 py-1 font-body text-xs font-semibold"
             style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
           >
             {item.category}
           </span>
-          <span className="font-body font-semibold text-gray-800 text-sm truncate">{item.question}</span>
-        </div>
-        <span
-          className="ml-4 shrink-0 transition-transform duration-200 text-xs"
-          style={{
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            color: 'var(--color-primary)',
-          }}
-        >
-          ▼
+          <span className="block font-body text-sm font-semibold leading-6 text-slate-800">{item.question}</span>
         </span>
+        <ChevronDown
+          className={`mt-1 h-4 w-4 shrink-0 text-emerald-800 transition-transform sm:mt-0 ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
       </button>
-      {open && (
-        <div className="px-6 py-4 border-t" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-          <p className="font-body text-gray-700 text-sm leading-relaxed">{item.answer}</p>
+      {open ? (
+        <div className="border-t px-4 py-4 sm:px-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+          <p className="font-body text-sm leading-7 text-slate-700">{item.answer}</p>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -76,6 +74,7 @@ export default function VaultForm() {
   const onSubmit = async (data: VaultFormData) => {
     setErrorMessage('')
     setSubmitState('loading')
+
     try {
       const res = await fetch('/api/vault', {
         method: 'POST',
@@ -101,135 +100,144 @@ export default function VaultForm() {
 
   if (submitState === 'success') {
     return (
-      <div className="text-center py-16">
-        <div
-          className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-          style={{ backgroundColor: '#dcfce7' }}
-        >
-          <CheckCircle size={40} style={{ color: '#16a34a' }} />
+      <section className="rounded-lg border bg-white px-5 py-12 text-center sm:px-8" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+          <CheckCircle className="h-9 w-9 text-emerald-700" aria-hidden="true" />
         </div>
-        <h3 className="font-heading font-bold text-3xl mb-4" style={{ color: 'var(--color-primary)' }}>
-          Question Received!
-        </h3>
-        <p className="font-body text-gray-600 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-          Your question is now in review. We keep it anonymous for public discussion while using your account only to deliver private responses.
+        <h2 className="font-heading text-2xl font-bold text-emerald-950 sm:text-3xl">Question received</h2>
+        <p className="mx-auto mt-3 max-w-md font-body text-sm leading-7 text-slate-600">
+          Your question is now in review. Public handling stays anonymous, and private responses can be delivered inside your account.
         </p>
         <button
+          type="button"
           onClick={() => setSubmitState('idle')}
-          className="font-body font-semibold px-8 py-3 rounded-full transition-colors"
-          style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+          className="mt-7 inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary)' }}
         >
-          Ask Another Question
+          Ask another question
         </button>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div>
-      {/* Privacy banner */}
-      <div className="text-white rounded-2xl p-6 mb-8 flex items-start gap-4" style={{ backgroundColor: 'var(--color-primary)' }}>
-        <Shield size={24} className="shrink-0 mt-0.5" style={{ color: 'var(--color-accent)' }} />
-        <div>
-          <h3 className="font-body font-semibold mb-1">Your public identity stays protected.</h3>
-          <p className="font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Your submission can be answered privately in your account. It remains anonymous on public surfaces, while internal safeguards control who can view account identity.
-          </p>
-        </div>
-      </div>
-
-      {/* Form */}
-      <div
-        className="bg-white rounded-2xl border p-8 mb-12"
-        style={{ borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-sm)' }}
-      >
-        <h2 className="font-heading font-bold text-3xl mb-1" style={{ color: 'var(--color-primary)' }}>
-          Ask Dr. Didi Anything
-        </h2>
-        <p className="font-body text-gray-500 text-sm mb-8">Private account-linked support with anonymous public handling.</p>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div>
-            <label className="block font-body font-semibold text-sm text-gray-700 mb-2">Category</label>
-            <select
-              {...register('category')}
-              className="w-full px-4 py-3 rounded-xl border font-body text-sm focus:outline-none"
-              style={{
-                borderColor: 'var(--color-border)',
-                backgroundColor: 'var(--color-surface)',
-              }}
-            >
-              <option value="">Select a category…</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            {errors.category && (
-              <p className="text-red-500 text-xs mt-1 font-body">{errors.category.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block font-body font-semibold text-sm text-gray-700 mb-2">Your Question</label>
-            <textarea
-              {...register('question')}
-              rows={5}
-              placeholder="Type your question here… Be as detailed as you need — Dr. Didi will give a thorough answer."
-              className="w-full px-4 py-3 rounded-xl border font-body text-sm focus:outline-none resize-none"
-              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-            />
-            <div className="flex justify-between mt-1">
-              {errors.question ? (
-                <p className="text-red-500 text-xs font-body">{errors.question.message}</p>
-              ) : (
-                <p className="text-xs text-gray-400 font-body">Minimum 50 characters</p>
-              )}
-              <p className={`text-xs font-body ${questionValue.length > 450 ? 'text-red-500' : 'text-gray-400'}`}>
-                {questionValue.length}/500
+    <div className="space-y-8">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
+        <aside className="min-w-0 rounded-lg p-5 text-white sm:p-6" style={{ backgroundColor: 'var(--color-primary)' }}>
+          <div className="flex items-start gap-3">
+            <Shield className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+            <div>
+              <h2 className="font-heading text-xl font-bold">Your public identity stays protected.</h2>
+              <p className="mt-3 font-body text-sm leading-7" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                Your submission can be answered privately in your account. Public surfaces do not show your account identity, while internal safeguards control who can view it.
               </p>
             </div>
           </div>
 
-          {submitState === 'error' && (
-            <div
-              className="flex items-center gap-2 rounded-xl p-4 border"
-              style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}
-            >
-              <AlertCircle size={18} style={{ color: '#dc2626' }} />
-              <p className="font-body text-sm" style={{ color: '#b91c1c' }}>
-                {errorMessage || 'Something went wrong. Please try again.'}
-              </p>
+          <div className="mt-6 grid gap-3 border-t border-white/15 pt-5 font-body text-sm text-white/80">
+            <div className="flex items-center justify-between gap-3">
+              <span>Public display</span>
+              <span className="font-semibold text-white">Anonymous</span>
             </div>
-          )}
+            <div className="flex items-center justify-between gap-3">
+              <span>Private reply</span>
+              <span className="font-semibold text-white">Account inbox</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span>Review access</span>
+              <span className="font-semibold text-white">Admin guarded</span>
+            </div>
+          </div>
+        </aside>
 
-          <button
-            type="submit"
-            disabled={submitState === 'loading'}
-            className="w-full flex items-center justify-center gap-2 font-body font-semibold py-4 rounded-full transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
-          >
-            <Shield size={18} />
-            {submitState === 'loading' ? 'Sending…' : '🔒 Submit Anonymously'}
-          </button>
-        </form>
+        <section className="min-w-0 rounded-lg border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="mb-6">
+            <h2 className="font-heading text-2xl font-bold leading-tight text-emerald-950 sm:text-3xl">
+              Ask Dr. Didi anything
+            </h2>
+            <p className="mt-2 font-body text-sm leading-6 text-slate-500">
+              Private account-linked support with anonymous public handling.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div>
+              <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="vault-category">
+                Category
+              </label>
+              <select
+                id="vault-category"
+                {...register('category')}
+                className="input-field min-h-11"
+              >
+                <option value="">Select a category...</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {errors.category ? (
+                <p className="mt-1 font-body text-xs text-red-600">{errors.category.message}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label className="mb-2 block font-body text-sm font-semibold text-slate-700" htmlFor="vault-question">
+                Your question
+              </label>
+              <textarea
+                id="vault-question"
+                {...register('question')}
+                rows={6}
+                placeholder="Type your question here. Add enough detail for a thoughtful answer."
+                className="input-field min-h-36 resize-none"
+              />
+              <div className="mt-1 flex items-start justify-between gap-3">
+                {errors.question ? (
+                  <p className="font-body text-xs text-red-600">{errors.question.message}</p>
+                ) : (
+                  <p className="font-body text-xs text-slate-400">Minimum 50 characters</p>
+                )}
+                <p className={`shrink-0 font-body text-xs ${questionValue.length > 450 ? 'text-red-600' : 'text-slate-400'}`}>
+                  {questionValue.length}/500
+                </p>
+              </div>
+            </div>
+
+            {submitState === 'error' ? (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+                <p className="font-body text-sm leading-6 text-red-700">
+                  {errorMessage || 'Something went wrong. Please try again.'}
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={submitState === 'loading'}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 py-3 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              <Shield className="h-4 w-4" aria-hidden="true" />
+              {submitState === 'loading' ? 'Sending...' : 'Submit anonymously'}
+            </button>
+          </form>
+        </section>
       </div>
 
-      {/* FAQ */}
-      <div>
-        <div className="text-center mb-8">
-          <h2 className="font-heading font-bold text-3xl mb-2" style={{ color: 'var(--color-primary)' }}>
-            Common Questions
-          </h2>
-          <p className="font-body text-gray-500 text-sm">
-            Browse questions Dr. Didi has already answered.
-          </p>
+      <section>
+        <div className="mb-4">
+          <h2 className="font-heading text-2xl font-bold text-emerald-950">Common questions</h2>
+          <p className="mt-1 font-body text-sm text-slate-500">Browse questions Dr. Didi has already answered.</p>
         </div>
         <div className="space-y-3">
           {(faqData as FaqItem[]).map((item) => (
             <FaqAccordionItem key={item.id} item={item} />
           ))}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

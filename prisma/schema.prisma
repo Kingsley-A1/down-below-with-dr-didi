@@ -7,21 +7,32 @@ datasource db {
 }
 
 model AdminUser {
-  id                    String                 @id @default(cuid())
-  email                 String                 @unique
-  name                  String?
-  role                  AdminRole
-  isActive              Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  phone                 String?
-  passwordHash          String?
-  lastLoginAt           DateTime?
-  auditLogs             AuditLog[]
-  mediaAssets           MediaAsset[]
-  updatedSiteSettings   SiteSettings[]         @relation("SiteSettingsUpdatedBy")
-  vaultResponses        VaultResponse[]
-  vaultSubmissionEvents VaultSubmissionEvent[] @relation("VaultEventAdminActor")
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  name                   String?
+  role                   AdminRole
+  isActive               Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  phone                  String?
+  passwordHash           String?
+  lastLoginAt            DateTime?
+  // Default true so the migration backfills existing admins as verified and
+  // they aren't kicked out on deploy. registerAdminUserAccount must set this
+  // to `false` explicitly so new registrations go through verification.
+  emailVerified          Boolean                @default(true)
+  emailVerifyToken       String?                @unique
+  emailVerifyTokenExpiry DateTime?
+  resetToken             String?                @unique
+  resetTokenExpiry       DateTime?
+  failedLoginAttempts    Int                    @default(0)
+  lockoutUntil           DateTime?
+  tokenVersion           Int                    @default(0)
+  auditLogs              AuditLog[]
+  mediaAssets            MediaAsset[]
+  updatedSiteSettings    SiteSettings[]         @relation("SiteSettingsUpdatedBy")
+  vaultResponses         VaultResponse[]
+  vaultSubmissionEvents  VaultSubmissionEvent[] @relation("VaultEventAdminActor")
 }
 
 model SiteSettings {

@@ -152,23 +152,11 @@ const teamMembers = [
     status: 'published',
   },
   {
-    slug: 'mrs-gift-bunchi-abang',
-    name: 'Mrs. Gift Bunchi Abang',
-    role: 'Public Relations Officer',
-    tier: 'core',
-    sortOrder: 2,
-    credentials: '',
-    bio: 'Public Relations Officer for Down Below Family Health Initiative.',
-    imageUrl: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
-    imageAlt: 'Mrs. Gift Bunchi Abang, Public Relations Officer',
-    status: 'published',
-  },
-  {
     slug: 'mr-etoma-eugene',
     name: 'Mr. Etoma Eugene',
-    role: 'Secretary',
+    role: 'General Secretary',
     tier: 'core',
-    sortOrder: 3,
+    sortOrder: 2,
     credentials: '',
     bio: 'Secretary for Down Below Family Health Initiative.',
     imageUrl: '/assets/Mr-Etoma-Eugene-Secetrait.jpg',
@@ -180,11 +168,23 @@ const teamMembers = [
     name: 'Mrs. Ebani Clarkson Agbor',
     role: 'Financial Secretary',
     tier: 'core',
-    sortOrder: 4,
+    sortOrder: 3,
     credentials: '',
     bio: 'Financial Secretary for Down Below Family Health Initiative.',
     imageUrl: '/assets/Mrs-Ebani-Carkson-Agbor-Financial-Secretary.jpg',
     imageAlt: 'Mrs. Ebani Clarkson Agbor, Financial Secretary',
+    status: 'published',
+  },
+  {
+    slug: 'mrs-gift-bunchi-abang',
+    name: 'Mrs. Gift Bunchi Abang',
+    role: 'Public Relations Officer',
+    tier: 'core',
+    sortOrder: 4,
+    credentials: '',
+    bio: 'Public Relations Officer for Down Below Family Health Initiative.',
+    imageUrl: '/assets/Mrs-Gift-Bunchi-Abang-Public-Relation-Officer.jpg',
+    imageAlt: 'Mrs. Gift Bunchi Abang, Public Relations Officer',
     status: 'published',
   },
 ]
@@ -330,17 +330,7 @@ async function buildGalleryImages() {
   })
 }
 
-const siteAlerts = [
-  {
-    text:
-      'Work in Progress: The website is currently being improved. If you notice anything you dislike, please reach out on 09036826272.',
-    speed: 100,
-    durationSeconds: 24,
-    isActive: true,
-    startsAt: new Date('2026-05-11T00:00:00.000Z'),
-    endsAt: null,
-  },
-]
+const siteAlerts = []
 
 const reviews = [
   {
@@ -548,6 +538,11 @@ async function seedGalleryImages() {
 
 async function seedSiteAlerts() {
   console.log('Seeding site alerts...')
+
+  if (siteAlerts.length === 0) {
+    console.log('  - No default site alerts configured')
+    return
+  }
 
   for (const alert of siteAlerts) {
     const existing = await prisma.siteAlert.findFirst({
