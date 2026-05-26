@@ -3,7 +3,7 @@ import { defineConfig, env } from 'prisma/config'
 
 loadEnvConfig(process.cwd())
 
-function withCockroachConnectionDefaults(connectionString: string) {
+function withCockroachConnectionDefaults(connectionString: string): string {
   const url = new URL(connectionString)
 
   if (!url.searchParams.has('connect_timeout')) {
@@ -13,10 +13,16 @@ function withCockroachConnectionDefaults(connectionString: string) {
   return url.toString()
 }
 
+const databaseUrl = withCockroachConnectionDefaults(env('DATABASE_URL'))
+const shadowDatabaseUrl = process.env.SHADOW_DATABASE_URL
+  ? withCockroachConnectionDefaults(process.env.SHADOW_DATABASE_URL)
+  : undefined
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   datasource: {
-    url: withCockroachConnectionDefaults(env('DATABASE_URL')),
+    url: databaseUrl,
+    ...(shadowDatabaseUrl ? { shadowDatabaseUrl } : {}),
   },
   enums: {
     external: ['public.crdb_internal_region'],

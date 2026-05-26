@@ -24,30 +24,35 @@ export default async function VaultPage() {
 
   return (
     <>
-      <section className="pt-32 pb-16 text-white text-center" style={{ backgroundColor: 'var(--color-primary)' }}>
-        <div className="max-w-container mx-auto px-6">
+      <section className="pt-28 pb-10 text-center text-white sm:pt-32 sm:pb-14" style={{ backgroundColor: 'var(--color-primary)' }}>
+        <div
+          className="mx-auto"
+          style={{ width: 'min(calc(100vw - 2.5rem), 56rem)' }}
+        >
           <div
-            className="inline-block text-sm font-body px-4 py-1.5 rounded-full mb-6"
+            className="mb-5 inline-flex rounded-full px-4 py-1.5 font-body text-sm"
             style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}
           >
             100% Anonymous
           </div>
           <h1
-            className="font-heading font-bold text-white mb-4"
-            style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}
+            className="mb-4 break-words font-heading text-4xl font-bold leading-tight text-white sm:text-5xl"
           >
             The <span style={{ color: 'var(--color-accent)' }}>V-Vault</span>
           </h1>
-          <p className="font-body text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <p className="mx-auto max-w-lg font-body text-base leading-7" style={{ color: 'rgba(255,255,255,0.72)' }}>
             Ask privately and get thoughtful guidance.
           </p>
         </div>
       </section>
 
-      <section className="py-16" style={{ backgroundColor: 'var(--color-surface)' }}>
-        <div className="max-w-2xl mx-auto px-6">
+      <section className="py-8 sm:py-12" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div
+          className="mx-auto"
+          style={{ width: 'min(calc(100vw - 2.5rem), 64rem)' }}
+        >
           {!vaultEnabled ? (
-            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="rounded-lg border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
               <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
                 Anonymous submission is currently paused
               </h3>
@@ -56,11 +61,9 @@ export default async function VaultPage() {
               </p>
             </div>
           ) : session ? (
-            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
-              <VaultForm />
-            </div>
+            <VaultForm />
           ) : (
-            <div className="rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="rounded-lg border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
               <h3 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
                 Sign in to use anonymous V-Vault submissions
               </h3>
@@ -70,14 +73,14 @@ export default async function VaultPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
                   style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
                 >
                   Log in
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
                   style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
                 >
                   Create account
@@ -86,7 +89,7 @@ export default async function VaultPage() {
             </div>
           )}
 
-          <div className="mt-8 rounded-2xl border bg-white p-6" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="mt-6 rounded-lg border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
             <h2 className="font-heading text-xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>
               Need Immediate Support?
             </h2>
@@ -98,14 +101,14 @@ export default async function VaultPage() {
                 href={siteSettings.primaryWhatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
+                className="inline-flex min-h-11 items-center justify-center rounded-full px-6 py-3 font-body font-semibold"
                 style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
               >
                 Contact on WhatsApp
               </a>
               <a
                 href={`mailto:${siteSettings.contactEmail}`}
-                className="inline-flex items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
+                className="inline-flex min-h-11 items-center justify-center rounded-full px-6 py-3 font-body font-semibold border"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
               >
                 Send Gmail

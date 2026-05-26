@@ -330,17 +330,7 @@ async function buildGalleryImages() {
   })
 }
 
-const siteAlerts = [
-  {
-    text:
-      'Work in Progress: The website is currently being improved. If you notice anything you dislike, please reach out on 09036826272.',
-    speed: 100,
-    durationSeconds: 24,
-    isActive: true,
-    startsAt: new Date('2026-05-11T00:00:00.000Z'),
-    endsAt: null,
-  },
-]
+const siteAlerts = []
 
 const reviews = [
   {
@@ -548,6 +538,11 @@ async function seedGalleryImages() {
 
 async function seedSiteAlerts() {
   console.log('Seeding site alerts...')
+
+  if (siteAlerts.length === 0) {
+    console.log('  - No default site alerts configured')
+    return
+  }
 
   for (const alert of siteAlerts) {
     const existing = await prisma.siteAlert.findFirst({

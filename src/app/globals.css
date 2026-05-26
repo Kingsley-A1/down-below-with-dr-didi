@@ -44,14 +44,24 @@
   --font-display: var(--font-heading);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
   background: var(--color-surface);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   font-family: var(--font-body);
   color: var(--color-text);
   background: var(--color-surface);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 @media (prefers-color-scheme: dark) {

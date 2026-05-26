@@ -67,7 +67,7 @@ export default function ReviewHelpfulButton({
         onClick={toggleHelpful}
         disabled={busy}
         aria-pressed={helpful}
-        className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors disabled:opacity-60 ${
+        className={`inline-flex min-h-11 max-w-full flex-wrap items-center justify-center gap-2 rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors disabled:opacity-60 ${
           helpful
             ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
             : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-900'

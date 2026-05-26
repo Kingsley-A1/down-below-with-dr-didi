@@ -1,4 +1,5 @@
-import { getSiteSettings } from '@/lib/admin/repository'
+import { cache } from 'react'
+import { readSiteSettings } from '@/lib/admin/repository'
 import { readPublicDatabase } from '@/lib/public-database'
 import { defaultSiteSettings, siteConfig, type SiteSettingsState } from '@/lib/site-config'
 
@@ -31,11 +32,11 @@ function logPublicSettingsFallback(context: string, error: unknown): void {
   })
 }
 
-export async function getPublicSiteSettings(): Promise<SiteSettingsState> {
+export const getPublicSiteSettings = cache(async (): Promise<SiteSettingsState> => {
   return readPublicDatabase({
     context: 'site.settings',
     fallback: defaultSiteSettings,
-    query: async () => normalizeLegacySettings(await getSiteSettings()),
+    query: async () => normalizeLegacySettings(await readSiteSettings()),
     onError: logPublicSettingsFallback,
   })
-}
+})
