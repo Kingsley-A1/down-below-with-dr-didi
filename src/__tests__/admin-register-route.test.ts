@@ -9,9 +9,18 @@ const mockRegisterAdminUserAccount = jest.fn<(...args: unknown[]) => Promise<unk
 const mockWriteAuditLog = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.mock('@/lib/env', () => ({
-  env: { NODE_ENV: 'test' },
+  env: {
+    NODE_ENV: 'test',
+    NEXT_PUBLIC_SITE_URL: 'https://test.down-below.com',
+    RESEND_FROM_EMAIL: 'no-reply@test.down-below.com',
+    RESEND_FROM_NAME: 'Test',
+  },
   getAdminEnv: () => mockGetAdminEnv(),
   hasDatabaseConfig: () => mockHasDatabaseConfig(),
+  hasEmailProvider: () => false,
+  getEmailEnv: () => {
+    throw new Error('Email provider not configured in test')
+  },
 }))
 
 jest.mock('@/lib/admin/repository', () => ({
@@ -59,16 +68,24 @@ describe('POST /api/admin/register', () => {
     mockHasDatabaseConfig.mockReturnValue(true)
     mockGetAdminEnv.mockReturnValue({
       ADMIN_SESSION_SECRET: 'test-admin-session-secret-32-characters',
-      ADMIN_ACCESS_CODE: '',
+      ADMIN_ACCESS_CODE: '987654',
       ADMIN_SUPER_ADMIN_ACCESS_CODE: '741206',
       ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '404653',
       ADMIN_EDITOR_ACCESS_CODE: '246810',
       ADMIN_SUPPORT_PHONE: '+2348012345678',
     })
     mockRegisterAdminUserAccount.mockResolvedValue({
+      id: 'admin-test-id',
       email: 'goodeals.ng@gmail.com',
+      name: 'BLESSED KING',
       phone: '+2349036826272',
       role: 'editor',
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      verificationToken: 'test-verification-token-32-bytes-long-hex-string-1234567890abcdef',
+      verificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     })
     mockWriteAuditLog.mockRejectedValue(new Error('AuditLog write failed'))
 
@@ -76,10 +93,13 @@ describe('POST /api/admin/register', () => {
     const response = await POST(createAdminRegisterRequest(validPayload))
     const body = await response.json()
 
+    // New flow: registration succeeds but DOES NOT set a session cookie.
+    // The admin must verify their email via the Resend link before signing in.
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.role).toBe('editor')
-    expect(response.cookies.get('dbfh_admin_session')?.value).toBeTruthy()
+    expect(body.requiresEmailVerification).toBe(true)
+    expect(response.cookies.get('dbfh_admin_session')?.value).toBeFalsy()
   })
 
   it('returns a service configuration error when admin role-code env is invalid', async () => {

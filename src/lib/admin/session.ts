@@ -9,12 +9,14 @@ export type AdminSession = {
   email: string
   role: AdminRole
   expiresAt: string
+  tokenVersion: number
 }
 
 type SessionPayload = {
   email: string
   role: AdminRole
   exp: number
+  v?: number // tokenVersion — `v` to keep cookie small
 }
 
 function toBase64(value: string | Uint8Array) {
@@ -103,12 +105,17 @@ function safeEqual(left: string, right: string) {
   return result === 0
 }
 
-export async function createAdminSessionToken(input: { email: string; role: AdminRole }) {
+export async function createAdminSessionToken(input: {
+  email: string
+  role: AdminRole
+  tokenVersion?: number
+}) {
   const expiresAt = Date.now() + 1000 * 60 * 60 * 8
   const payload: SessionPayload = {
     email: input.email.trim().toLowerCase(),
     role: input.role,
     exp: expiresAt,
+    v: input.tokenVersion ?? 0,
   }
 
   const payloadJson = JSON.stringify(payload)
@@ -145,6 +152,7 @@ export async function verifyAdminSession(token: string | undefined) {
     email: parsed.email,
     role: normaliseAdminRole(parsed.role),
     expiresAt: new Date(parsed.exp).toISOString(),
+    tokenVersion: typeof parsed.v === 'number' ? parsed.v : 0,
   } satisfies AdminSession
 }
 
@@ -176,8 +184,11 @@ export function resolveAdminRegistrationRole(accessCode: string): AdminRegistrat
 export function sessionCookieOptions(expiresAt: string) {
   return {
     httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    // Default-secure: only allow plaintext cookies in explicit local dev.
+    // Staging/preview environments (where NODE_ENV !== 'production') still
+    // get Secure cookies so they can't be sniffed over HTTP.
+    secure: env.NODE_ENV !== 'development',
     path: '/',
     expires: new Date(expiresAt),
   }

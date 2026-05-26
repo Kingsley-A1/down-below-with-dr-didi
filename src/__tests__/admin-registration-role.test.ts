@@ -30,7 +30,9 @@ function restoreAdminEnv() {
 function configureAdminEnv(overrides?: Partial<Record<(typeof ADMIN_ENV_KEYS)[number], string>>) {
   const values = {
     ADMIN_SESSION_SECRET: 'test-admin-session-secret-32-characters',
-    ADMIN_ACCESS_CODE: '',
+    // ADMIN_ACCESS_CODE is now required (moderator role). Use a value that
+    // doesn't collide with the other role codes the tests assert.
+    ADMIN_ACCESS_CODE: '987654',
     ADMIN_SUPER_ADMIN_ACCESS_CODE: '741206',
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '483951',
     ADMIN_EDITOR_ACCESS_CODE: '246810',

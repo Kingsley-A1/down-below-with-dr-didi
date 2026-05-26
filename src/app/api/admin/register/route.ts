@@ -3,9 +3,11 @@ import { Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
 import { getClientIp, createRateLimiter } from '@/lib/rate-limit'
 import { adminRegisterSchema } from '@/lib/validations'
-import { resolveAdminRegistrationRole, createAdminSessionToken, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
+import { resolveAdminRegistrationRole } from '@/lib/admin/session'
 import { env, hasDatabaseConfig } from '@/lib/env'
 import { registerAdminUserAccount, writeAuditLog } from '@/lib/admin/repository'
+import { sendEmail } from '@/lib/email/send'
+import { verifyAdminEmail as verifyAdminEmailTemplate } from '@/lib/email/templates'
 
 const adminRegisterIpLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 12 })
 const adminRegisterIdentityLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 6 })
@@ -187,32 +189,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin database is not configured.' }, { status: 503 })
     }
 
-    const token = await createAdminSessionToken({
-      email,
+    // Send verification email. Admin sign-in is gated on emailVerified — no
+    // session cookie is set here, the admin has to click the link first.
+    const verifyUrl = `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}/admin/verify-email?token=${encodeURIComponent(account.verificationToken)}`
+    const template = verifyAdminEmailTemplate({
+      recipientName: account.name ?? account.email,
+      actionUrl: verifyUrl,
+      expiresInMinutes: Math.round((account.verificationExpiresAt.getTime() - Date.now()) / 60_000),
       role: account.role,
+    })
+
+    const sendResult = await sendEmail({
+      to: account.email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
     })
 
     const response = NextResponse.json({
       success: true,
       role: account.role,
-      message: 'Admin registration completed successfully.',
+      requiresEmailVerification: true,
+      emailSent: sendResult.ok,
+      message: 'Admin registration received. Check your email to verify before signing in.',
     })
-
-    response.cookies.set(
-      ADMIN_SESSION_COOKIE,
-      token,
-      sessionCookieOptions(new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString())
-    )
 
     await safeWriteAuditLog(request, {
       action: 'admin.register',
       entityType: 'admin_user',
       actorEmail: email,
       actorRole: account.role,
-      summary: 'Admin registration completed',
+      summary: 'Admin registration completed (pending email verification)',
       metadata: {
         clientIp,
         phone: account.phone,
+        emailSent: sendResult.ok,
       },
     })
 

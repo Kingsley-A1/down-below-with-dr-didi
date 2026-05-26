@@ -1,0 +1,27 @@
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "emailVerified" BOOL NOT NULL DEFAULT true;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "emailVerifyToken" STRING;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "emailVerifyTokenExpiry" TIMESTAMP(3);
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "resetToken" STRING;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP(3);
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "failedLoginAttempts" INT4 NOT NULL DEFAULT 0;
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "lockoutUntil" TIMESTAMP(3);
+
+ALTER TABLE "AdminUser"
+ADD COLUMN IF NOT EXISTS "tokenVersion" INT4 NOT NULL DEFAULT 0;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_emailVerifyToken_key" ON "AdminUser"("emailVerifyToken");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AdminUser_resetToken_key" ON "AdminUser"("resetToken");

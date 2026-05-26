@@ -1,47 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 export function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const token = searchParams.get('token')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [resetSessionId, setResetSessionId] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: '',
   })
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      // Get session ID and user ID from URL params
-      const sessionId = searchParams.get('sessionId')
-      const uid = searchParams.get('userId')
-
-      if (!sessionId || !uid) {
-        setError('Invalid or missing reset link. Please start the password reset process again.')
-        return
-      }
-
-      setResetSessionId(sessionId)
-      setUserId(uid)
-    }, 0)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [searchParams])
+  const missingTokenError = 'Invalid or missing reset link. Request a new password reset email.'
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -49,8 +26,8 @@ export function ResetPasswordForm() {
     setError(null)
     setIsLoading(true)
 
-    if (!resetSessionId || !userId) {
-      setError('Reset session expired. Please start over.')
+    if (!token) {
+      setError('Reset link is missing. Request a new password reset email.')
       setIsLoading(false)
       return
     }
@@ -60,8 +37,7 @@ export function ResetPasswordForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resetSessionId,
-          userId,
+          token,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
         }),
@@ -74,7 +50,6 @@ export function ResetPasswordForm() {
         return
       }
 
-      // Redirect to login with success message
       router.push('/login?message=Password reset successful. Please log in.')
     } catch (err) {
       setError('An unexpected error occurred')
@@ -84,10 +59,16 @@ export function ResetPasswordForm() {
     }
   }
 
-  if (!resetSessionId || !userId) {
+  if (!token) {
     return (
-      <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
-        {error || 'Loading...'}
+      <div className="space-y-3">
+        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">{missingTokenError}</div>
+        <Link
+          href="/forgot-password"
+          className="block rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Request a new reset link
+        </Link>
       </div>
     )
   }
@@ -95,9 +76,7 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
-          {error}
-        </div>
+        <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">{error}</div>
       )}
 
       <div>
@@ -140,7 +119,7 @@ export function ResetPasswordForm() {
         disabled={isLoading}
         className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {isLoading ? 'Resetting...' : 'Reset Password'}
+        {isLoading ? 'Resetting…' : 'Reset Password'}
       </button>
 
       <p className="text-center text-sm text-gray-600">

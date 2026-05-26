@@ -1,28 +1,24 @@
 /**
  * Admin Diagnostics Endpoint
  * ==========================
- * Provides detailed diagnostics for admin authentication issues
+ * Provides detailed diagnostics for admin authentication issues.
  *
- * GET /api/admin/diagnostics
- * - Returns: System-wide health status (requires authentication)
+ * Both GET and POST require an authenticated admin session — these handlers
+ * leak account-existence and hash-format hints that would otherwise enable
+ * account enumeration if exposed publicly.
  *
- * POST /api/admin/diagnostics
- * - Returns: Login attempt diagnostics payload
+ * GET  /api/admin/diagnostics  → system-wide admin health
+ * POST /api/admin/diagnostics  → login-attempt diagnostics (signed-in admin only)
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
+import {
   getAdminHealthStatus,
-  authenticateAdminUserWithDiagnostics 
+  authenticateAdminUserWithDiagnostics,
 } from '@/lib/admin/auth-diagnostics'
 import { requireAdminSession } from '@/lib/admin/api-guard'
 
-/**
- * GET /api/admin/diagnostics
- * System-wide health check (requires authentication)
- */
 export async function GET(request: NextRequest) {
-  // Require admin session
   const session = await requireAdminSession(request)
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,29 +29,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       health,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to check system health' },
-      { status: 500 }
-    )
+  } catch {
+    return NextResponse.json({ error: 'Failed to check system health' }, { status: 500 })
   }
 }
 
-/**
- * POST /api/admin/diagnostics/login
- * Test login and get detailed diagnostics
- * Useful for troubleshooting login failures
- */
 export async function POST(request: NextRequest) {
+  const session = await requireAdminSession(request)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
-    const body = (await request.json()) as {
-      email?: string
-      password?: string
-      skipLogging?: boolean
-    }
-    const { email, password, skipLogging } = body
+    const body = (await request.json()) as { email?: string; password?: string }
+    const { email, password } = body
 
     if (!email || !password) {
       return NextResponse.json(
@@ -67,7 +56,7 @@ export async function POST(request: NextRequest) {
     const result = await authenticateAdminUserWithDiagnostics(
       email.trim().toLowerCase(),
       password,
-      { logAttempt: !Boolean(skipLogging) }
+      { logAttempt: true }
     )
 
     return NextResponse.json({
@@ -76,7 +65,7 @@ export async function POST(request: NextRequest) {
       reason: result.attempt.reason,
       timestamp: result.attempt.timestamp,
       diagnostics: result.attempt.diagnostics,
-      ...(result.success && { account: result.account })
+      ...(result.success && { account: result.account }),
     })
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'

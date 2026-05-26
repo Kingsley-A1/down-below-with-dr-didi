@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import {
+  generateEmailVerificationToken,
   generatePasswordResetToken,
   isTokenExpired,
 } from '@/lib/auth/token'
@@ -116,14 +117,17 @@ export async function getUserById(userId: string): Promise<PublicUserRecord | nu
 }
 
 /**
- * Create new user with email verification flow
+ * Create new user with email verification flow.
+ * Returns the created user plus the raw verification token so the caller can
+ * send the verification email (the token is never persisted unhashed beyond
+ * the DB row).
  */
 export async function createUser(
   email: string,
   displayName: string,
   password: string,
   phone?: string
-): Promise<{ user: PublicUserRecord } | null> {
+): Promise<{ user: PublicUserRecord; verificationToken: string; verificationExpiresAt: Date } | null> {
   try {
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -134,15 +138,16 @@ export async function createUser(
     }
 
     const passwordHash = await hashPassword(password)
+    const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
 
     const user = (await prisma.user.create({
       data: {
         email,
         displayName,
         passwordHash,
-        emailVerified: true,
-        emailVerifyToken: null,
-        emailVerifyTokenExpiry: null,
+        emailVerified: false,
+        emailVerifyToken: verificationToken,
+        emailVerifyTokenExpiry: verificationExpiresAt,
         phone: phone || null,
         role: 'member',
       },
@@ -155,14 +160,64 @@ export async function createUser(
       entityId: user.id,
       userId: user.id,
       actorEmail: email,
-      summary: `User registered: ${displayName} <${email}>`,
+      summary: `User registered (pending email verification): ${displayName} <${email}>`,
     })
 
     return {
       user: mapToPublicRecord(user),
+      verificationToken,
+      verificationExpiresAt,
     }
   } catch (error) {
     console.error('Error creating user:', error)
+    throw error
+  }
+}
+
+/**
+ * Re-issue a verification token for an existing unverified user. Returns the
+ * fresh token + expiry, or null if the user does not exist or is already
+ * verified. Always-200 callers should still respond generically to avoid
+ * account enumeration.
+ */
+export async function regenerateEmailVerificationToken(
+  email: string
+): Promise<{ user: PublicUserRecord; verificationToken: string; verificationExpiresAt: Date } | null> {
+  try {
+    const user = (await prisma.user.findUnique({
+      where: { email },
+    })) as UserDbRecord | null
+
+    if (!user || user.emailVerified) {
+      return null
+    }
+
+    const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+
+    const updated = (await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifyToken: verificationToken,
+        emailVerifyTokenExpiry: verificationExpiresAt,
+      },
+    })) as UserDbRecord
+
+    await logAuditEvent({
+      action: 'user.email_verify_resent',
+      entityType: 'User',
+      entityId: updated.id,
+      userId: updated.id,
+      actorEmail: updated.email,
+      summary: `Email verification re-sent to ${updated.email}`,
+    })
+
+    return {
+      user: mapToPublicRecord(updated),
+      verificationToken,
+      verificationExpiresAt,
+    }
+  } catch (error) {
+    console.error('Error regenerating email verification token:', error)
     throw error
   }
 }
@@ -730,112 +785,7 @@ async function logAuditEvent({
   }
 }
 
-/**
- * Generate and send phone verification code for password reset
- */
-export async function generatePhoneVerificationCode(email: string, phone: string): Promise<string | null> {
-  try {
-    const user = (await prisma.user.findUnique({
-      where: { email },
-    })) as UserDbRecord | null
-
-    if (!user || !user.phone || user.phone !== phone) {
-      return null
-    }
-
-    // Generate 6-digit code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        phoneVerifyCode: verificationCode,
-        phoneVerifyExpiry: expiresAt,
-      },
-    })
-
-    // Audit: phone verification code generated
-    await logAuditEvent({
-      action: 'user.phone_verify_requested',
-      entityType: 'User',
-      entityId: user.id,
-      userId: user.id,
-      actorEmail: user.email,
-      summary: `Phone verification code generated for ${user.email}`,
-    })
-
-    // Return code for testing/development (in production, would be sent via SMS)
-    return verificationCode
-  } catch (error) {
-    console.error('Error generating phone verification code:', error)
-    throw error
-  }
-}
-
-/**
- * Verify phone code and proceed with password reset
- */
-export async function verifyPhoneCodeAndGenerateReset(
-  email: string,
-  phone: string,
-  code: string
-): Promise<string | null> {
-  try {
-    const user = (await prisma.user.findUnique({
-      where: { email },
-    })) as UserDbRecord | null
-
-    if (!user) {
-      return null
-    }
-
-    // Verify phone and code
-    if (user.phone !== phone || user.phoneVerifyCode !== code) {
-      // Audit: phone verification failed
-      await logAuditEvent({
-        action: 'user.phone_verify_failed',
-        entityType: 'User',
-        entityId: user.id,
-        userId: user.id,
-        actorEmail: user.email,
-        summary: `Phone verification failed for ${user.email}`,
-        success: false,
-      })
-      return null
-    }
-
-    // Check if code expired
-    if (!user.phoneVerifyExpiry || isTokenExpired(user.phoneVerifyExpiry)) {
-      return null
-    }
-
-    // Generate password reset token
-    const { token: resetToken, expiresAt } = generatePasswordResetToken()
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpiry: expiresAt,
-        phoneVerifyCode: null,
-        phoneVerifyExpiry: null,
-      },
-    })
-
-    // Audit: phone verification succeeded
-    await logAuditEvent({
-      action: 'user.phone_verified',
-      entityType: 'User',
-      entityId: user.id,
-      userId: user.id,
-      actorEmail: user.email,
-      summary: `Phone verified and reset token generated for ${user.email}`,
-    })
-
-    return resetToken
-  } catch (error) {
-    console.error('Error verifying phone code:', error)
-    throw error
-  }
-}
+// Phone-based password reset has been removed in favour of email-only flow
+// using Resend (see /api/auth/forgot-password). The `phoneVerifyCode` and
+// `phoneVerifyExpiry` columns on User are now unused and can be dropped in a
+// follow-up migration.

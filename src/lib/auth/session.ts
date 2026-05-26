@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { jwtVerify, SignJWT } from 'jose'
 import { prisma } from '@/lib/prisma'
+import { getJwtSecret } from '@/lib/env'
 
 interface SessionUserRecord {
   id: string
@@ -34,9 +35,18 @@ const SESSION_DURATION = 90 * 24 * 60 * 60 * 1000 // 90 days in milliseconds (ma
 // Inactivity timeouts
 const USER_INACTIVITY_TIMEOUT = 60 * 24 * 60 * 60 * 1000 // 60 days
 const ADMIN_INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000 // 2 hours
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'dev-secret-change-in-production'
-)
+
+let cachedSecret: { value: string; bytes: Uint8Array } | null = null
+
+function getSigningKey(): Uint8Array {
+  const value = getJwtSecret()
+  if (cachedSecret?.value === value) {
+    return cachedSecret.bytes
+  }
+  const bytes = new TextEncoder().encode(value)
+  cachedSecret = { value, bytes }
+  return bytes
+}
 
 /**
  * Create a user session and set cookie
@@ -58,11 +68,12 @@ export async function createSession(user: UserSession): Promise<void> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('90d')
-    .sign(SECRET)
+    .sign(getSigningKey())
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Default-secure outside explicit local dev (staging/preview/prod all use HTTPS).
+    secure: process.env.NODE_ENV !== 'development',
     sameSite: 'strict',
     maxAge: SESSION_DURATION / 1000, // Convert to seconds
     path: '/',
@@ -108,7 +119,7 @@ export async function getSession(): Promise<UserSession | null> {
       return null
     }
 
-    const verified = await jwtVerify(token, SECRET)
+    const verified = await jwtVerify(token, getSigningKey())
     const payload = verified.payload as Record<string, unknown>
     const userId = payload.userId as string | undefined
     const requestStore = getOrCreateRequestStore()

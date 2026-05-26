@@ -1,87 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resetPassword } from '@/lib/admin/user-repository'
+import { resetPassword, getUserByEmail } from '@/lib/admin/user-repository'
+import { prisma } from '@/lib/prisma'
 import { userResetPasswordSchema } from '@/lib/validations'
-import { getResetSessionManager } from '@/lib/auth/reset-session'
+import { sendEmail } from '@/lib/email/send'
+import { passwordChanged as passwordChangedTemplate } from '@/lib/email/templates'
+import { env, hasDatabaseConfig } from '@/lib/env'
+import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
 
-/**
- * POST /api/auth/reset-password
- * Reset password using a valid reset session ID.
- *
- * Request body:
- * {
- *   resetSessionId: string,  // From verify-phone-code response
- *   userId: string,           // User ID (validation)
- *   password: string,         // New password
- *   confirmPassword: string   // Confirm password
- * }
- *
- * Response:
- * {
- *   success: boolean
- *   message?: string
- *   error?: string
- * }
- */
+const resetByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 10 })
+
+function buildSigninUrl() {
+  const base = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
+  return `${base}/login`
+}
+
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request)
+  const ipLimit = resetByIp(`auth-reset:ip:${ip}`)
+  if (ipLimit.limited) {
+    return NextResponse.json(
+      { success: false, error: 'Too many reset attempts. Please wait and try again.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((ipLimit.resetAt - Date.now()) / 1000)) },
+      }
+    )
+  }
+
+  let body: unknown
   try {
-    const body = await request.json()
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 })
+  }
 
-    // Validate password fields
-    const validation = userResetPasswordSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten(),
-        },
-        { status: 400 }
-      )
-    }
+  const parsed = userResetPasswordSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, error: 'Validation failed', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
 
-    const { password } = validation.data
-    const resetSessionId = body.resetSessionId as string
-    const userId = body.userId as string
+  if (!hasDatabaseConfig()) {
+    return NextResponse.json(
+      { success: false, error: 'Authentication database is not configured.' },
+      { status: 503 }
+    )
+  }
 
-    // Validate required fields
-    if (!resetSessionId || !userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing reset session ID or user ID',
-        },
-        { status: 400 }
-      )
-    }
+  try {
+    // Look up the email associated with the token so we can send a
+    // confirmation email after the change. The token is single-use.
+    const userRecord = await prisma.user.findUnique({
+      where: { resetToken: parsed.data.token },
+      select: { email: true },
+    })
 
-    // Validate session and retrieve token
-    const sessionManager = getResetSessionManager()
-    const resetToken = sessionManager.validate(resetSessionId, userId)
-
-    if (!resetToken) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid or expired reset session',
-        },
-        { status: 400 }
-      )
-    }
-
-    // Perform password reset
-    const changed = await resetPassword(resetToken, password)
+    const changed = await resetPassword(parsed.data.token, parsed.data.password)
     if (!changed) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Password reset failed. Token may have expired.',
-        },
+        { success: false, error: 'Invalid or expired reset link. Request a new one.' },
         { status: 400 }
       )
     }
 
-    // Invalidate the session (mark as used)
-    sessionManager.invalidate(resetSessionId)
+    if (userRecord?.email) {
+      const user = await getUserByEmail(userRecord.email)
+      if (user) {
+        const template = passwordChangedTemplate({
+          recipientName: user.displayName,
+          actionUrl: buildSigninUrl(),
+          supportEmail: env.RESEND_FROM_EMAIL,
+        })
+        await sendEmail({
+          to: user.email,
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+        })
+      }
+    }
 
     return NextResponse.json(
       {
@@ -93,10 +92,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Reset password error:', error)
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Password reset failed',
-      },
+      { success: false, error: 'Password reset failed' },
       { status: 500 }
     )
   }
