@@ -50,7 +50,8 @@ describeWithDatabase('Admin Auth Integration', () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.role).toBe('super_admin')
-    expect(res.cookies.get(ADMIN_SESSION_COOKIE)?.value).toBeTruthy()
+    expect(body.requiresEmailVerification).toBe(true)
+    expect(res.cookies.get(ADMIN_SESSION_COOKIE)?.value).toBeUndefined()
 
     const account = await prisma.adminUser.findUnique({
       where: { email: 'super-admin@example.com' },

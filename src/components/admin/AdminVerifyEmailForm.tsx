@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Status = 'idle' | 'verifying' | 'success' | 'error' | 'resending'
 
@@ -27,18 +28,18 @@ export function AdminVerifyEmailForm() {
       body: JSON.stringify({ token }),
     })
       .then(async (res) => {
-        const data = await res.json()
+        const data = await readJsonResponse<{ success?: boolean; message?: string }>(res)
         if (!isActive) {
           return
         }
 
-        if (res.ok && data.success) {
+        if (res.ok && data?.success) {
           setStatus('success')
           setMessage(data.message ?? 'Email verified.')
           redirectTimer = setTimeout(() => router.push('/admin/sign-in'), 1500)
         } else {
           setStatus('error')
-          setMessage(data.error ?? 'Verification failed.')
+          setMessage(parseApiError(data, 'Verification failed.').message)
         }
       })
       .catch(() => {
@@ -67,8 +68,14 @@ export function AdminVerifyEmailForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resendEmail }),
       })
-      const data = await res.json()
-      setMessage(data.message ?? 'If your account needs verification, a fresh link has been sent.')
+      const data = await readJsonResponse<{ message?: string }>(res)
+      if (!res.ok) {
+        setStatus('error')
+        setMessage(parseApiError(data, 'Could not request a new link. Try again in a moment.').message)
+        return
+      }
+
+      setMessage(data?.message ?? 'If your account needs verification, a fresh link has been sent.')
       setStatus('idle')
     } catch {
       setStatus('error')

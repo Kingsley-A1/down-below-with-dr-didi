@@ -45,7 +45,12 @@ export const adminRegisterSchema = z.object({
   phone: z.string().trim().regex(/^(\+234|0)[789][01]\d{8}$/, 'Enter a valid Nigerian phone number'),
   password: adminPasswordSchema,
   confirmPassword: z.string(),
-  accessCode: z.string().trim().regex(/^\d{6}$/, 'Admin access code must be exactly 6 digits'),
+  accessCode: z
+    .string()
+    .trim()
+    .min(6, 'Admin access code or invite token is invalid')
+    .max(128, 'Admin access code or invite token is too long')
+    .regex(/^[A-Za-z0-9_-]+$/, 'Admin access code or invite token is invalid'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],

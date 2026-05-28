@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAllGalleryImages, createGalleryImage } from '@/lib/admin/repository'
 import { galleryImageSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const parsed = galleryImageSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const { caption, eventName, location, capturedAt, status, ...rest } = parsed.data
@@ -55,6 +56,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, image }, { status: 201 })
   } catch (error) {
-    return mapApiError(error, 'Failed to create gallery image')
+    return mapApiError(error, 'Failed to create gallery image', { request, identity: { email: session.email, role: session.role } })
   }
 }

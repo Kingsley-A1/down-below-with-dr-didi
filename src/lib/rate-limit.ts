@@ -7,9 +7,11 @@
  * checked, keeping memory bounded.
  *
  * NOTE: This implementation is intentionally single-process.  If the app is
- * ever deployed behind multiple Node.js replicas (e.g. Kubernetes pods), swap
- * this for a Redis-backed counter such as `@upstash/ratelimit`.
+ * ever deployed behind multiple Node.js replicas (e.g. Kubernetes pods), use
+ * `checkRateLimit` below. It persists counters in the database when available.
  */
+
+import { hasDatabaseConfig } from '@/lib/env'
 
 export interface RateLimitOptions {
   /** Rolling window duration in milliseconds. */
@@ -25,6 +27,11 @@ export interface RateLimitResult {
   remaining: number
   /** Unix timestamp (ms) at which the oldest recorded request expires. */
   resetAt: number
+}
+
+export interface DurableRateLimitOptions extends RateLimitOptions {
+  /** Stable namespace + identifier, e.g. `auth-login:ip:1.2.3.4`. */
+  key: string
 }
 
 export function createRateLimiter(options: RateLimitOptions) {
@@ -49,6 +56,92 @@ export function createRateLimiter(options: RateLimitOptions) {
 
     return { limited: false, remaining: limit - timestamps.length, resetAt }
   }
+}
+
+const fallbackLimiters = new Map<string, ReturnType<typeof createRateLimiter>>()
+
+function getFallbackLimiter(options: RateLimitOptions) {
+  const key = `${options.windowMs}:${options.limit}`
+  const existing = fallbackLimiters.get(key)
+
+  if (existing) {
+    return existing
+  }
+
+  const limiter = createRateLimiter(options)
+  fallbackLimiters.set(key, limiter)
+  return limiter
+}
+
+function shouldUseDatabaseRateLimit() {
+  return hasDatabaseConfig() && process.env.NODE_ENV !== 'test'
+}
+
+async function checkDatabaseRateLimit(input: DurableRateLimitOptions): Promise<RateLimitResult> {
+  const { prisma } = await import('@/lib/prisma')
+  const nowMs = Date.now()
+  const now = new Date(nowMs)
+  const nextResetAt = new Date(nowMs + input.windowMs)
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.rateLimitBucket.findUnique({
+      where: { key: input.key },
+    })
+
+    if (!existing || existing.resetAt.getTime() <= nowMs) {
+      await tx.rateLimitBucket.upsert({
+        where: { key: input.key },
+        update: {
+          count: 1,
+          resetAt: nextResetAt,
+        },
+        create: {
+          key: input.key,
+          count: 1,
+          resetAt: nextResetAt,
+        },
+      })
+
+      return {
+        limited: false,
+        remaining: input.limit - 1,
+        resetAt: nextResetAt.getTime(),
+      }
+    }
+
+    const updated = await tx.rateLimitBucket.update({
+      where: { key: input.key },
+      data: { count: { increment: 1 } },
+    })
+
+    if (updated.count === 1) {
+      await tx.rateLimitBucket.deleteMany({
+        where: { resetAt: { lt: now } },
+      })
+    }
+
+    return {
+      limited: updated.count > input.limit,
+      remaining: Math.max(0, input.limit - updated.count),
+      resetAt: existing.resetAt.getTime(),
+    }
+  })
+}
+
+export async function checkRateLimit(input: DurableRateLimitOptions): Promise<RateLimitResult> {
+  if (shouldUseDatabaseRateLimit()) {
+    try {
+      return await checkDatabaseRateLimit(input)
+    } catch (error) {
+      console.error('[rate-limit] Durable rate limit failed; using memory fallback', error)
+    }
+  }
+
+  return getFallbackLimiter(input)(input.key)
+}
+
+export function resetRateLimitFallbacksForTests() {
+  fallbackLimiters.clear()
 }
 
 /** Extracts the best available client IP from a Next.js request. */

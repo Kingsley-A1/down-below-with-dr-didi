@@ -3,11 +3,10 @@ import { z } from 'zod'
 import { requestPasswordReset, getUserByEmail } from '@/lib/admin/user-repository'
 import { sendEmail } from '@/lib/email/send'
 import { passwordReset as passwordResetTemplate } from '@/lib/email/templates'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { env } from '@/lib/env'
 
-const requestByEmail = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 3 })
-const requestByIp = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 10 })
+const REQUEST_WINDOW_MS = 60 * 60 * 1000
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -28,7 +27,7 @@ const GENERIC_OK = NextResponse.json(
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const ipLimit = requestByIp(`auth-forgot:ip:${ip}`)
+  const ipLimit = await checkRateLimit({ key: `auth-forgot:ip:${ip}`, windowMs: REQUEST_WINDOW_MS, limit: 10 })
   if (ipLimit.limited) {
     return NextResponse.json(
       { success: false, error: 'Too many requests. Please wait and try again.' },
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const email = parsed.data.email
 
-  const emailLimit = requestByEmail(`auth-forgot:email:${email}`)
+  const emailLimit = await checkRateLimit({ key: `auth-forgot:email:${email}`, windowMs: REQUEST_WINDOW_MS, limit: 3 })
   if (emailLimit.limited) {
     return GENERIC_OK
   }

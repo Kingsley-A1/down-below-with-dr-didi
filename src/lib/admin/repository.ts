@@ -8,7 +8,8 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { gallerySeedItems } from '@/data/gallery'
 import { team as staticTeam } from '@/data/team'
-import { withPrismaRetry } from '@/lib/prisma-retry'
+import { isTransientPrismaTransactionError, withPrismaRetry } from '@/lib/prisma-retry'
+import { appErrors } from '@/lib/app-error'
 
 export type DashboardSummary = {
   adminUsers: number
@@ -359,7 +360,7 @@ export async function registerAdminUserAccount(input: {
   })) as AdminAccountDbRecord | null
 
   if (existing?.passwordHash) {
-    throw new Error('ADMIN_ACCOUNT_ALREADY_REGISTERED')
+    throw appErrors.duplicateEmail('email')
   }
 
   const passwordHash = await hashPassword(input.password)
@@ -614,34 +615,6 @@ export async function changeAdminPassword(input: {
   return { ok: true }
 }
 
-export async function authenticateAdminUser(email: string, password: string) {
-  if (!hasDatabaseConfig()) {
-    return null
-  }
-
-  const normalizedEmail = email.trim().toLowerCase()
-  const account = (await prisma.adminUser.findUnique({
-    where: { email: normalizedEmail },
-  })) as AdminAccountDbRecord | null
-
-  if (!account || !account.isActive || !account.passwordHash) {
-    return null
-  }
-
-  const passwordValid = await verifyPassword(password, account.passwordHash)
-
-  if (!passwordValid) {
-    return null
-  }
-
-  const updated = (await prisma.adminUser.update({
-    where: { email: normalizedEmail },
-    data: { lastLoginAt: new Date() },
-  })) as AdminAccountDbRecord
-
-  return mapAdminAccountRecord(updated)
-}
-
 export async function listAdminAccounts(): Promise<AdminAccountRecord[]> {
   if (!hasDatabaseConfig()) {
     return []
@@ -658,7 +631,7 @@ async function assertAdminAccountCanLoseSuperAdminStatus(id: string, input: { ro
   const existing = (await prisma.adminUser.findUnique({ where: { id } })) as AdminAccountDbRecord | null
 
   if (!existing) {
-    throw new Error('Admin account not found')
+    throw appErrors.notFound('Admin account not found')
   }
 
   const willRemainActiveSuperAdmin =
@@ -677,7 +650,7 @@ async function assertAdminAccountCanLoseSuperAdminStatus(id: string, input: { ro
   })
 
   if (remainingSuperAdmins === 0) {
-    throw new Error('At least one active super admin must remain')
+    throw appErrors.conflict('At least one active super admin must remain')
   }
 
   return existing
@@ -695,14 +668,14 @@ export async function createAdminAccount(
   actor: { email: string; role: AdminRole }
 ): Promise<AdminAccountRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const normalized = normalizeAdminIdentity(input)
   const existing = await prisma.adminUser.findUnique({ where: { email: normalized.email } })
 
   if (existing) {
-    throw new Error('Admin account already exists')
+    throw appErrors.duplicateEmail('email')
   }
 
   const passwordHash = await hashPassword(input.password)
@@ -743,7 +716,7 @@ export async function updateAdminAccount(
   actor: { email: string; role: AdminRole }
 ): Promise<AdminAccountRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const existing = await assertAdminAccountCanLoseSuperAdminStatus(id, input)
@@ -783,7 +756,7 @@ export async function deleteAdminAccount(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   await assertAdminAccountCanLoseSuperAdminStatus(id, { isActive: false })
@@ -899,7 +872,7 @@ export async function getSiteSettings(): Promise<SiteSettingsState> {
 
 export async function saveSiteSettings(input: SiteSettingsState, actor: { email: string; role: AdminRole }) {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const adminUser = await upsertAdminUserRecord(actor.email, actor.role)
@@ -1020,7 +993,9 @@ function mapSiteAlert(record: SiteAlertDbRecord): SiteAlertRecord {
 
 function assertAlertWindow(startsAt: Date, endsAt: Date | null) {
   if (endsAt && endsAt <= startsAt) {
-    throw new Error('Alert end time must be after start time')
+    throw appErrors.validation('Alert end time must be after start time', {
+      endsAt: ['Alert end time must be after start time'],
+    })
   }
 }
 
@@ -1079,7 +1054,7 @@ export async function createSiteAlert(
   actor: { email: string; role: AdminRole }
 ): Promise<SiteAlertRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const startsAt = input.startsAt ? new Date(input.startsAt) : new Date()
@@ -1128,13 +1103,13 @@ export async function updateSiteAlert(
   actor: { email: string; role: AdminRole }
 ): Promise<SiteAlertRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const existing = await prisma.siteAlert.findUnique({ where: { id } })
 
   if (!existing) {
-    throw new Error('Site alert not found')
+    throw appErrors.notFound('Site alert not found')
   }
 
   const startsAt = input.startsAt ? new Date(input.startsAt) : existing.startsAt
@@ -1173,7 +1148,7 @@ export async function updateSiteAlert(
 
 export async function deleteSiteAlert(id: string, actor: { email: string; role: AdminRole }) {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.siteAlert.delete({ where: { id } })
@@ -1231,7 +1206,7 @@ export async function createMediaAssetRecord(input: {
   actorRole: AdminRole
 }) {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const adminUser = await upsertAdminUserRecord(input.actorEmail, input.actorRole)
@@ -1272,7 +1247,7 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
   usages: MediaAssetUsageRecord[]
 }> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const asset = await prisma.mediaAsset.findUnique({
@@ -1287,7 +1262,7 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
   })
 
   if (!asset) {
-    throw new Error('Media asset not found')
+    throw appErrors.notFound('Media asset not found')
   }
 
   const [heroRef, teamRefs, galleryRefs, podcastRefs, articleRefs] = await Promise.all([
@@ -1371,7 +1346,7 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
 
 export async function deleteMediaAssetRecord(id: string, actor: { email: string; role: AdminRole }): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.mediaAsset.delete({ where: { id } })
@@ -1427,7 +1402,7 @@ export async function createVaultSubmission(input: {
   source?: VaultSubmissionRecord['source']
 }) {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.vaultSubmission.create({
@@ -1514,7 +1489,7 @@ export async function updateVaultSubmissionModeration(
   actor: { email: string; role: AdminRole }
 ) {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.vaultSubmission.update({
@@ -1564,13 +1539,15 @@ export async function createVaultResponse(
   notificationCreated: boolean
 }> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const responseBody = input.responseBody.trim()
 
   if (!responseBody) {
-    throw new Error('Response body is required')
+    throw appErrors.validation('Response body is required', {
+      responseBody: ['Response body is required'],
+    })
   }
 
   const adminUser = await upsertAdminUserRecord(actor.email, actor.role)
@@ -1581,82 +1558,92 @@ export async function createVaultResponse(
 
   const now = new Date()
 
-  const result = await prisma.$transaction(async (tx) => {
-    const submission = await tx.vaultSubmission.findUnique({
-      where: { id: input.submissionId },
-      select: {
-        id: true,
-        userId: true,
-        category: true,
-      },
-    })
+  const result = await withPrismaRetry(
+    () =>
+      prisma.$transaction(
+        async (tx) => {
+          const submission = await tx.vaultSubmission.findUnique({
+            where: { id: input.submissionId },
+            select: {
+              id: true,
+              userId: true,
+              category: true,
+            },
+          })
 
-    if (!submission) {
-      throw new Error('Vault submission not found')
-    }
+          if (!submission) {
+            throw appErrors.notFound('Vault submission not found')
+          }
 
-    const notificationCreated = submission.userId !== null
+          const notificationCreated = submission.userId !== null
 
-    const response = await tx.vaultResponse.create({
-      data: {
-        submissionId: submission.id,
-        responseBody,
-        responderAdminId: adminUser.id,
-        responderRole: actor.role,
-        deliveredAt: notificationCreated ? now : null,
-      },
-    })
+          const response = await tx.vaultResponse.create({
+            data: {
+              submissionId: submission.id,
+              responseBody,
+              responderAdminId: adminUser.id,
+              responderRole: actor.role,
+              deliveredAt: notificationCreated ? now : null,
+            },
+          })
 
-    await tx.vaultSubmission.update({
-      where: { id: submission.id },
-      data: {
-        status: 'answered_privately',
-      },
-    })
+          await tx.vaultSubmission.update({
+            where: { id: submission.id },
+            data: {
+              status: 'answered_privately',
+            },
+          })
 
-    await tx.vaultSubmissionEvent.create({
-      data: {
-        submissionId: submission.id,
-        actorType: 'admin',
-        actorAdminId: adminUser.id,
-        eventType: 'submission.responded',
-        metadata: {
-          responseId: response.id,
-          responderRole: actor.role,
+          await tx.vaultSubmissionEvent.create({
+            data: {
+              submissionId: submission.id,
+              actorType: 'admin',
+              actorAdminId: adminUser.id,
+              eventType: 'submission.responded',
+              metadata: {
+                responseId: response.id,
+                responderRole: actor.role,
+              },
+            },
+          })
+
+          if (submission.userId) {
+            await tx.userNotification.create({
+              data: {
+                userId: submission.userId,
+                type: 'vault_response',
+                title: 'You have a new V-Vault response',
+                body: 'Dr. Didi has replied to your anonymous V-Vault submission.',
+                entityType: 'vault_submission',
+                entityId: submission.id,
+              },
+            })
+
+            await tx.vaultSubmissionEvent.create({
+              data: {
+                submissionId: submission.id,
+                actorType: 'system',
+                eventType: 'submission.user_notified',
+                metadata: {
+                  responseId: response.id,
+                  notificationType: 'vault_response',
+                },
+              },
+            })
+          }
+
+          return {
+            response,
+            notificationCreated,
+          }
         },
-      },
-    })
-
-    if (submission.userId) {
-      await tx.userNotification.create({
-        data: {
-          userId: submission.userId,
-          type: 'vault_response',
-          title: 'You have a new V-Vault response',
-          body: 'Dr. Didi has replied to your anonymous V-Vault submission.',
-          entityType: 'vault_submission',
-          entityId: submission.id,
-        },
-      })
-
-      await tx.vaultSubmissionEvent.create({
-        data: {
-          submissionId: submission.id,
-          actorType: 'system',
-          eventType: 'submission.user_notified',
-          metadata: {
-            responseId: response.id,
-            notificationType: 'vault_response',
-          },
-        },
-      })
-    }
-
-    return {
-      response,
-      notificationCreated,
-    }
-  })
+        {
+          maxWait: 10_000,
+          timeout: 15_000,
+        }
+      ),
+    { attempts: 3, delayMs: 250, shouldRetry: isTransientPrismaTransactionError }
+  )
 
   await writeAuditLog({
     action: 'vault_submission.responded',
@@ -1687,16 +1674,18 @@ export async function listUserVaultThreads(
 
   const take = options?.take ?? 30
 
-  const records = await prisma.vaultSubmission.findMany({
-    where: { userId },
-    include: {
-      responses: {
-        orderBy: { createdAt: 'asc' },
+  const records = await withPrismaRetry(() =>
+    prisma.vaultSubmission.findMany({
+      where: { userId },
+      include: {
+        responses: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-    take,
-  })
+      orderBy: { createdAt: 'desc' },
+      take,
+    })
+  )
 
   return (records as Array<{
     id: string
@@ -1730,14 +1719,16 @@ export async function listUserNotifications(
 
   const take = options?.take ?? 30
 
-  const [records, unreadCount] = await Promise.all([
-    prisma.userNotification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take,
-    }),
-    prisma.userNotification.count({ where: { userId, isRead: false } }),
-  ])
+  const [records, unreadCount] = await withPrismaRetry(() =>
+    Promise.all([
+      prisma.userNotification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take,
+      }),
+      prisma.userNotification.count({ where: { userId, isRead: false } }),
+    ])
+  )
 
   return {
     notifications: (records as UserNotificationDbRecord[]).map((record: UserNotificationDbRecord) =>
@@ -1755,12 +1746,14 @@ export async function markUserNotificationRead(
     return null
   }
 
-  const existing = await prisma.userNotification.findFirst({
-    where: {
-      id: notificationId,
-      userId,
-    },
-  })
+  const existing = await withPrismaRetry(() =>
+    prisma.userNotification.findFirst({
+      where: {
+        id: notificationId,
+        userId,
+      },
+    })
+  )
 
   if (!existing) {
     return null
@@ -1768,13 +1761,15 @@ export async function markUserNotificationRead(
 
   const record = existing.isRead
     ? existing
-    : await prisma.userNotification.update({
-        where: { id: existing.id },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      })
+    : await withPrismaRetry(() =>
+        prisma.userNotification.update({
+          where: { id: existing.id },
+          data: {
+            isRead: true,
+            readAt: new Date(),
+          },
+        })
+      )
 
   return mapUserNotificationRecord(record as UserNotificationDbRecord)
 }
@@ -2071,7 +2066,7 @@ export async function createTeamMember(
   actor: { email: string; role: AdminRole }
 ): Promise<TeamMemberRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.teamMember.create({
@@ -2119,7 +2114,7 @@ export async function updateTeamMember(
   actor: { email: string; role: AdminRole }
 ): Promise<TeamMemberRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.teamMember.update({
@@ -2156,7 +2151,7 @@ export async function deleteTeamMember(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.teamMember.delete({ where: { id } })
@@ -2676,7 +2671,7 @@ export async function createGalleryImage(
   actor: { email: string; role: AdminRole }
 ): Promise<GalleryImageRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.galleryImage.create({
@@ -2728,7 +2723,7 @@ export async function updateGalleryImage(
   actor: { email: string; role: AdminRole }
 ): Promise<GalleryImageRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.galleryImage.update({
@@ -2769,7 +2764,7 @@ export async function deleteGalleryImage(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.galleryImage.delete({ where: { id } })
@@ -2952,7 +2947,7 @@ export async function createPodcastEpisode(
   actor: { email: string; role: AdminRole }
 ): Promise<PodcastEpisodeRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.podcastEpisode.create({
@@ -3012,7 +3007,7 @@ export async function updatePodcastEpisode(
   actor: { email: string; role: AdminRole }
 ): Promise<PodcastEpisodeRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.podcastEpisode.update({
@@ -3059,7 +3054,7 @@ export async function deletePodcastEpisode(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.podcastEpisode.delete({ where: { id } })
@@ -3292,7 +3287,7 @@ export async function createEvent(
   actor: { email: string; role: AdminRole }
 ): Promise<EventRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const nextSortOrder = input.sortOrder ?? 0
@@ -3313,7 +3308,8 @@ export async function createEvent(
       }) as { id: string; title: string } | null
 
       if (existingAtPosition) {
-        throw new Error(`Validation failed: Sort order ${nextSortOrder} is already used by "${existingAtPosition.title}". Choose another position or leave it blank for automatic placement.`)
+        const message = `Sort order ${nextSortOrder} is already used by "${existingAtPosition.title}". Choose another position or leave it blank for automatic placement.`
+        throw appErrors.validation(message, { sortOrder: [message] })
       }
     } else {
       await txEvents.outreachEvent.updateMany({
@@ -3394,7 +3390,7 @@ export async function updateEvent(
   actor: { email: string; role: AdminRole }
 ): Promise<EventRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = (await prisma.$transaction(async (tx) => {
@@ -3415,7 +3411,8 @@ export async function updateEvent(
       }) as { id: string; title: string } | null
 
       if (existingAtPosition) {
-        throw new Error(`Validation failed: Sort order ${input.sortOrder} is already used by "${existingAtPosition.title}". Choose another position.`)
+        const message = `Sort order ${input.sortOrder} is already used by "${existingAtPosition.title}". Choose another position.`
+        throw appErrors.validation(message, { sortOrder: [message] })
       }
     }
 
@@ -3472,7 +3469,7 @@ export async function deleteEvent(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = (await eventsModels.outreachEvent.delete({ where: { id } })) as EventDbRecord
@@ -3508,7 +3505,7 @@ export async function moderateEventComment(
   actor: { email: string; role: AdminRole }
 ): Promise<EventCommentRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const existingComment = (await eventsModels.eventComment.findFirst({
@@ -3519,7 +3516,7 @@ export async function moderateEventComment(
   })) as EventCommentDbRecord | null
 
   if (!existingComment) {
-    throw new Error('Event comment not found')
+    throw appErrors.notFound('Event comment not found')
   }
 
   const record = (await eventsModels.eventComment.update({

@@ -5,6 +5,8 @@ import { Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { AdminAccountRecord } from '@/lib/admin/repository'
 import type { AdminRole } from '@/lib/admin/rbac'
 
@@ -33,20 +35,6 @@ function roleLabel(role: AdminRole) {
   return role.replace('_', ' ')
 }
 
-async function readJsonResponse(response: Response) {
-  const text = await response.text()
-
-  if (!text.trim()) {
-    return {}
-  }
-
-  try {
-    return JSON.parse(text) as { error?: string; account?: AdminAccountRecord; accounts?: AdminAccountRecord[] }
-  } catch {
-    return { error: text.slice(0, 240) }
-  }
-}
-
 export default function AdminAccountsBoard({
   initialAccounts,
   currentAdminEmail,
@@ -60,6 +48,7 @@ export default function AdminAccountsBoard({
   const [showForm, setShowForm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [pendingDelete, setPendingDelete] = useState<AdminAccountRecord | null>(null)
 
   const sortedAccounts = useMemo(
@@ -88,13 +77,13 @@ export default function AdminAccountsBoard({
 
   async function refresh() {
     const response = await fetch('/api/admin/admin-users', { cache: 'no-store' })
-    const data = await readJsonResponse(response)
+    const data = await readJsonResponse<{ error?: string; accounts?: AdminAccountRecord[] }>(response)
 
     if (!response.ok) {
-      throw new Error(data.error || 'Refresh failed')
+      throw new Error(parseApiError(data, 'Refresh failed').message)
     }
 
-    setAccounts(data.accounts ?? [])
+    setAccounts(data?.accounts ?? [])
   }
 
   function startCreate() {
@@ -102,6 +91,7 @@ export default function AdminAccountsBoard({
     setEditId(null)
     setForm(draft && !draft.value.editId ? { ...EMPTY_FORM, ...draft.value.form, password: '' } : EMPTY_FORM)
     setShowForm(true)
+    setFieldErrors({})
     setMessage(draft && !draft.value.editId ? `Recovered a draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -119,6 +109,7 @@ export default function AdminAccountsBoard({
     setEditId(account.id)
     setForm(draft?.value.editId === account.id ? { ...baseForm, ...draft.value.form, password: '' } : baseForm)
     setShowForm(true)
+    setFieldErrors({})
     setMessage(draft?.value.editId === account.id ? `Recovered a draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -130,12 +121,14 @@ export default function AdminAccountsBoard({
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
+    setFieldErrors({})
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setMessage('')
+    setFieldErrors({})
 
     try {
       const payload = {
@@ -148,6 +141,7 @@ export default function AdminAccountsBoard({
       }
 
       if (!editId && !form.password) {
+        setFieldErrors({ password: 'A temporary password is required for new admin accounts.' })
         throw new Error('A temporary password is required for new admin accounts.')
       }
 
@@ -156,10 +150,12 @@ export default function AdminAccountsBoard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = await readJsonResponse(response)
+      const data = await readJsonResponse<{ error?: string; account?: AdminAccountRecord; accounts?: AdminAccountRecord[] }>(response)
 
       if (!response.ok) {
-        throw new Error(data.error || 'Save failed')
+        const parsedError = parseApiError(data, 'Save failed')
+        setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+        throw new Error(parsedError.message)
       }
 
       await refresh()
@@ -179,13 +175,14 @@ export default function AdminAccountsBoard({
 
     setBusy(true)
     setMessage('')
+    setFieldErrors({})
 
     try {
       const response = await fetch(`/api/admin/admin-users/${pendingDelete.id}`, { method: 'DELETE' })
-      const data = await readJsonResponse(response)
+      const data = await readJsonResponse<{ error?: string }>(response)
 
       if (!response.ok) {
-        throw new Error(data.error || 'Delete failed')
+        throw new Error(parseApiError(data, 'Delete failed').message)
       }
 
       await refresh()
@@ -198,11 +195,7 @@ export default function AdminAccountsBoard({
     }
   }
 
-  const statusTone = message.toLowerCase().includes('failed') || message.toLowerCase().includes('required') || message.toLowerCase().includes('cannot')
-    ? 'error'
-    : message.toLowerCase().includes('draft')
-      ? 'info'
-      : 'success'
+  const statusTone = getAdminStatusTone(message)
 
   return (
     <section className="space-y-5 admin-fade-in">
@@ -239,16 +232,16 @@ export default function AdminAccountsBoard({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Name">
+            <Field label="Name" error={fieldErrors.name}>
               <input value={form.name} onChange={(event) => set('name', event.target.value)} className="input-field" />
             </Field>
-            <Field label="Email *">
+            <Field label="Email *" error={fieldErrors.email}>
               <input type="email" required value={form.email} onChange={(event) => set('email', event.target.value)} className="input-field" />
             </Field>
-            <Field label="Phone">
+            <Field label="Phone" error={fieldErrors.phone}>
               <input value={form.phone} onChange={(event) => set('phone', event.target.value)} className="input-field" />
             </Field>
-            <Field label="Role *">
+            <Field label="Role *" error={fieldErrors.role}>
               <select value={form.role} onChange={(event) => set('role', event.target.value as AdminRole)} className="input-field">
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>
@@ -257,7 +250,7 @@ export default function AdminAccountsBoard({
                 ))}
               </select>
             </Field>
-            <Field label={editId ? 'New password' : 'Temporary password *'}>
+            <Field label={editId ? 'New password' : 'Temporary password *'} error={fieldErrors.password}>
               <input
                 type="password"
                 required={!editId}
@@ -376,11 +369,12 @@ export default function AdminAccountsBoard({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</span>
       {children}
+      {error ? <p className="font-body text-xs text-red-600">{error}</p> : null}
     </label>
   )
 }

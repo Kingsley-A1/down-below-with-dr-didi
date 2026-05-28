@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
+import { serverError } from '@/lib/api/errors'
 
 /**
  * GET /api/auth/session
  * Return current authentication state.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
 
@@ -29,13 +30,6 @@ export async function GET() {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Session check error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to check session',
-      },
-      { status: 500 }
-    )
+    return serverError('Failed to check session', { request, error })
   }
 }

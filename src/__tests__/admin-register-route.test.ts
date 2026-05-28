@@ -14,6 +14,8 @@ jest.mock('@/lib/env', () => ({
     NEXT_PUBLIC_SITE_URL: 'https://test.down-below.com',
     RESEND_FROM_EMAIL: 'no-reply@test.down-below.com',
     RESEND_FROM_NAME: 'Test',
+    ADMIN_ALLOWED_USERS: 'goodeals.ng@gmail.com:editor',
+    ADMIN_INVITE_TOKENS: '',
   },
   getAdminEnv: () => mockGetAdminEnv(),
   hasDatabaseConfig: () => mockHasDatabaseConfig(),

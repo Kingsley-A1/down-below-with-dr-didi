@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type CommentEventDetail = {
   eventSlug: string
@@ -69,13 +70,13 @@ export default function CommentForm({
         body: JSON.stringify({ body: trimmed }),
       })
 
-      const data = await response.json().catch(() => ({}))
+      const data = await readJsonResponse<{ error?: string; comment?: CommentEventDetail['comment'] }>(response)
 
       if (!response.ok) {
         window.dispatchEvent(new CustomEvent<CommentEventDetail>('events:comment-revert', {
           detail: { eventSlug, tempId },
         }))
-        setError(data.error || 'Failed to post comment.')
+        setError(parseApiError(data, 'Failed to post comment.').message)
         return
       }
 
@@ -83,7 +84,7 @@ export default function CommentForm({
         detail: {
           eventSlug,
           tempId,
-          comment: data.comment,
+          comment: data?.comment,
         },
       }))
     } catch {

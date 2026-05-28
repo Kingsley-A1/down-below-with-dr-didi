@@ -2,10 +2,11 @@ import { randomUUID } from 'crypto'
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { env, hasR2Config } from '@/lib/env'
+import { appErrors } from '@/lib/app-error'
 
 export function getR2Client() {
   if (!hasR2Config()) {
-    throw new Error('Cloudflare R2 is not configured')
+    throw appErrors.storageUnavailable()
   }
 
   return new S3Client({

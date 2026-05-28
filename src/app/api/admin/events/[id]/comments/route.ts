@@ -23,6 +23,6 @@ export async function GET(
     const comments = await getEventComments(id)
     return NextResponse.json({ comments })
   } catch (error) {
-    return mapApiError(error, 'Failed to fetch event comments')
+    return mapApiError(error, 'Failed to fetch event comments', { request, identity: { email: session.email, role: session.role } })
   }
 }

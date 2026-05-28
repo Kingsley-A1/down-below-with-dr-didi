@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { clearSession } from '@/lib/auth/session'
+import { serverError } from '@/lib/api/errors'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     await clearSession()
 
@@ -13,13 +14,6 @@ export async function POST() {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Logout error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Logout failed',
-      },
-      { status: 500 }
-    )
+    return serverError('Logout failed', { request, error })
   }
 }

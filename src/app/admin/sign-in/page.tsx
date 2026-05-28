@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AdminSignInForm from '@/components/admin/AdminSignInForm'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
-import { env } from '@/lib/env'
+import { validateAdminSessionWithDatabase } from '@/lib/admin/session-validation'
 
 export const metadata: Metadata = {
   title: 'Admin Sign In',
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function AdminSignInPage() {
   const cookieStore = await cookies()
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
-  const session = await verifyAdminSession(token)
+  const session = await validateAdminSessionWithDatabase(await verifyAdminSession(token))
 
   if (session) {
     redirect('/admin')
@@ -33,7 +33,7 @@ export default async function AdminSignInPage() {
         </div>
 
         <div className="space-y-6 px-8 py-8">
-          <AdminSignInForm supportPhone={env.ADMIN_SUPPORT_PHONE} />
+          <AdminSignInForm />
           <p className="font-body text-sm text-slate-600">
             New here?{' '}
             <Link href="/admin/register" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">

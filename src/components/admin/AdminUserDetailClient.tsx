@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AuditLogViewer from './AuditLogViewer'
 import type { PublicAdminUserDetailRecord, PublicUserAuditLogRecord } from '@/lib/admin/user-repository'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 interface AdminUserDetailClientProps {
   userId: string
@@ -31,6 +32,7 @@ export default function AdminUserDetailClient({
   userId,
 }: AdminUserDetailClientProps) {
   const router = useRouter()
+  const requestIdRef = useRef(0)
   const [user, setUser] = useState<PublicAdminUserDetailRecord | null>(null)
   const [auditLogs, setAuditLogs] = useState<PublicUserAuditLogRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,12 +42,26 @@ export default function AdminUserDetailClient({
 
   // Fetch user details and audit logs
   useEffect(() => {
+    const controller = new AbortController()
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+
     const fetchUserDetails = async () => {
       try {
         setIsLoading(true)
         setError(null)
 
-        const response = await fetch(`/api/admin/users/${userId}?auditLimit=100`)
+        const response = await fetch(`/api/admin/users/${userId}?auditLimit=100`, {
+          signal: controller.signal,
+        })
+        const data = await readJsonResponse<{
+          user?: PublicAdminUserDetailRecord
+          auditLogs?: PublicUserAuditLogRecord[]
+        }>(response)
+
+        if (requestId !== requestIdRef.current) {
+          return
+        }
 
         if (!response.ok) {
           if (response.status === 403) {
@@ -53,23 +69,32 @@ export default function AdminUserDetailClient({
             return
           }
           if (response.status === 404) {
-            setError('User not found')
+            setError(parseApiError(data, 'User not found').message)
             return
           }
-          throw new Error('Failed to fetch user details')
+          throw new Error(parseApiError(data, 'Failed to fetch user details').message)
         }
 
-        const data = await response.json()
-        setUser(data.user)
-        setAuditLogs(data.auditLogs || [])
+        setUser(data?.user ?? null)
+        setAuditLogs(data?.auditLogs || [])
       } catch (err) {
+        if (controller.signal.aborted || requestId !== requestIdRef.current) {
+          return
+        }
+
         setError((err as Error).message)
       } finally {
-        setIsLoading(false)
+        if (!controller.signal.aborted && requestId === requestIdRef.current) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchUserDetails()
+
+    return () => {
+      controller.abort()
+    }
   }, [userId, router])
 
   // Helper to refresh audit logs without full page reload
@@ -77,8 +102,8 @@ export default function AdminUserDetailClient({
     try {
       const response = await fetch(`/api/admin/users/${userId}?auditLimit=100`)
       if (response.ok) {
-        const data = await response.json()
-        setAuditLogs(data.auditLogs || [])
+        const data = await readJsonResponse<{ auditLogs?: PublicUserAuditLogRecord[] }>(response)
+        setAuditLogs(data?.auditLogs || [])
       }
     } catch (err) {
       console.error('Failed to refresh audit logs:', err)
@@ -100,15 +125,18 @@ export default function AdminUserDetailClient({
       const response = await fetch(`/api/admin/users/${userId}/deactivate`, {
         method: 'POST',
       })
+      const data = await readJsonResponse<{
+        error?: string
+        message?: string
+        user?: PublicAdminUserDetailRecord
+      }>(response)
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to deactivate user')
+        throw new Error(parseApiError(data, 'Failed to deactivate user').message)
       }
 
-      const data = await response.json()
-      setUser(data.user)
-      setSuccessMessage(data.message)
+      setUser(data?.user ?? null)
+      setSuccessMessage(data?.message ?? 'User deactivated.')
 
       // Refresh audit logs in-place (no page reload)
       refreshAuditLogs()
@@ -134,15 +162,18 @@ export default function AdminUserDetailClient({
       const response = await fetch(`/api/admin/users/${userId}/activate`, {
         method: 'POST',
       })
+      const data = await readJsonResponse<{
+        error?: string
+        message?: string
+        user?: PublicAdminUserDetailRecord
+      }>(response)
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to activate user')
+        throw new Error(parseApiError(data, 'Failed to activate user').message)
       }
 
-      const data = await response.json()
-      setUser(data.user)
-      setSuccessMessage(data.message)
+      setUser(data?.user ?? null)
+      setSuccessMessage(data?.message ?? 'User activated.')
 
       // Refresh audit logs in-place (no page reload)
       refreshAuditLogs()

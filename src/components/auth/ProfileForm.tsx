@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { VaultNotificationsWidget } from '@/components/auth/VaultNotificationsWidget'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 interface User {
   id: string
@@ -25,6 +26,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -57,6 +59,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setFieldErrors({})
     setIsLoading(true)
 
     try {
@@ -66,10 +69,16 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
         body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setError(data.error || 'Update failed')
+        const parsed = parseApiError(data, 'Update failed')
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+          )
+        )
+        setError(parsed.message)
         return
       }
 
@@ -89,6 +98,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setFieldErrors({})
     setIsLoading(true)
 
     try {
@@ -101,10 +111,16 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
         }),
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setError(data.error || 'Password change failed')
+        const parsed = parseApiError(data, 'Password change failed')
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+          )
+        )
+        setError(parsed.message)
         return
       }
 
@@ -204,6 +220,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
                   className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
                   style={{ borderColor: 'var(--color-border)' }}
                 />
+                {fieldErrors.displayName ? <p className="mt-1 text-xs text-red-600">{fieldErrors.displayName}</p> : null}
               </div>
 
               <div>
@@ -220,6 +237,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
                   style={{ borderColor: 'var(--color-border)' }}
                   placeholder="+234 or 0... (Nigerian numbers)"
                 />
+                {fieldErrors.phone ? <p className="mt-1 text-xs text-red-600">{fieldErrors.phone}</p> : null}
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -276,6 +294,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
                   className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
                   style={{ borderColor: 'var(--color-border)' }}
                 />
+                {fieldErrors.currentPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.currentPassword}</p> : null}
               </div>
 
               <div>
@@ -292,6 +311,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
                   className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
                   style={{ borderColor: 'var(--color-border)' }}
                 />
+                {fieldErrors.newPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.newPassword}</p> : null}
                 <p className="mt-1 text-xs text-slate-500">
                   Must contain uppercase, lowercase, number, and special character. 8-128 characters.
                 </p>
@@ -311,6 +331,7 @@ export function ProfileForm({ initialUser }: ProfileFormProps) {
                   className="w-full rounded-xl border px-4 py-3 text-sm text-slate-900"
                   style={{ borderColor: 'var(--color-border)' }}
                 />
+                {fieldErrors.confirmPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
               </div>
 
               <div className="flex flex-wrap gap-2">

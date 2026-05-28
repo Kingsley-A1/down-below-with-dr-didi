@@ -5,25 +5,30 @@
  * without changing callers.
  */
 
+import { env } from '@/lib/env'
+
 const BRAND_SHORT_NAME = 'DownBelow'
 const BRAND_NAME = 'DownBelow Family Health Initiative'
 const BRAND_TAGLINE = 'with Dr. Didi'
 const BRAND_FULL_NAME = `${BRAND_NAME} ${BRAND_TAGLINE}`
+const BRAND_LOGO_PATH = '/logo.jpg'
 
 // Palette aligned with the admin / site brand (emerald-forward).
 const COLOR = {
-  ink: '#0f172a',          // primary text
-  body: '#1f2937',         // body copy
-  muted: '#64748b',         // secondary text
-  border: '#e2e8f0',        // hairline borders
-  accent: '#0b4e41',        // primary brand emerald
-  accentSoft: '#ecfdf5',    // tonal accent background
-  accentInk: '#065f46',     // text on tonal accents
-  bg: '#f6f7f9',            // page background
+  ink: '#0b1220', // primary text
+  body: '#1f2937', // body copy
+  muted: '#5f6f82', // secondary text
+  border: '#dbe3ea', // hairline borders
+  accent: '#0b4e41', // primary brand emerald
+  accentStrong: '#073f35',
+  accentSoft: '#eaf7f1', // tonal accent background
+  accentWash: '#f6fbf8',
+  accentInk: '#075943', // text on tonal accents
+  bg: '#f4f7f6', // page background
   card: '#ffffff',
-  divider: '#eef2f5',
+  divider: '#edf2f4',
   warningBg: '#fffbeb',
-  warningBorder: '#f59e0b',
+  warningBorder: '#d97706',
   warningInk: '#92400e',
 }
 
@@ -45,6 +50,33 @@ function escape(value: string) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function absoluteAssetUrl(path: string) {
+  return new URL(path, env.NEXT_PUBLIC_SITE_URL).toString()
+}
+
+function brandHeader() {
+  const logoUrl = absoluteAssetUrl(BRAND_LOGO_PATH)
+
+  return `
+    <tr>
+      <td class="email-pad" style="padding:22px 30px 18px 30px;background:${COLOR.card};border-bottom:1px solid ${COLOR.divider};">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td width="52" valign="middle" style="width:52px;">
+              <img src="${escape(logoUrl)}" width="44" height="44" alt="${escape(BRAND_SHORT_NAME)} logo" style="display:block;width:44px;height:44px;border:1px solid ${COLOR.border};border-radius:12px;object-fit:cover;background:${COLOR.accent};" />
+            </td>
+            <td valign="middle" style="padding-left:12px;">
+              <p class="email-brand-name" style="margin:0;font-size:15px;line-height:1.25;font-weight:800;letter-spacing:0;color:${COLOR.ink};">${escape(BRAND_SHORT_NAME)}</p>
+              <p style="margin:3px 0 0 0;font-size:12.5px;line-height:1.4;color:${COLOR.muted};">${escape(BRAND_TAGLINE)}</p>
+              <p style="margin:5px 0 0 0;font-size:11px;line-height:1.35;font-weight:700;color:${COLOR.accentInk};">Secure account message</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `
 }
 
 function shell({
@@ -72,56 +104,59 @@ function shell({
     <meta name="color-scheme" content="light" />
     <meta name="supported-color-schemes" content="light" />
     <title>${escape(title)}</title>
+    <style>
+      body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+      table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+      img { -ms-interpolation-mode: bicubic; }
+      @media screen and (max-width: 620px) {
+        .email-shell { padding: 18px 10px !important; }
+        .email-card { width: 100% !important; max-width: 100% !important; border-radius: 16px !important; }
+        .email-pad { padding-left: 20px !important; padding-right: 20px !important; }
+        .email-hero { padding-top: 24px !important; padding-bottom: 22px !important; }
+        .email-heading { font-size: 24px !important; line-height: 1.2 !important; }
+        .email-button a { display: block !important; text-align: center !important; }
+        .email-detail-label, .email-detail-value { display: block !important; width: 100% !important; text-align: left !important; }
+      }
+    </style>
   </head>
-  <body style="margin:0;padding:0;background:${COLOR.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${COLOR.body};-webkit-font-smoothing:antialiased;">
+  <body style="margin:0;padding:0;background:${COLOR.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${COLOR.body};-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;">
     <div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:${COLOR.bg};">${escape(preheader)}</div>
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${COLOR.bg};">
       <tr>
-        <td align="center" style="padding:36px 16px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+        <td class="email-shell" align="center" style="padding:24px 12px;">
+          <table class="email-card" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="width:100%;max-width:560px;table-layout:fixed;background:${COLOR.card};border-radius:18px;overflow:hidden;border:1px solid ${COLOR.border};box-shadow:0 1px 2px rgba(15,23,42,0.04);">
             <tr>
-              <td style="padding:0 2px 14px 2px;">
-                <p style="margin:0;font-size:12px;line-height:1.4;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:${COLOR.accentInk};">${escape(BRAND_SHORT_NAME)}</p>
-                <p style="margin:3px 0 0 0;font-size:13px;line-height:1.45;color:${COLOR.muted};">${escape(BRAND_TAGLINE)}</p>
-              </td>
+              <td style="height:3px;background:${COLOR.accent};font-size:0;line-height:0;">&nbsp;</td>
             </tr>
-          </table>
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:${COLOR.card};border-radius:8px;overflow:hidden;border:1px solid ${COLOR.border};box-shadow:0 1px 2px rgba(15,23,42,0.04),0 10px 28px rgba(15,23,42,0.06);">
+            ${brandHeader()}
             <tr>
-              <td style="height:4px;background:${COLOR.accent};font-size:0;line-height:0;">&nbsp;</td>
-            </tr>
-            <tr>
-              <td bgcolor="${COLOR.accentSoft}" style="padding:0;background:${COLOR.accentSoft};border-bottom:1px solid ${COLOR.divider};">
+              <td bgcolor="${COLOR.accentWash}" class="email-pad email-hero" style="padding:26px 30px 24px 30px;background:${COLOR.accentWash};border-bottom:1px solid ${COLOR.divider};">
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                   <tr>
-                    <td style="padding:28px 36px 8px 36px;">
-                      <span style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:${COLOR.accentInk};">${escape(kicker)}</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 36px 28px 36px;">
-                      <h1 style="margin:0;font-size:25px;line-height:1.25;font-weight:700;color:${COLOR.ink};letter-spacing:0;">${escape(heading)}</h1>
+                    <td>
+                      <span style="display:inline-block;margin:0 0 10px 0;font-size:11px;font-weight:800;letter-spacing:0.13em;text-transform:uppercase;color:${COLOR.accentInk};">${escape(kicker)}</span>
+                      <h1 class="email-heading" style="margin:0;font-size:28px;line-height:1.18;font-weight:800;color:${COLOR.ink};letter-spacing:0;">${escape(heading)}</h1>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
             <tr>
-              <td style="padding:28px 36px 10px 36px;">
+              <td class="email-pad" style="padding:28px 30px 8px 30px;">
                 ${bodyHtml}
               </td>
             </tr>
             <tr>
-              <td style="padding:20px 36px 30px 36px;">
-                <div style="height:1px;background:${COLOR.divider};margin:0 0 18px 0;"></div>
-                <p style="margin:0;font-size:12px;line-height:1.55;color:${COLOR.muted};">
+              <td class="email-pad" style="padding:18px 30px 28px 30px;">
+                <div style="height:1px;background:${COLOR.divider};margin:0 0 16px 0;"></div>
+                <p style="margin:0;font-size:12px;line-height:1.58;color:${COLOR.muted};">
                   Sent from <strong style="color:${COLOR.ink};font-weight:600;">${escape(BRAND_FULL_NAME)}</strong><br/>
                   ${escape(footerNote)}
                 </p>
               </td>
             </tr>
           </table>
-          <p style="margin:16px 0 0 0;font-size:11px;line-height:1.45;color:#94a3b8;">© ${year} ${escape(BRAND_FULL_NAME)}</p>
+          <p style="margin:14px 0 0 0;font-size:11px;line-height:1.45;color:#8b9aab;">© ${year} ${escape(BRAND_FULL_NAME)}</p>
         </td>
       </tr>
     </table>
@@ -130,19 +165,19 @@ function shell({
 }
 
 function ctaButton(label: string, href: string) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 6px 0;"><tr><td style="border-radius:8px;background:${COLOR.accent};"><a href="${escape(href)}" style="display:inline-block;padding:13px 24px;color:#ffffff;font-weight:700;text-decoration:none;border-radius:8px;font-size:14.5px;line-height:1.2;letter-spacing:0;">${escape(label)}</a></td></tr></table>`
+  return `<table class="email-button" role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:20px 0 8px 0;"><tr><td align="left"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:14px;background:${COLOR.accent};"><a href="${escape(href)}" style="display:inline-block;min-width:152px;padding:15px 22px;color:#ffffff;font-weight:800;text-decoration:none;border-radius:14px;font-size:15px;line-height:18px;letter-spacing:0;text-align:center;">${escape(label)}</a></td></tr></table></td></tr></table>`
 }
 
 function paragraph(text: string) {
-  return `<p style="margin:0 0 16px 0;line-height:1.6;font-size:15px;color:${COLOR.body};">${text}</p>`
+  return `<p style="margin:0 0 15px 0;line-height:1.62;font-size:15px;color:${COLOR.body};">${text}</p>`
 }
 
 function muted(text: string) {
-  return `<p style="margin:16px 0 0 0;line-height:1.55;font-size:13px;color:${COLOR.muted};">${text}</p>`
+  return `<p style="margin:14px 0 0 0;line-height:1.58;font-size:13px;color:${COLOR.muted};">${text}</p>`
 }
 
 function fallbackLink(href: string) {
-  return `<p style="margin:18px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};">${escape(href)}</span></p>`
+  return `<p style="margin:16px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};font-weight:600;">${escape(href)}</span></p>`
 }
 
 function callout(text: string, tone: 'info' | 'warning' = 'info') {
@@ -158,15 +193,15 @@ function callout(text: string, tone: 'info' | 'warning' = 'info') {
         text: COLOR.accentInk,
       }
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:18px 0 6px 0;"><tr><td style="background:${styles.background};border-left:3px solid ${styles.border};border-radius:8px;padding:14px 16px;font-size:13.5px;line-height:1.55;color:${styles.text};">${text}</td></tr></table>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:18px 0 8px 0;"><tr><td style="background:${styles.background};border:1px solid ${styles.border};border-left-width:4px;border-radius:12px;padding:14px 16px;font-size:13.5px;line-height:1.58;color:${styles.text};">${text}</td></tr></table>`
 }
 
 function detailList(items: readonly DetailListItem[]) {
   const rows = items
     .map((item) => `
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid ${COLOR.divider};font-size:12px;line-height:1.45;color:${COLOR.muted};font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">${escape(item.label)}</td>
-        <td align="right" style="padding:10px 0;border-bottom:1px solid ${COLOR.divider};font-size:14px;line-height:1.45;color:${COLOR.ink};font-weight:600;">${escape(item.value)}</td>
+        <td class="email-detail-label" style="padding:12px 0;border-bottom:1px solid ${COLOR.divider};font-size:11.5px;line-height:1.45;color:${COLOR.muted};font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">${escape(item.label)}</td>
+        <td class="email-detail-value" align="right" style="padding:12px 0;border-bottom:1px solid ${COLOR.divider};font-size:14px;line-height:1.45;color:${COLOR.ink};font-weight:700;">${escape(item.value)}</td>
       </tr>
     `)
     .join('')

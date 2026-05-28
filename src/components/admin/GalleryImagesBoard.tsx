@@ -5,8 +5,10 @@ import Image from 'next/image'
 import { Camera, ImageOff } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { GalleryImageRecord, GalleryImageCategory } from '@/lib/admin/repository'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Status = 'draft' | 'published' | 'archived'
 
@@ -48,13 +50,7 @@ function slugify(value: string) {
 }
 
 function getTone(message: string) {
-  const value = message.toLowerCase()
-
-  if (value.includes('failed') || value.includes('required') || value.includes('cannot')) {
-    return 'error' as const
-  }
-
-  return 'success' as const
+  return getAdminStatusTone(message)
 }
 
 export default function GalleryImagesBoard({
@@ -77,6 +73,7 @@ export default function GalleryImagesBoard({
   const [openingEditId, setOpeningEditId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLDivElement | null>(null)
   const previewUrl = useMemo(() => {
     if (imageFile) {
@@ -109,8 +106,12 @@ export default function GalleryImagesBoard({
 
   async function refresh() {
     const res = await fetch('/api/admin/gallery', { cache: 'no-store' })
-    const data = await res.json()
-    setImages(data.images ?? [])
+    const data = await readJsonResponse<{ images?: GalleryImageRecord[] }>(res)
+    if (!res.ok) {
+      setMsg(parseApiError(data, 'Refresh failed').message)
+      return
+    }
+    setImages(data?.images ?? [])
   }
 
   function startCreate() {
@@ -119,6 +120,7 @@ export default function GalleryImagesBoard({
     setImageFile(null)
     setSlugManual(false)
     setShowForm(true)
+    setFieldErrors({})
     setMsg('')
   }
 
@@ -141,6 +143,7 @@ export default function GalleryImagesBoard({
     })
     setImageFile(null)
     setShowForm(true)
+    setFieldErrors({})
     setMsg('')
   }
 
@@ -150,6 +153,7 @@ export default function GalleryImagesBoard({
     setForm(EMPTY_FORM)
     setImageFile(null)
     setSlugManual(false)
+    setFieldErrors({})
   }
 
   function set(field: keyof FormState, value: string | number) {
@@ -160,6 +164,7 @@ export default function GalleryImagesBoard({
     e.preventDefault()
     setBusy(true)
     setMsg('')
+    setFieldErrors({})
 
     if (!editId && !imageFile) {
       setBusy(false)
@@ -210,11 +215,17 @@ export default function GalleryImagesBoard({
       body: JSON.stringify(body),
     })
 
-    const data = await res.json()
+    const data = await readJsonResponse(res)
     setBusy(false)
 
     if (!res.ok) {
-      setMsg(data.error ?? 'Save failed')
+      const parsed = parseApiError(data, 'Save failed')
+      setFieldErrors(
+        Object.fromEntries(
+          Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+        )
+      )
+      setMsg(parsed.message)
       return
     }
 
@@ -232,11 +243,11 @@ export default function GalleryImagesBoard({
     setMsg('')
 
     const res = await fetch(`/api/admin/gallery/${deleteTarget.id}`, { method: 'DELETE' })
-    const data = await res.json().catch(() => ({}))
+    const data = await readJsonResponse(res)
     setDeletingId(null)
 
     if (!res.ok) {
-      setMsg(data.error ?? 'Delete failed')
+      setMsg(parseApiError(data, 'Delete failed').message)
       return
     }
 
@@ -286,7 +297,7 @@ export default function GalleryImagesBoard({
             {editId ? 'Edit Image' : 'Add Gallery Image'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Title (min 5 chars) *">
+            <Field label="Title (min 5 chars) *" error={fieldErrors.title}>
               <input
                 value={form.title}
                 onChange={(e) => {
@@ -300,7 +311,7 @@ export default function GalleryImagesBoard({
                 className="input-field"
               />
             </Field>
-            <Field label="URL Slug">
+            <Field label="URL Slug" error={fieldErrors.slug}>
               {editId ? (
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <code className="flex-1 font-mono text-xs text-slate-700">{form.slug}</code>
@@ -337,7 +348,7 @@ export default function GalleryImagesBoard({
                 </div>
               )}
             </Field>
-            <Field label="Upload Image">
+            <Field label="Upload Image" error={fieldErrors.imageUrl}>
               <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                 <Camera className="h-3.5 w-3.5" />
                 <span>Camera</span>
@@ -362,36 +373,36 @@ export default function GalleryImagesBoard({
                     : 'Required: upload image from media pipeline.'}
               </p>
             </Field>
-            <Field label="Image Alt *">
+            <Field label="Image Alt *" error={fieldErrors.imageAlt}>
               <input value={form.imageAlt} onChange={(e) => set('imageAlt', e.target.value)} required minLength={5} className="input-field" />
             </Field>
-            <Field label="Category *">
+            <Field label="Category *" error={fieldErrors.category}>
               <select value={form.category} onChange={(e) => set('category', e.target.value)} className="input-field">
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Status">
+            <Field label="Status" error={fieldErrors.status}>
               <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field">
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Event Name">
+            <Field label="Event Name" error={fieldErrors.eventName}>
               <input value={form.eventName} onChange={(e) => set('eventName', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Location">
+            <Field label="Location" error={fieldErrors.location}>
               <input value={form.location} onChange={(e) => set('location', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Captured At">
+            <Field label="Captured At" error={fieldErrors.capturedAt}>
               <input type="datetime-local" value={form.capturedAt} onChange={(e) => set('capturedAt', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Sort Order">
+            <Field label="Sort Order" error={fieldErrors.sortOrder}>
               <input type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className="input-field" />
             </Field>
-            <Field label="Caption">
+            <Field label="Caption" error={fieldErrors.caption}>
               <input value={form.caption} onChange={(e) => set('caption', e.target.value)} className="input-field" />
             </Field>
             <div className="sm:col-span-2">
-              <Field label="Description (min 40 chars) *">
+              <Field label="Description (min 40 chars) *" error={fieldErrors.description}>
                 <textarea
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
@@ -532,11 +543,12 @@ function GalleryThumbnail({ image }: { image: GalleryImageRecord }) {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
       {children}
+      {error ? <span className="block font-body text-xs text-red-600">{error}</span> : null}
     </label>
   )
 }

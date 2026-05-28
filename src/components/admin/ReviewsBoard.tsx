@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { MessageSquareReply, Plus, Star, ThumbsUp, Trash2 } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { AdminReviewRecord, ReviewSource, ReviewStatus } from '@/lib/reviews/repository'
 
 const STATUS_OPTIONS: ReviewStatus[] = ['draft', 'published', 'archived']
@@ -24,8 +26,7 @@ const EMPTY_FORM = {
 type FormState = typeof EMPTY_FORM
 
 function getTone(message: string) {
-  const value = message.toLowerCase()
-  return value.includes('failed') || value.includes('required') ? 'error' : 'success'
+  return getAdminStatusTone(message)
 }
 
 export default function ReviewsBoard({ initialReviews }: { initialReviews: AdminReviewRecord[] }) {
@@ -36,6 +37,7 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
   const [showForm, setShowForm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const visibleReviews = useMemo(
     () => filter === 'all' ? reviews : reviews.filter((review) => review.status === filter),
@@ -48,8 +50,13 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
 
   async function refresh() {
     const response = await fetch('/api/admin/reviews', { cache: 'no-store' })
-    const data = (await response.json()) as { reviews?: AdminReviewRecord[] }
-    setReviews(data.reviews || [])
+    const data = await readJsonResponse<{ error?: string; reviews?: AdminReviewRecord[] }>(response)
+
+    if (!response.ok) {
+      throw new Error(parseApiError(data, 'Refresh failed').message)
+    }
+
+    setReviews(data?.reviews || [])
   }
 
   function startCreate() {
@@ -57,6 +64,7 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
     setForm(EMPTY_FORM)
     setShowForm(true)
     setMessage('')
+    setFieldErrors({})
   }
 
   function startEdit(review: AdminReviewRecord) {
@@ -75,18 +83,21 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
     })
     setShowForm(true)
     setMessage('')
+    setFieldErrors({})
   }
 
   function cancelForm() {
     setEditId(null)
     setForm(EMPTY_FORM)
     setShowForm(false)
+    setFieldErrors({})
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setMessage('')
+    setFieldErrors({})
 
     const url = editId ? `/api/admin/reviews/${editId}` : '/api/admin/reviews'
     const method = editId ? 'PUT' : 'POST'
@@ -100,10 +111,12 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
           publishedAt: form.publishedAt ? new Date(form.publishedAt).toISOString() : '',
         }),
       })
-      const data = (await response.json()) as { error?: string }
+      const data = await readJsonResponse<{ error?: string; review?: AdminReviewRecord; reviews?: AdminReviewRecord[] }>(response)
 
       if (!response.ok) {
-        setMessage(data.error || 'Save failed')
+        const parsedError = parseApiError(data, 'Save failed')
+        setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+        setMessage(parsedError.message)
         return
       }
 
@@ -124,13 +137,14 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
 
     setBusy(true)
     setMessage('')
+    setFieldErrors({})
 
     try {
       const response = await fetch(`/api/admin/reviews/${review.id}`, { method: 'DELETE' })
-      const data = (await response.json()) as { error?: string }
+      const data = await readJsonResponse<{ error?: string }>(response)
 
       if (!response.ok) {
-        setMessage(data.error || 'Delete failed')
+        setMessage(parseApiError(data, 'Delete failed').message)
         return
       }
 
@@ -175,43 +189,43 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
 
       {showForm ? (
         <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 lg:grid-cols-2">
-          <Field label="Name *">
+          <Field label="Name *" error={fieldErrors.displayName}>
             <input value={form.displayName} onChange={(event) => set('displayName', event.target.value)} required minLength={2} maxLength={100} className="input-field" />
           </Field>
-          <Field label="Role or context">
+          <Field label="Role or context" error={fieldErrors.roleLabel}>
             <input value={form.roleLabel} onChange={(event) => set('roleLabel', event.target.value)} maxLength={120} className="input-field" />
           </Field>
-          <Field label="Location">
+          <Field label="Location" error={fieldErrors.location}>
             <input value={form.location} onChange={(event) => set('location', event.target.value)} maxLength={120} className="input-field" />
           </Field>
-          <Field label="Rating">
+          <Field label="Rating" error={fieldErrors.rating}>
             <select value={form.rating} onChange={(event) => set('rating', Number(event.target.value))} className="input-field">
               {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} stars</option>)}
             </select>
           </Field>
-          <Field label="Status">
+          <Field label="Status" error={fieldErrors.status}>
             <select value={form.status} onChange={(event) => set('status', event.target.value as ReviewStatus)} className="input-field">
               {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </Field>
-          <Field label="Source">
+          <Field label="Source" error={fieldErrors.source}>
             <select value={form.source} onChange={(event) => set('source', event.target.value as ReviewSource)} className="input-field">
               {SOURCE_OPTIONS.map((source) => <option key={source} value={source}>{source.replace(/_/g, ' ')}</option>)}
             </select>
           </Field>
-          <Field label="Sort order">
+          <Field label="Sort order" error={fieldErrors.sortOrder}>
             <input type="number" min={0} value={form.sortOrder} onChange={(event) => set('sortOrder', Number(event.target.value))} className="input-field" />
           </Field>
-          <Field label="Published date">
+          <Field label="Published date" error={fieldErrors.publishedAt}>
             <input type="datetime-local" value={form.publishedAt} onChange={(event) => set('publishedAt', event.target.value)} className="input-field" />
           </Field>
           <div className="lg:col-span-2">
-            <Field label="Review *">
+            <Field label="Review *" error={fieldErrors.body}>
               <textarea value={form.body} onChange={(event) => set('body', event.target.value)} required minLength={40} maxLength={900} rows={4} className="input-field" />
             </Field>
           </div>
           <div className="lg:col-span-2">
-            <Field label="Admin reply">
+            <Field label="Admin reply" error={fieldErrors.adminReply}>
               <textarea value={form.adminReply} onChange={(event) => set('adminReply', event.target.value)} maxLength={900} rows={3} className="input-field" />
             </Field>
           </div>
@@ -275,11 +289,12 @@ export default function ReviewsBoard({ initialReviews }: { initialReviews: Admin
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
+      {error ? <p className="font-body text-xs text-red-600">{error}</p> : null}
     </label>
   )
 }

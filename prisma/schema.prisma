@@ -70,6 +70,15 @@ model SiteAlert {
   @@index([createdAt])
 }
 
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
 model MediaAsset {
   id          String         @id @default(cuid())
   label       String

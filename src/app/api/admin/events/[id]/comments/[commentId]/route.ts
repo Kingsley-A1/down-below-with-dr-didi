@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { moderateEventComment } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { eventCommentModerationSchema } from '@/lib/events/schemas'
+import { validationError } from '@/lib/api/errors'
 
 export async function PATCH(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function PATCH(
     const parsed = eventCommentModerationSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const comment = await moderateEventComment(id, commentId, parsed.data.status, {
@@ -35,6 +36,6 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, comment })
   } catch (error) {
-    return mapApiError(error, 'Failed to moderate event comment')
+    return mapApiError(error, 'Failed to moderate event comment', { request, identity: { email: session.email, role: session.role } })
   }
 }

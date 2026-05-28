@@ -9,6 +9,7 @@ import {
   getVisibleComments,
 } from '@/lib/events/repository'
 import { eventCommentSchema } from '@/lib/events/schemas'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(
   _request: NextRequest,
@@ -25,7 +26,7 @@ export async function GET(
     const comments = await getVisibleComments(event.id)
     return NextResponse.json({ comments })
   } catch (error) {
-    return mapApiError(error, 'Failed to fetch comments')
+    return mapApiError(error, 'Failed to fetch comments', { request: _request })
   }
 }
 
@@ -50,7 +51,7 @@ export async function POST(
     const parsed = eventCommentSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const recentCommentCount = await countRecentUserComments(event.id, session.userId)
@@ -69,6 +70,6 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return mapApiError(error, 'Failed to add comment')
+    return mapApiError(error, 'Failed to add comment', { request })
   }
 }

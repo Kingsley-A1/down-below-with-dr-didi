@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSiteAlert, listSiteAlerts } from '@/lib/admin/repository'
 import { siteAlertSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     const alerts = await listSiteAlerts()
     return NextResponse.json({ alerts })
   } catch (error) {
-    return mapApiError(error, 'Failed to list alerts')
+    return mapApiError(error, 'Failed to list alerts', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const parsed = siteAlertSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const { startsAt, endsAt, ...rest } = parsed.data
@@ -56,6 +57,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, alert }, { status: 201 })
   } catch (error) {
-    return mapApiError(error, 'Failed to create alert')
+    return mapApiError(error, 'Failed to create alert', { request, identity: { email: session.email, role: session.role } })
   }
 }

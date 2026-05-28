@@ -3,10 +3,11 @@ import { z } from 'zod'
 import { resetAdminPassword, writeAuditLog } from '@/lib/admin/repository'
 import { sendEmail } from '@/lib/email/send'
 import { passwordChanged as passwordChangedTemplate } from '@/lib/email/templates'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { env } from '@/lib/env'
+import { serverError, validationError } from '@/lib/api/errors'
 
-const byIp = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 10 })
+const RESET_WINDOW_MS = 15 * 60 * 1000
 
 const schema = z.object({
   token: z.string().trim().min(20, 'Invalid reset token'),
@@ -26,7 +27,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const ipLimit = byIp(`admin-reset:ip:${ip}`)
+  const ipLimit = await checkRateLimit({ key: `admin-reset:ip:${ip}`, windowMs: RESET_WINDOW_MS, limit: 10 })
   if (ipLimit.limited) {
     return NextResponse.json(
       { success: false, error: 'Too many reset attempts. Please wait and try again.' },
@@ -46,10 +47,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json(
-      { success: false, error: 'Validation failed', details: parsed.error.flatten() },
-      { status: 400 }
-    )
+    return validationError(parsed.error)
   }
 
   try {
@@ -85,7 +83,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Password reset. You can now sign in.' })
   } catch (error) {
-    console.error('Admin reset-password error:', error)
-    return NextResponse.json({ success: false, error: 'Password reset failed' }, { status: 500 })
+    return serverError('Password reset failed', { request, error })
   }
 }

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera } from 'lucide-react'
 import { siteSettingsSchema, type SiteSettingsFormData } from '@/lib/validations'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 const fields: Array<{ name: keyof SiteSettingsFormData; label: string; multiline?: boolean }> = [
   { name: 'siteName', label: 'Site name' },
@@ -29,6 +30,7 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
     register,
     control,
     handleSubmit,
+    setError,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<SiteSettingsFormData>({
@@ -89,10 +91,17 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
       body: JSON.stringify(payload),
     })
 
-    const result = await response.json()
+    const result = await readJsonResponse(response)
 
     if (!response.ok) {
-      setServerMessage(result.error || 'Unable to save settings')
+      const parsed = parseApiError(result, 'Unable to save settings')
+      for (const [field, messages] of Object.entries(parsed.fieldErrors)) {
+        const message = messages[0]
+        if (message && field !== 'form') {
+          setError(field as keyof SiteSettingsFormData, { message })
+        }
+      }
+      setServerMessage(parsed.message)
       return
     }
 

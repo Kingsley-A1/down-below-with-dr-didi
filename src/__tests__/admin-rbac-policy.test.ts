@@ -8,6 +8,7 @@ import {
   normaliseAdminRole,
   type AdminRole,
 } from '@/lib/admin/rbac'
+import { sanitizeAdminNextPath } from '@/lib/admin/redirects'
 import { requireAdminRole } from '@/lib/admin/api-guard'
 import type { AdminSession } from '@/lib/admin/session'
 
@@ -58,12 +59,19 @@ describe('Admin RBAC and Vault identity policy', () => {
 
     const body = await denied.json()
     expect(denied.status).toBe(403)
-    expect(body.requiredRole).toBe('super_admin')
-    expect(body.currentRole).toBe('editor')
+    expect(body.code).toBe('permission_denied')
+    expect(body.error).toContain('super_admin')
   })
 
   it('returns null when role requirement is satisfied', () => {
     const allowed = requireAdminRole(buildSession('super_admin'), 'editor')
     expect(allowed).toBeNull()
+  })
+
+  it('allows only internal admin next redirects', () => {
+    expect(sanitizeAdminNextPath('/admin/vault?status=new')).toBe('/admin/vault?status=new')
+    expect(sanitizeAdminNextPath('https://evil.example/admin')).toBe('/admin')
+    expect(sanitizeAdminNextPath('//evil.example/admin')).toBe('/admin')
+    expect(sanitizeAdminNextPath('/login')).toBe('/admin')
   })
 })

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession, requireAuth } from '@/lib/auth/session'
+import { getSession, requireAuth, type UserSession } from '@/lib/auth/session'
 import { getUserById, updateUserProfile, changePassword } from '@/lib/admin/user-repository'
 import { userUpdateProfileSchema, userChangePasswordSchema } from '@/lib/validations'
+import { serverError, validationError } from '@/lib/api/errors'
 
 /**
  * GET /api/users/me - Get current user profile
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  let session: UserSession | null = null
+
   try {
-    const session = await getSession()
+    session = await getSession()
 
     if (!session) {
       return NextResponse.json(
@@ -34,14 +37,11 @@ export async function GET() {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Get profile error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch profile',
-      },
-      { status: 500 }
-    )
+    return serverError('Failed to fetch profile', {
+      request,
+      error,
+      identity: session ? { userId: session.userId, email: session.email, role: session.role } : undefined,
+    })
   }
 }
 
@@ -49,8 +49,10 @@ export async function GET() {
  * PUT /api/users/me - Update current user profile
  */
 export async function PUT(request: NextRequest) {
+  let session: UserSession | null = null
+
   try {
-    const session = await requireAuth()
+    session = await requireAuth()
 
     const body = await request.json()
 
@@ -59,14 +61,7 @@ export async function PUT(request: NextRequest) {
       // Change password
       const validation = userChangePasswordSchema.safeParse(body)
       if (!validation.success) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Validation failed',
-            details: validation.error.flatten(),
-          },
-          { status: 400 }
-        )
+        return validationError(validation.error)
       }
 
       const { currentPassword, newPassword } = validation.data
@@ -92,14 +87,7 @@ export async function PUT(request: NextRequest) {
     // Update profile
     const validation = userUpdateProfileSchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten(),
-        },
-        { status: 400 }
-      )
+      return validationError(validation.error)
     }
 
     const { displayName, phone } = validation.data
@@ -134,12 +122,10 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update profile',
-      },
-      { status: 500 }
-    )
+    return serverError('Failed to update profile', {
+      request,
+      error,
+      identity: session ? { userId: session.userId, email: session.email, role: session.role } : undefined,
+    })
   }
 }

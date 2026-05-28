@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { siteSettingsSchema } from '@/lib/validations'
 import { getSiteSettings, saveSiteSettings } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest) {
     const parsed = siteSettingsSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     // Normalise optional image fields to empty string so the contract with
@@ -55,6 +56,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, settings })
   } catch (error) {
-    return mapApiError(error, 'Failed to update site settings')
+    return mapApiError(error, 'Failed to update site settings', { request, identity: { email: session.email, role: session.role } })
   }
 }

@@ -1,3 +1,5 @@
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
+
 export type UploadedAsset = {
   id: string
   label: string
@@ -29,14 +31,13 @@ async function requestJson<T>(url: string, payload: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  const text = await response.text()
-  const data = parseUploadResponse<T>(text)
+  const data = await readJsonResponse<T>(response)
 
   if (!response.ok) {
-    throw new Error(data.error || 'Request failed')
+    throw new Error(parseApiError(data, 'Request failed').message)
   }
 
-  return data as T
+  return (data ?? {}) as T
 }
 
 function uploadFileToSignedUrl(file: File, uploadUrl: string, options: UploadAdminMediaOptions) {

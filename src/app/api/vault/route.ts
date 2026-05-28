@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { vaultSchema } from '@/lib/validations'
 import { createVaultSubmission } from '@/lib/admin/repository'
-import { vaultLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { isVaultSubmissionsEnabled } from '@/lib/env'
 import { mapApiError } from '@/lib/admin/api-guard'
-import { getSession } from '@/lib/auth/session'
+import { getSession, type UserSession } from '@/lib/auth/session'
+import { serviceUnavailable, validationError } from '@/lib/api/errors'
 
 export async function POST(req: NextRequest) {
   if (!isVaultSubmissionsEnabled()) {
-    return NextResponse.json(
-      {
-        error: 'Anonymous V-Vault submissions are currently paused.',
-      },
-      { status: 503 }
-    )
+    return serviceUnavailable('service_unavailable', 'Anonymous V-Vault submissions are currently paused.', {
+      request: req,
+      action: 'Enable V-Vault submissions when the team is ready to receive new questions.',
+    })
   }
 
-  const rl = vaultLimiter(getClientIp(req))
+  const rl = await checkRateLimit({
+    key: `vault:ip:${getClientIp(req)}`,
+    windowMs: 10 * 60 * 1000,
+    limit: 10,
+  })
   if (rl.limited) {
     return NextResponse.json(
       { error: 'Too many requests. Please wait before submitting again.' },
@@ -27,8 +30,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  let session: UserSession | null = null
+
   try {
-    const session = await getSession()
+    session = await getSession()
 
     if (!session) {
       return NextResponse.json(
@@ -43,10 +48,7 @@ export async function POST(req: NextRequest) {
     const parsed = vaultSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', issues: parsed.error.issues },
-        { status: 400 }
-      )
+      return validationError(parsed.error)
     }
 
     const { category, question } = parsed.data
@@ -60,6 +62,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Question received' })
   } catch (error) {
-    return mapApiError(error, 'Failed to process request')
+    return mapApiError(error, 'Failed to process request', {
+      request: req,
+      identity: session ? { userId: session.userId, email: session.email, role: session.role } : undefined,
+    })
   }
 }

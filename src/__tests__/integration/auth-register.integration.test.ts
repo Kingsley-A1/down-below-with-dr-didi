@@ -46,14 +46,16 @@ describeWithDatabase('Auth Registration Integration', () => {
       expect(body.success).toBe(true)
       expect(String(body.message).toLowerCase()).toContain('sign in')
       expect(body.user?.id).toBeTruthy()
+      expect(body.requiresEmailVerification).toBe(true)
 
-      // Verify user created in database
+      // Verify user created in database in PENDING_VERIFICATION state per the
+      // SecDevOps redesign: emailVerified starts false; verify-email flips it.
       const user = await prisma.user.findUnique({
         where: { email: validRegistrationPayload.email },
       })
       expect(user).toBeTruthy()
-      expect(user?.emailVerified).toBe(true)
-      expect(user?.emailVerifyToken).toBeNull()
+      expect(user?.emailVerified).toBe(false)
+      expect(user?.emailVerifyToken).toBeTruthy()
     })
 
     it('should accept registration without phone', async () => {
@@ -117,8 +119,9 @@ describeWithDatabase('Auth Registration Integration', () => {
       expect(res.status).toBe(400)
       const body = await parseResponseBody(res)
       expect(body.success).toBe(false)
-      expect(body.error).toBe('Validation failed')
-      expect(body.details?.fieldErrors?.password?.length || 0).toBeGreaterThan(0)
+      expect(body.code).toBe('validation_failed')
+      expect(body.error).toBe('Please fix the highlighted fields.')
+      expect(body.fieldErrors?.password?.length || 0).toBeGreaterThan(0)
     })
 
     it('should reject mismatched passwords', async () => {
@@ -166,8 +169,8 @@ describeWithDatabase('Auth Registration Integration', () => {
     })
   })
 
-  describe('POST /api/auth/register - Immediate Access', () => {
-    it('should keep verification fields cleared for immediate login', async () => {
+  describe('POST /api/auth/register - Pending Verification', () => {
+    it('should create user in unverified state with a fresh email verification token', async () => {
       const req = createMockNextRequest('POST', '/api/auth/register', validRegistrationPayload)
       const { POST } = await import('@/app/api/auth/register/route')
       await POST(req)
@@ -176,9 +179,12 @@ describeWithDatabase('Auth Registration Integration', () => {
         where: { email: validRegistrationPayload.email },
       })
 
-      expect(user?.emailVerified).toBe(true)
-      expect(user?.emailVerifyToken).toBeNull()
-      expect(user?.emailVerifyTokenExpiry).toBeNull()
+      expect(user?.emailVerified).toBe(false)
+      expect(user?.emailVerifyToken).toBeTruthy()
+      expect(user?.emailVerifyTokenExpiry).toBeTruthy()
+      // Token expiry should be in the future (24h window per spec).
+      const expiry = user?.emailVerifyTokenExpiry
+      expect(expiry && expiry.getTime() > Date.now()).toBe(true)
     })
   })
 })

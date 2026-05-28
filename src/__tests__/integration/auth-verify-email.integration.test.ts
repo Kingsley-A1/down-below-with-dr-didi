@@ -34,7 +34,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
   describe('POST /api/auth/verify-email - Success Path', () => {
     it('should verify email with valid token', async () => {
       const token = 'valid-test-token-' + Math.random()
-      const user = await createTestUser({
+      await createTestUser({
         email: 'verify@example.com',
         emailVerified: false,
         emailVerifyToken: token,
@@ -62,7 +62,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
     })
 
     it('should not verify if already verified', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'already@example.com',
         emailVerified: true,
         emailVerifyToken: null,
@@ -83,7 +83,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
   describe('POST /api/auth/verify-email - Token Expiry Enforcement', () => {
     it('should reject expired email verification token', async () => {
       const token = 'expired-test-token-' + Math.random()
-      const user = await createTestUser({
+      await createTestUser({
         email: 'expired@example.com',
         emailVerified: false,
         emailVerifyToken: token,
@@ -112,7 +112,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
     it('should accept token that expires in future', async () => {
       const token = 'future-test-token-' + Math.random()
       const expiryTime = new Date(Date.now() + 12 * 60 * 60 * 1000) // 12 hours
-      const user = await createTestUser({
+      await createTestUser({
         email: 'future@example.com',
         emailVerified: false,
         emailVerifyToken: token,
@@ -135,7 +135,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
     it('should reject at exactly expiry time', async () => {
       const token = 'exact-test-token-' + Math.random()
       const expiryTime = new Date() // Current time (should be considered expired)
-      const user = await createTestUser({
+      await createTestUser({
         email: 'exact@example.com',
         emailVerified: false,
         emailVerifyToken: token,
@@ -159,7 +159,7 @@ describeWithDatabase('Auth Email Verification Integration', () => {
 
   describe('POST /api/auth/verify-email - Invalid Cases', () => {
     it('should reject invalid token', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'token@example.com',
         emailVerifyToken: 'correct-token',
       })

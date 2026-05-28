@@ -77,6 +77,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, asset })
   } catch (error) {
-    return mapApiError(error, 'Failed to upload media asset')
+    return mapApiError(error, 'Failed to upload media asset', { request, identity: { email: session.email, role: session.role } })
   }
 }

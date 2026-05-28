@@ -53,6 +53,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    return mapApiError(error, 'Failed to list users')
+    return mapApiError(error, 'Failed to list users', { request, identity: { email: session.email, role: session.role } })
   }
 }

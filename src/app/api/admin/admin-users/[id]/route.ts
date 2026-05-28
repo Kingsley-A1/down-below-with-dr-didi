@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deleteAdminAccount, listAdminAccounts, updateAdminAccount } from '@/lib/admin/repository'
 import { adminAccountUpdateSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { duplicateEmail, validationError } from '@/lib/api/errors'
+
+function isDuplicateAdminEmailError(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? (error as { code?: unknown }).code === 'P2002'
+    : false
+}
 
 export async function PUT(
   request: NextRequest,
@@ -25,7 +32,7 @@ export async function PUT(
     const parsed = adminAccountUpdateSchema.safeParse({ ...body, id })
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const { password } = parsed.data
@@ -44,7 +51,11 @@ export async function PUT(
 
     return NextResponse.json({ success: true, account })
   } catch (error) {
-    return mapApiError(error, 'Failed to update admin account', { notFoundPrefix: 'Admin account' })
+    if (isDuplicateAdminEmailError(error)) {
+      return duplicateEmail('email')
+    }
+
+    return mapApiError(error, 'Failed to update admin account', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -76,6 +87,6 @@ export async function DELETE(
     await deleteAdminAccount(id, { email: session.email, role: session.role })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return mapApiError(error, 'Failed to delete admin account', { notFoundPrefix: 'Admin account' })
+    return mapApiError(error, 'Failed to delete admin account', { request, identity: { email: session.email, role: session.role } })
   }
 }

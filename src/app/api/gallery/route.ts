@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPublishedGalleryImages, type GalleryImageCategory } from '@/lib/admin/repository'
+import { serverError } from '@/lib/api/errors'
 
 const ALLOWED_CATEGORIES: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
 
@@ -21,12 +22,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load gallery images',
-      },
-      { status: 500 }
-    )
+    return serverError('Failed to load gallery images', { request, error })
   }
 }

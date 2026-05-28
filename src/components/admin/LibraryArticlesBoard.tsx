@@ -8,7 +8,9 @@ import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { LibraryArticleRecord } from '@/lib/library/repository'
 
 type Status = 'draft' | 'published' | 'archived'
@@ -77,20 +79,6 @@ function categoryLabel(category: string) {
   return TOPIC_SUGGESTIONS.find((option) => option.value === category)?.label ?? category
 }
 
-async function readJsonResponse(response: Response) {
-  const text = await response.text()
-
-  if (!text.trim()) {
-    return {}
-  }
-
-  try {
-    return JSON.parse(text) as { error?: string; article?: LibraryArticleRecord; articles?: LibraryArticleRecord[] }
-  } catch {
-    return { error: text.slice(0, 240) }
-  }
-}
-
 export default function LibraryArticlesBoard({ initialArticles }: { initialArticles: LibraryArticleRecord[] }) {
   const [articles, setArticles] = useState(initialArticles)
   const [showForm, setShowForm] = useState(false)
@@ -102,6 +90,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
   const [busyLabel, setBusyLabel] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [message, setMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [pendingDelete, setPendingDelete] = useState<LibraryArticleRecord | null>(null)
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState('')
 
@@ -146,13 +135,13 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
 
   async function refresh() {
     const response = await fetch('/api/admin/library', { cache: 'no-store' })
-    const data = await readJsonResponse(response)
+    const data = await readJsonResponse<{ error?: string; articles?: LibraryArticleRecord[] }>(response)
 
     if (!response.ok) {
-      throw new Error(data.error || 'Refresh failed')
+      throw new Error(parseApiError(data, 'Refresh failed').message)
     }
 
-    setArticles(data.articles ?? [])
+    setArticles(data?.articles ?? [])
   }
 
   function startCreate() {
@@ -163,6 +152,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setCoverFile(null)
     setUploadProgress(0)
     setShowForm(true)
+    setFieldErrors({})
     setLastDraftSavedAt(draft?.savedAt ?? '')
     setMessage(draft ? `Recovered a library draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
@@ -186,6 +176,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setCoverFile(null)
     setUploadProgress(0)
     setShowForm(true)
+    setFieldErrors({})
     setLastDraftSavedAt(draft?.savedAt ?? '')
     setMessage(draft ? `Recovered a library draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
@@ -198,6 +189,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setSlugManual(false)
     setCoverFile(null)
     setUploadProgress(0)
+    setFieldErrors({})
     setLastDraftSavedAt('')
   }
 
@@ -207,6 +199,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     setBusyLabel(coverFile ? 'Uploading cover image' : 'Saving article')
     setUploadProgress(0)
     setMessage('')
+    setFieldErrors({})
 
     try {
       let nextCoverImage = form.coverImageUrl
@@ -237,10 +230,12 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = await readJsonResponse(response)
+      const data = await readJsonResponse<{ error?: string; article?: LibraryArticleRecord; articles?: LibraryArticleRecord[] }>(response)
 
       if (!response.ok) {
-        throw new Error(data.error || 'Save failed')
+        const parsedError = parseApiError(data, 'Save failed')
+        setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+        throw new Error(parsedError.message)
       }
 
       await refresh()
@@ -265,10 +260,10 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
 
     try {
       const response = await fetch(`/api/admin/library/${pendingDelete.id}`, { method: 'DELETE' })
-      const data = await readJsonResponse(response)
+      const data = await readJsonResponse<{ error?: string }>(response)
 
       if (!response.ok) {
-        throw new Error(data.error || 'Delete failed')
+        throw new Error(parseApiError(data, 'Delete failed').message)
       }
 
       await refresh()
@@ -282,11 +277,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
     }
   }
 
-  const messageTone = message.toLowerCase().includes('failed') || message.toLowerCase().includes('validation')
-    ? 'error'
-    : message.toLowerCase().includes('draft')
-      ? 'info'
-      : 'success'
+  const messageTone = getAdminStatusTone(message)
 
   return (
     <section className="space-y-6 admin-fade-in">
@@ -330,7 +321,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
-              <Field label="Title *">
+              <Field label="Title *" error={fieldErrors.title}>
                 <input
                   value={form.title}
                   onChange={(event) => {
@@ -373,9 +364,10 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                     className="mt-3 input-field"
                   />
                 ) : null}
+                {fieldErrors.slug ? <p className="mt-2 font-body text-xs text-red-600">{fieldErrors.slug}</p> : null}
               </div>
 
-              <Field label="Short summary *">
+              <Field label="Short summary *" error={fieldErrors.excerpt}>
                 <textarea
                   value={form.excerpt}
                   onChange={(event) => set('excerpt', event.target.value)}
@@ -387,7 +379,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                 />
               </Field>
 
-              <Field label="Article body *">
+              <Field label="Article body *" error={fieldErrors.content}>
                 <textarea
                   value={form.content}
                   onChange={(event) => set('content', event.target.value)}
@@ -404,7 +396,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
             </div>
 
             <aside className="space-y-4">
-              <Field label="Topic *">
+              <Field label="Topic *" error={fieldErrors.category}>
                 <input
                   list="library-topic-suggestions"
                   value={form.category}
@@ -426,7 +418,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                   Choose a suggested topic or type a new one for this article.
                 </p>
               </Field>
-              <Field label="Status *">
+              <Field label="Status *" error={fieldErrors.status}>
                 <select value={form.status} onChange={(event) => set('status', event.target.value as Status)} className="input-field">
                   {STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
@@ -435,7 +427,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                   ))}
                 </select>
               </Field>
-              <Field label="Publish date">
+              <Field label="Publish date" error={fieldErrors.publishedAt}>
                 <input
                   type="datetime-local"
                   value={form.publishedAt}
@@ -443,7 +435,7 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                   className="input-field"
                 />
               </Field>
-              <Field label="Cover image">
+              <Field label="Cover image" error={fieldErrors.coverImageUrl}>
                 <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                   <Camera className="h-3.5 w-3.5" />
                   <span>Image</span>
@@ -580,11 +572,12 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</span>
       {children}
+      {error ? <p className="font-body text-xs text-red-600">{error}</p> : null}
     </label>
   )
 }

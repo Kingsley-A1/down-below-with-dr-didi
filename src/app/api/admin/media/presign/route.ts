@@ -61,6 +61,6 @@ export async function POST(request: NextRequest) {
       kind: inferMediaKind(mimeType),
     })
   } catch (error) {
-    return mapApiError(error, 'Failed to prepare media upload')
+    return mapApiError(error, 'Failed to prepare media upload', { request, identity: { email: session.email, role: session.role } })
   }
 }

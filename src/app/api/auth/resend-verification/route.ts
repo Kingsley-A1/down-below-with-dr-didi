@@ -3,14 +3,10 @@ import { z } from 'zod'
 import { regenerateEmailVerificationToken } from '@/lib/admin/user-repository'
 import { sendEmail } from '@/lib/email/send'
 import { verifyEmail as verifyEmailTemplate } from '@/lib/email/templates'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { env } from '@/lib/env'
 
-// 3 resends per email per hour — enough for a user retrying with typos but
-// not enough for someone using us as a free email bombing service.
-const resendByEmail = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 3 })
-// 10 resends per IP per hour — defence-in-depth.
-const resendByIp = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 10 })
+const RESEND_WINDOW_MS = 60 * 60 * 1000
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -31,7 +27,7 @@ const GENERIC_OK = NextResponse.json(
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const ipLimit = resendByIp(`auth-resend:ip:${ip}`)
+  const ipLimit = await checkRateLimit({ key: `auth-resend:ip:${ip}`, windowMs: RESEND_WINDOW_MS, limit: 10 })
   if (ipLimit.limited) {
     return NextResponse.json(
       { success: false, error: 'Too many resend attempts. Please wait and try again.' },
@@ -56,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const email = parsed.data.email
 
-  const emailLimit = resendByEmail(`auth-resend:email:${email}`)
+  const emailLimit = await checkRateLimit({ key: `auth-resend:email:${email}`, windowMs: RESEND_WINDOW_MS, limit: 3 })
   if (emailLimit.limited) {
     // Generic to avoid revealing existence; 429 still signals rate limiting.
     return GENERIC_OK

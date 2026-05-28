@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, MessageSquare } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { EventCommentRecord, EventRecord, EventStatus, EventCommentStatus } from '@/lib/admin/repository'
 
 const STATUS_OPTIONS: EventStatus[] = ['draft', 'published', 'archived']
@@ -41,35 +43,24 @@ function slugify(value: string) {
 }
 
 function getTone(message: string) {
-  const value = message.toLowerCase()
-  if (value.includes('failed') || value.includes('error') || value.includes('required') || value.includes('invalid') || value.includes('already')) {
-    return 'error' as const
-  }
-  return 'success' as const
+  return getAdminStatusTone(message)
 }
 
 async function readAdminResponse(response: Response) {
-  const text = await response.text()
-
-  if (!text.trim()) {
-    return {}
-  }
-
-  try {
-    return JSON.parse(text) as { error?: string; issues?: { message?: string; path?: Array<string | number> }[]; events?: EventRecord[]; event?: EventRecord }
-  } catch {
-    return { error: text.slice(0, 240) }
-  }
+  return (
+    (await readJsonResponse<{
+      error?: string
+      issues?: { message?: string; path?: Array<string | number> }[]
+      events?: EventRecord[]
+      event?: EventRecord
+      comments?: EventCommentRecord[]
+      comment?: EventCommentRecord
+    }>(response)) ?? {}
+  )
 }
 
 function adminErrorMessage(data: { error?: string; issues?: { message?: string; path?: Array<string | number> }[] }, fallback: string) {
-  const firstIssue = data.issues?.[0]
-  if (firstIssue?.message) {
-    const path = firstIssue.path?.join('.')
-    return path ? `${path}: ${firstIssue.message}` : firstIssue.message
-  }
-
-  return data.error || fallback
+  return parseApiError(data, fallback).message
 }
 
 function toDatetimeInput(value: string | null) {
@@ -103,6 +94,7 @@ export default function EventsBoard({
   const [activeCommentsEventId, setActiveCommentsEventId] = useState<string | null>(null)
   const [comments, setComments] = useState<EventCommentRecord[]>([])
   const [loadingComments, setLoadingComments] = useState(false)
+  const commentsRequestIdRef = useRef(0)
 
   const previewUrl = useMemo(() => {
     if (!coverFile) {
@@ -272,10 +264,22 @@ export default function EventsBoard({
   }
 
   async function openComments(eventId: string) {
+    const requestId = commentsRequestIdRef.current + 1
+    commentsRequestIdRef.current = requestId
     setActiveCommentsEventId(eventId)
     setLoadingComments(true)
     const response = await fetch(`/api/admin/events/${eventId}/comments`, { cache: 'no-store' })
-    const data = await response.json()
+    const data = await readAdminResponse(response)
+    if (requestId !== commentsRequestIdRef.current) {
+      return
+    }
+
+    if (!response.ok) {
+      setMsg(adminErrorMessage(data, 'Failed to fetch event comments'))
+      setComments([])
+      setLoadingComments(false)
+      return
+    }
     setComments(data.comments || [])
     setLoadingComments(false)
   }
@@ -291,14 +295,20 @@ export default function EventsBoard({
       body: JSON.stringify({ status }),
     })
 
-    const data = await response.json()
+    const data = await readAdminResponse(response)
 
     if (!response.ok) {
-      setMsg(data.error || 'Comment moderation failed')
+      setMsg(adminErrorMessage(data, 'Comment moderation failed'))
       return
     }
 
-    setComments((prev) => prev.map((item) => (item.id === commentId ? data.comment : item)))
+    if (!data.comment) {
+      setMsg('Comment moderation completed, but the updated comment was missing. Refresh comments to confirm the latest state.')
+      return
+    }
+
+    const updatedComment = data.comment
+    setComments((prev) => prev.map((item) => (item.id === commentId ? updatedComment : item)))
   }
 
   return (
@@ -540,7 +550,10 @@ export default function EventsBoard({
           <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">Event Comments</h3>
-              <button type="button" className="rounded-xl border px-3 py-1.5 text-xs font-semibold" onClick={() => setActiveCommentsEventId(null)}>Close</button>
+              <button type="button" className="rounded-xl border px-3 py-1.5 text-xs font-semibold" onClick={() => {
+                commentsRequestIdRef.current += 1
+                setActiveCommentsEventId(null)
+              }}>Close</button>
             </div>
 
             {loadingComments ? (

@@ -10,13 +10,12 @@ import {
   welcomeAdmin as welcomeAdminTemplate,
   verifyAdminEmail as verifyAdminEmailTemplate,
 } from '@/lib/email/templates'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { env } from '@/lib/env'
+import { serverError } from '@/lib/api/errors'
 
-// 10 verification attempts per IP per 15 min — generous so users retrying
-// stale links aren't blocked, tight enough to deter brute-force.
-const verifyByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 10 })
-const resendByEmail = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 3 })
+const VERIFY_WINDOW_MS = 15 * 60 * 1000
+const RESEND_WINDOW_MS = 60 * 60 * 1000
 
 const verifySchema = z.object({ token: z.string().trim().min(20) })
 const resendSchema = z.object({ email: z.string().trim().toLowerCase().email() })
@@ -35,7 +34,7 @@ function adminSignInUrl() {
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const ipLimit = verifyByIp(`admin-verify:ip:${ip}`)
+  const ipLimit = await checkRateLimit({ key: `admin-verify:ip:${ip}`, windowMs: VERIFY_WINDOW_MS, limit: 10 })
   if (ipLimit.limited) {
     return NextResponse.json(
       { success: false, error: 'Too many verification attempts. Please wait and try again.' },
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
   const resendParsed = resendSchema.safeParse(body)
   if (resendParsed.success) {
     const email = resendParsed.data.email
-    const emailLimit = resendByEmail(`admin-verify-resend:${email}`)
+    const emailLimit = await checkRateLimit({ key: `admin-verify-resend:${email}`, windowMs: RESEND_WINDOW_MS, limit: 3 })
     if (emailLimit.limited) {
       return NextResponse.json({ success: true, message: 'If your account needs verification, a fresh link has been sent.' })
     }
@@ -132,7 +131,6 @@ export async function POST(request: NextRequest) {
       signinUrl,
     })
   } catch (error) {
-    console.error('Admin verification error:', error)
-    return NextResponse.json({ success: false, error: 'Verification failed.' }, { status: 500 })
+    return serverError('Verification failed.', { request, error })
   }
 }

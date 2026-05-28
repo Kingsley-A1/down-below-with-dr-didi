@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/session'
+import { requireAuth, type UserSession } from '@/lib/auth/session'
 import { markUserNotificationRead } from '@/lib/admin/repository'
+import { serverError, serviceUnavailable } from '@/lib/api/errors'
+import { isTransientPrismaError } from '@/lib/prisma-retry'
 
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let session: UserSession | null = null
+
   try {
-    const session = await requireAuth()
+    session = await requireAuth()
     const { id } = await params
 
     if (!id || !id.trim()) {
@@ -26,12 +30,19 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to update notification state',
-      },
-      { status: 500 }
-    )
+    const context = {
+      request,
+      error,
+      identity: session ? { userId: session.userId, email: session.email, role: session.role } : undefined,
+    }
+
+    if (isTransientPrismaError(error)) {
+      return serviceUnavailable('database_unavailable', 'Notification state is temporarily unavailable.', {
+        ...context,
+        action: 'Check database connectivity, then retry marking the notification as read.',
+      })
+    }
+
+    return serverError('Failed to update notification state', context)
   }
 }

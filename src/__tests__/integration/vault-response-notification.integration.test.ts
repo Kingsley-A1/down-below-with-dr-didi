@@ -11,6 +11,7 @@ import {
   cleanupDatabase,
   disconnectDatabase,
   createTestUser,
+  ensureAdminUser,
   createMockNextRequest,
   hasIntegrationDatabase,
   parseResponseBody,
@@ -71,6 +72,7 @@ describeWithDatabase('V-Vault Response Notification Chain', () => {
     expect(createdSubmission).toBeTruthy()
     expect(createdSubmission?.source).toBe('app_authenticated')
 
+    await ensureAdminUser('superadmin-chain@example.com', 'super_admin')
     const adminToken = await createAdminSessionToken({
       email: 'superadmin-chain@example.com',
       role: 'super_admin',
@@ -216,6 +218,7 @@ describeWithDatabase('V-Vault Response Notification Chain', () => {
     })
     expect(submission).toBeTruthy()
 
+    await ensureAdminUser('superadmin-trace@example.com', 'super_admin')
     const adminToken = await createAdminSessionToken({
       email: 'superadmin-trace@example.com',
       role: 'super_admin',

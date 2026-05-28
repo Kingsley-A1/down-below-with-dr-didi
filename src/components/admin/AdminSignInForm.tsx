@@ -6,28 +6,31 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff } from 'lucide-react'
+import { sanitizeAdminNextPath } from '@/lib/admin/redirects'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import { adminLoginSchema, type AdminLoginData } from '@/lib/validations'
 
 type AdminSessionErrorPayload = {
+  ok?: boolean
   error?: string
-  hint?: string
-  troubleshoot?: string
-  recover?: string
+  code?: string
+  retryAfter?: number
+  fieldErrors?: Record<string, string[]>
 }
 
-export default function AdminSignInForm({ supportPhone }: { supportPhone: string }) {
+export default function AdminSignInForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [serverError, setServerError] = useState('')
   const [serverHint, setServerHint] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showSupportContact, setShowSupportContact] = useState(false)
-  const nextPath = searchParams.get('next') || '/admin'
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false)
+  const nextPath = sanitizeAdminNextPath(searchParams.get('next'))
 
   const {
     register,
     handleSubmit,
-    watch,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<AdminLoginData>({
     resolver: zodResolver(adminLoginSchema),
@@ -37,11 +40,10 @@ export default function AdminSignInForm({ supportPhone }: { supportPhone: string
     },
   })
 
-  const email = watch('email')
-
   async function onSubmit(values: AdminLoginData) {
     setServerError('')
     setServerHint('')
+    setNeedsEmailVerification(false)
 
     try {
       const response = await fetch('/api/admin/session', {
@@ -50,24 +52,53 @@ export default function AdminSignInForm({ supportPhone }: { supportPhone: string
         body: JSON.stringify(values),
       })
 
-      let result: AdminSessionErrorPayload = {}
-      const contentType = response.headers.get('content-type') ?? ''
-
-      if (contentType.includes('application/json')) {
-        result = await response.json()
-      }
+      const result = (await readJsonResponse<AdminSessionErrorPayload>(response)) ?? {}
 
       if (!response.ok) {
-        setServerError(result.error || 'Unable to sign in')
-        setServerHint(result.hint || '')
+        const parsedError = parseApiError(result, 'Unable to sign in.')
+
+        if (parsedError.fieldErrors) {
+          for (const [field, messages] of Object.entries(parsedError.fieldErrors)) {
+            const message = messages?.[0]
+            if (message) {
+              setError(field as keyof AdminLoginData, { message })
+            }
+          }
+        }
+
+        if (parsedError.code === 'email_not_verified') {
+          setNeedsEmailVerification(true)
+          setServerError(parsedError.message)
+          setServerHint('Check your inbox for the verification link, or request a new one.')
+          return
+        }
+
+        if (parsedError.code === 'account_locked') {
+          const minutes = parsedError.retryAfter ? Math.ceil(parsedError.retryAfter / 60) : 30
+          setServerError(parsedError.message)
+          setServerHint(`Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`)
+          return
+        }
+
+        if (parsedError.code === 'rate_limited') {
+          const minutes = parsedError.retryAfter ? Math.ceil(parsedError.retryAfter / 60) : 5
+          setServerError(parsedError.message)
+          setServerHint(`Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`)
+          return
+        }
+
+        if (Object.keys(parsedError.fieldErrors).length === 0) {
+          setServerError(parsedError.message)
+          setServerHint('If you forgot your password, use the link below to reset it.')
+        }
         return
       }
 
       router.push(nextPath)
       router.refresh()
     } catch {
-      setServerError('Sign-in request failed. Check your connection and try again.')
-      setServerHint('If this keeps happening, open self-service recovery or contact support.')
+      setServerError('Sign-in request failed.')
+      setServerHint('Check your connection and try again.')
     }
   }
 
@@ -108,20 +139,18 @@ export default function AdminSignInForm({ supportPhone }: { supportPhone: string
         </div>
         {errors.password ? <p className="mt-2 text-sm text-red-600">{errors.password.message}</p> : null}
       </div>
-
       {serverError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="polite">
           <p className="font-semibold">{serverError}</p>
           {serverHint ? <p className="mt-2">{serverHint}</p> : null}
-          <p className="mt-3 text-sm text-red-900">
-            Next step: run self-service recovery, then retry sign in.
-          </p>
-          <Link
-            href={`/admin/recovery${email ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
-            className="mt-3 inline-block rounded-full bg-red-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-800"
-          >
-            Open self-service recovery
-          </Link>
+          {needsEmailVerification ? (
+            <Link
+              href="/admin/verify-email"
+              className="mt-3 inline-block rounded-full bg-red-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-800"
+            >
+              Resend verification email
+            </Link>
+          ) : null}
         </div>
       ) : null}
 
@@ -135,22 +164,12 @@ export default function AdminSignInForm({ supportPhone }: { supportPhone: string
       </button>
 
       <div className="border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setShowSupportContact((previous) => !previous)}
+        <Link
+          href="/admin/forgot-password"
           className="font-body text-sm font-semibold text-slate-700 underline decoration-emerald-500 decoration-2 underline-offset-4"
         >
           Forgot password?
-        </button>
-        {showSupportContact ? (
-          <p className="mt-2 font-body text-sm text-slate-600">
-            Contact the super admin on{' '}
-            <a href={`tel:${supportPhone}`} className="font-semibold text-slate-900 underline underline-offset-4">
-              {supportPhone}
-            </a>{' '}
-            for password reset assistance.
-          </p>
-        ) : null}
+        </Link>
       </div>
     </form>
   )

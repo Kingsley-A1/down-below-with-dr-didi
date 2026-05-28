@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminUsersFilter from './AdminUsersFilter'
 import UsersTable from './UsersTable'
 import type { PublicUserRecord } from '@/lib/admin/user-repository'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 interface PaginationData {
   limit: number
@@ -19,6 +20,7 @@ interface PaginationData {
  */
 export default function AdminUsersListClient() {
   const router = useRouter()
+  const requestIdRef = useRef(0)
   const [users, setUsers] = useState<PublicUserRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +41,9 @@ export default function AdminUsersListClient() {
 
   // Fetch users with current filters and pagination
   const fetchUsers = useCallback(async () => {
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+
     try {
       setIsLoading(true)
       setError(null)
@@ -52,6 +57,14 @@ export default function AdminUsersListClient() {
       if (filters.role) params.append('role', filters.role)
 
       const response = await fetch(`/api/admin/users?${params.toString()}`)
+      const data = await readJsonResponse<{
+        users?: PublicUserRecord[]
+        pagination?: PaginationData
+      }>(response)
+
+      if (requestId !== requestIdRef.current) {
+        return
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -63,17 +76,24 @@ export default function AdminUsersListClient() {
           router.push('/admin')
           return
         }
-        throw new Error('Failed to fetch users')
+        throw new Error(parseApiError(data, 'Failed to fetch users').message)
       }
 
-      const data = await response.json()
-      setUsers(data.users || [])
-      setPagination(data.pagination)
+      setUsers(data?.users || [])
+      if (data?.pagination) {
+        setPagination(data.pagination)
+      }
     } catch (err) {
+      if (requestId !== requestIdRef.current) {
+        return
+      }
+
       setError((err as Error).message)
       setUsers([])
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [currentPage, filters, router])
 

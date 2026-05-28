@@ -10,6 +10,7 @@ import {
   cleanupDatabase,
   disconnectDatabase,
   createTestUser,
+  ensureAdminUser,
   createMockNextRequest,
   hasIntegrationDatabase,
   parseResponseBody,
@@ -25,6 +26,7 @@ async function createAdminRequest(params: {
   role: 'super_admin' | 'founder_admin'
   email: string
 }) {
+  await ensureAdminUser(params.email, params.role)
   const token = await createAdminSessionToken({
     email: params.email,
     role: params.role,

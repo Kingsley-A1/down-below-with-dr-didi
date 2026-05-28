@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getGalleryImageBySlug } from '@/lib/admin/repository'
+import { serverError } from '@/lib/api/errors'
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -20,12 +21,6 @@ export async function GET(
 
     return NextResponse.json({ success: true, image }, { status: 200 })
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load gallery image',
-      },
-      { status: 500 }
-    )
+    return serverError('Failed to load gallery image', { request, error })
   }
 }

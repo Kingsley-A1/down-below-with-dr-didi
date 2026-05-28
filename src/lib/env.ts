@@ -29,6 +29,8 @@ const envSchema = z.object({
   ADMIN_EDITOR_ACCESS_CODE: z.string().trim().optional().default(''),
   ADMIN_SUPPORT_PHONE: z.string().trim().optional().default('09036826272'),
   ADMIN_ALLOWED_USERS: z.string().default('deblessedking001@gmail.com:super_admin'),
+  // Optional comma-separated invite tokens: email:role:token
+  ADMIN_INVITE_TOKENS: z.string().optional().default(''),
   VAULT_SUBMISSIONS_ENABLED: z.string().optional().default('true'),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com'),
   // Resend (email) — validated lazily via getEmailEnv() so non-email request
@@ -116,6 +118,7 @@ const parsed = envSchema.parse({
   ADMIN_EDITOR_ACCESS_CODE: process.env.ADMIN_EDITOR_ACCESS_CODE,
   ADMIN_SUPPORT_PHONE: process.env.ADMIN_SUPPORT_PHONE,
   ADMIN_ALLOWED_USERS: process.env.ADMIN_ALLOWED_USERS,
+  ADMIN_INVITE_TOKENS: process.env.ADMIN_INVITE_TOKENS,
   VAULT_SUBMISSIONS_ENABLED: process.env.VAULT_SUBMISSIONS_ENABLED,
   NEXT_PUBLIC_SITE_URL: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
   RESEND_API_KEY: process.env.RESEND_API_KEY,

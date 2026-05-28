@@ -1,34 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminLoginSchema } from '@/lib/validations'
 import { createAdminSessionToken, sessionCookieOptions, ADMIN_SESSION_COOKIE } from '@/lib/admin/session'
-import { authenticateAdminUserWithDiagnostics } from '@/lib/admin/auth-diagnostics'
+import { authenticateAdminUser } from '@/lib/admin/admin-auth'
 import { env } from '@/lib/env'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { serverError, serviceUnavailable, validationError } from '@/lib/api/errors'
 
-// 20 attempts per IP per 15 min — keeps casual brute-force out without
-// breaking admins who fat-finger a password a handful of times.
-const adminLoginIpLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 20 })
-// 5 attempts per email per 15 min — tighter than the IP cap so attackers
-// rotating IPs still get throttled per account.
-const adminLoginIdentityLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 5 })
+const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000
+const ADMIN_LOGIN_IP_LIMIT = 20
+const ADMIN_LOGIN_IDENTITY_LIMIT = 5
 
 function isMissingAdminTableError(error: unknown) {
   return error instanceof Error && error.message.includes('The table `public.AdminUser` does not exist')
 }
 
 function rateLimitResponse(resetAt: number) {
+  const retryAfter = Math.ceil((resetAt - Date.now()) / 1000)
   return NextResponse.json(
-    { error: 'Too many sign-in attempts. Please wait a few minutes and try again.' },
+    {
+      ok: false,
+      code: 'rate_limited',
+      error: 'Too many sign-in attempts. Please wait a few minutes and try again.',
+      retryAfter,
+    },
     {
       status: 429,
-      headers: { 'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)) },
+      headers: { 'Retry-After': String(retryAfter) },
     }
   )
 }
 
 export async function POST(request: NextRequest) {
   const clientIp = getClientIp(request)
-  const ipLimit = adminLoginIpLimiter(`admin-login:ip:${clientIp}`)
+  const ipLimit = await checkRateLimit({
+    key: `admin-login:ip:${clientIp}`,
+    windowMs: ADMIN_LOGIN_WINDOW_MS,
+    limit: ADMIN_LOGIN_IP_LIMIT,
+  })
 
   if (ipLimit.limited) {
     return rateLimitResponse(ipLimit.resetAt)
@@ -39,50 +47,78 @@ export async function POST(request: NextRequest) {
     const parsed = adminLoginSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid admin credentials', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const email = parsed.data.email.trim().toLowerCase()
 
-    const identityLimit = adminLoginIdentityLimiter(`admin-login:email:${email}`)
+    const identityLimit = await checkRateLimit({
+      key: `admin-login:email:${email}`,
+      windowMs: ADMIN_LOGIN_WINDOW_MS,
+      limit: ADMIN_LOGIN_IDENTITY_LIMIT,
+    })
     if (identityLimit.limited) {
       return rateLimitResponse(identityLimit.resetAt)
     }
 
-    // Use enhanced authentication with diagnostics
-    const authResult = await authenticateAdminUserWithDiagnostics(email, parsed.data.password)
+    const authResult = await authenticateAdminUser(email, parsed.data.password)
 
-    if (!authResult.success || !authResult.account) {
-      // Distinguish lockout and email-not-verified so the UI can guide the user;
-      // everything else stays generic to avoid account enumeration.
-      const reason = authResult.attempt.reason
-      if (reason === 'ACCOUNT_LOCKED' || reason === 'ACCOUNT_LOCKED_NOW') {
-        return NextResponse.json(
-          { error: 'Account temporarily locked due to too many failed attempts. Try again in 30 minutes.' },
-          { status: 423 }
-        )
+    if (!authResult.ok) {
+      switch (authResult.code) {
+        case 'account_locked':
+        case 'account_locked_now':
+          return NextResponse.json(
+            {
+              ok: false,
+              code: 'account_locked',
+              error: 'Account temporarily locked due to too many failed attempts. Try again in 30 minutes.',
+              retryAfter: 30 * 60,
+            },
+            { status: 423 }
+          )
+        case 'email_not_verified':
+          return NextResponse.json(
+            {
+              ok: false,
+              code: 'email_not_verified',
+              error: 'Email not verified. Check your inbox for the verification link.',
+            },
+            { status: 403 }
+          )
+        case 'account_inactive':
+          return NextResponse.json(
+            {
+              ok: false,
+              code: 'account_inactive',
+              error: 'Account unavailable. Contact support.',
+            },
+            { status: 403 }
+          )
+        case 'database_not_configured':
+        case 'server_error':
+          return serviceUnavailable(
+            authResult.code === 'database_not_configured' ? 'database_unavailable' : 'service_unavailable',
+            'Sign-in is temporarily unavailable. Please try again shortly.',
+            {
+              request,
+              identity: { email },
+              metadata: { authCode: authResult.code },
+              action: 'Check admin database configuration and recent server logs before retrying admin sign-in.',
+            }
+          )
+        case 'invalid_credentials':
+        default:
+          // Single message for both unknown-email and wrong-password to avoid
+          // account enumeration.
+          return NextResponse.json(
+            {
+              ok: false,
+              code: 'invalid_credentials',
+              error: 'Email or password is incorrect.',
+            },
+            { status: 401 }
+          )
       }
-
-      if (reason === 'EMAIL_NOT_VERIFIED') {
-        return NextResponse.json(
-          {
-            error: 'Email not verified. Check your inbox for the verification link.',
-            requiresEmailVerification: true,
-          },
-          { status: 403 }
-        )
-      }
-
-      const baseHint = 'Verify your credentials, then run account recovery if access still fails.'
-      const suggestion = authResult.attempt.diagnostics?.diagnostics.suggestions?.[0]
-      const hint = env.NODE_ENV === 'production' ? baseHint : suggestion || baseHint
-
-      return NextResponse.json({
-        error: 'Admin access denied',
-        hint,
-        troubleshoot: 'Double-check your email and password, then retry.',
-        recover: 'Use the self-service recovery page if access is still denied.',
-      }, { status: 401 })
     }
 
     const token = await createAdminSessionToken({
@@ -92,24 +128,33 @@ export async function POST(request: NextRequest) {
     })
 
     const response = NextResponse.json({
+      ok: true,
       success: true,
       role: authResult.account.role,
     })
 
-    response.cookies.set(ADMIN_SESSION_COOKIE, token, sessionCookieOptions(new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString()))
+    response.cookies.set(
+      ADMIN_SESSION_COOKIE,
+      token,
+      sessionCookieOptions(new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString())
+    )
 
     return response
   } catch (error) {
     if (isMissingAdminTableError(error)) {
-      return NextResponse.json({ error: 'Admin database is not initialized yet.' }, { status: 503 })
+      return serviceUnavailable('database_unavailable', 'Admin database is not initialized yet.', {
+        request,
+        error,
+        action: 'Run Prisma migrations and verify DATABASE_URL before admin sign-in.',
+      })
     }
 
-    return NextResponse.json({ error: 'Failed to create admin session' }, { status: 500 })
+    return serverError('Failed to create admin session', { request, error })
   }
 }
 
 export async function DELETE() {
-  const response = NextResponse.json({ success: true })
+  const response = NextResponse.json({ ok: true })
 
   response.cookies.set(ADMIN_SESSION_COOKIE, '', {
     httpOnly: true,

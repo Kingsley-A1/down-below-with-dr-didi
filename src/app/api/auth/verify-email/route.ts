@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userVerifyEmailSchema } from '@/lib/validations'
 import { verifyUserEmail } from '@/lib/admin/user-repository'
+import { serverError, validationError } from '@/lib/api/errors'
 
 /**
  * POST /api/auth/verify-email
@@ -25,14 +26,7 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const validationResult = userVerifyEmailSchema.safeParse(body)
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid verification token format',
-          details: validationResult.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      )
+      return validationError(validationResult.error, 'Invalid verification token format')
     }
 
     const { token } = validationResult.data
@@ -58,13 +52,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Email verification error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'An error occurred while verifying your email',
-      },
-      { status: 500 }
-    )
+    return serverError('An error occurred while verifying your email', { request, error })
   }
 }

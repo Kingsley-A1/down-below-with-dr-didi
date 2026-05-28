@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { hasDatabaseConfig } from '@/lib/env'
+import { NextRequest } from 'next/server'
 import { canAccessRole, type AdminRole } from '@/lib/admin/rbac'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession, type AdminSession } from '@/lib/admin/session'
+import { validateAdminSessionWithDatabase } from '@/lib/admin/session-validation'
+import { isAppError } from '@/lib/app-error'
+import { conflict, duplicateEmail, forbidden, notFound, serverError, serviceUnavailable, validationFailure } from '@/lib/api/errors'
+import type { ApiErrorLogContext } from '@/lib/api/observability'
 
 /**
  * Verifies the admin session token (signature + expiry) AND checks the DB
@@ -13,47 +15,13 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSession, type AdminSession } from '@/l
  *
  * Use this guard in API routes. Middleware (proxy.ts) only does the cheap
  * signature check because it runs in the Edge runtime where Prisma isn't
- * available — meaning a revoked admin can still load admin pages but
- * mutations and data fetches gated by this guard reject immediately.
+ * available. Server-rendered admin pages use the same DB-backed validation via
+ * page-guard.ts.
  */
 export async function requireAdminSession(request: NextRequest): Promise<AdminSession | null> {
   const token = request.cookies.get(ADMIN_SESSION_COOKIE)?.value
   const session = await verifyAdminSession(token)
-  if (!session) {
-    return null
-  }
-
-  // If the DB isn't configured (local dev with no DATABASE_URL), skip the
-  // revocation check — the rest of the system already degrades gracefully.
-  if (!hasDatabaseConfig()) {
-    return session
-  }
-
-  try {
-    const account = await prisma.adminUser.findUnique({
-      where: { email: session.email },
-      select: {
-        isActive: true,
-        emailVerified: true,
-        tokenVersion: true,
-      },
-    })
-
-    if (!account || !account.isActive || !account.emailVerified) {
-      return null
-    }
-
-    if ((account.tokenVersion ?? 0) !== session.tokenVersion) {
-      return null
-    }
-
-    return session
-  } catch (error) {
-    // If the lookup fails (DB outage), refuse rather than allow — admin
-    // routes deserve the stricter default.
-    console.error('Admin session DB check failed:', error)
-    return null
-  }
+  return validateAdminSessionWithDatabase(session)
 }
 
 export function requireAdminRole(session: AdminSession, requiredRole: AdminRole) {
@@ -61,34 +29,45 @@ export function requireAdminRole(session: AdminSession, requiredRole: AdminRole)
     return null
   }
 
-  return NextResponse.json(
-    {
-      error: `Insufficient permissions. ${requiredRole} role is required.`,
-      requiredRole,
-      currentRole: session.role,
-    },
-    { status: 403 }
+  return forbidden(
+    `You need ${requiredRole} access or higher to perform this action.`,
+    'Ask a super admin to update your role or sign in with an authorized admin account.'
   )
 }
 
 export function mapApiError(
   error: unknown,
   fallbackMessage: string,
-  options?: { notFoundPrefix?: string }
+  context?: ApiErrorLogContext
 ) {
-  const message = error instanceof Error ? error.message : fallbackMessage
+  const logContext = { ...context, error }
 
-  if (message === 'Database is not configured' || message === 'Cloudflare R2 is not configured') {
-    return NextResponse.json({ error: message }, { status: 503 })
+  if (isAppError(error)) {
+    switch (error.code) {
+      case 'database_unavailable':
+        return serviceUnavailable('database_unavailable', error.message, {
+          ...logContext,
+          action: 'Check DATABASE_URL, run migrations, and verify the deployment environment variables.',
+        })
+      case 'storage_unavailable':
+        return serviceUnavailable('storage_unavailable', error.message, {
+          ...logContext,
+          action: 'Check Cloudflare R2 account ID, bucket, access keys, public URL, and CORS settings.',
+        })
+      case 'not_found':
+        return notFound(error.message)
+      case 'validation_failed':
+        return validationFailure(error.message, error.fieldErrors)
+      case 'conflict':
+        return conflict(error.message, error.fieldErrors)
+      case 'duplicate_email':
+        return duplicateEmail('email', error.message)
+      case 'permission_denied':
+        return forbidden(error.message, error.action)
+      default:
+        break
+    }
   }
 
-  if ((options?.notFoundPrefix && message.startsWith(options.notFoundPrefix)) || message.endsWith('not found')) {
-    return NextResponse.json({ error: message }, { status: 404 })
-  }
-
-  if (message.startsWith('Validation failed:')) {
-    return NextResponse.json({ error: message.replace('Validation failed: ', '') }, { status: 400 })
-  }
-
-  return NextResponse.json({ error: message }, { status: 500 })
+  return serverError(fallbackMessage, logContext)
 }

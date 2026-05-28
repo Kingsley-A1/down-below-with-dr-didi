@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it } from '@jest/globals'
+import {
+  isAdminEmailAllowedForRole,
+  resolveAdminRegistrationDecision,
+} from '@/lib/admin/registration-policy'
 import { resolveAdminRegistrationRole } from '@/lib/admin/session'
 import { adminRegisterSchema } from '@/lib/validations'
 
@@ -9,6 +13,8 @@ const ADMIN_ENV_KEYS = [
   'ADMIN_FOUNDER_ADMIN_ACCESS_CODE',
   'ADMIN_EDITOR_ACCESS_CODE',
   'ADMIN_SUPPORT_PHONE',
+  'ADMIN_ALLOWED_USERS',
+  'ADMIN_INVITE_TOKENS',
 ] as const
 
 const originalAdminEnv = Object.fromEntries(
@@ -37,6 +43,8 @@ function configureAdminEnv(overrides?: Partial<Record<(typeof ADMIN_ENV_KEYS)[nu
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '483951',
     ADMIN_EDITOR_ACCESS_CODE: '246810',
     ADMIN_SUPPORT_PHONE: '+2348012345678',
+    ADMIN_ALLOWED_USERS: 'goodeals.ng@gmail.com:editor,founder@example.com:founder_admin|super_admin',
+    ADMIN_INVITE_TOKENS: 'invitee@example.com:moderator:invite-token-abcdef',
     ...overrides,
   }
 
@@ -81,5 +89,44 @@ describe('Admin registration role codes', () => {
 
     expect(parsed.accessCode).toBe('246810')
     expect(resolveAdminRegistrationRole(parsed.accessCode)).toBe('editor')
+  })
+
+  it('requires the email to be allowed for the role code', () => {
+    configureAdminEnv()
+
+    expect(isAdminEmailAllowedForRole('goodeals.ng@gmail.com', 'editor')).toBe(true)
+    expect(isAdminEmailAllowedForRole('goodeals.ng@gmail.com', 'super_admin')).toBe(false)
+
+    expect(
+      resolveAdminRegistrationDecision({
+        email: 'goodeals.ng@gmail.com',
+        accessCode: '246810',
+      })
+    ).toEqual({ ok: true, role: 'editor', source: 'role_code' })
+
+    expect(
+      resolveAdminRegistrationDecision({
+        email: 'outsider@example.com',
+        accessCode: '246810',
+      })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+  })
+
+  it('supports email-specific invite tokens', () => {
+    configureAdminEnv()
+
+    expect(
+      resolveAdminRegistrationDecision({
+        email: 'invitee@example.com',
+        accessCode: 'invite-token-abcdef',
+      })
+    ).toEqual({ ok: true, role: 'moderator', source: 'invite_token' })
+
+    expect(
+      resolveAdminRegistrationDecision({
+        email: 'other@example.com',
+        accessCode: 'invite-token-abcdef',
+      })
+    ).toEqual({ ok: false, reason: 'invalid_invite' })
   })
 })

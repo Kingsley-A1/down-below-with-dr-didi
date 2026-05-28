@@ -5,6 +5,7 @@ import { changeAdminPassword, writeAuditLog } from '@/lib/admin/repository'
 import { sendEmail } from '@/lib/email/send'
 import { passwordChanged as passwordChangedTemplate } from '@/lib/email/templates'
 import { env } from '@/lib/env'
+import { validationError } from '@/lib/api/errors'
 
 const schema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -37,10 +38,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json(
-      { success: false, error: 'Validation failed', details: parsed.error.flatten() },
-      { status: 400 }
-    )
+    return validationError(parsed.error)
   }
 
   const result = await changeAdminPassword({

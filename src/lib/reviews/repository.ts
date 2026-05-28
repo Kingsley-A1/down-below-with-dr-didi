@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { reviewSeedItems } from '@/data/reviews'
 import { writeAuditLog } from '@/lib/admin/repository'
 import type { AdminRole } from '@/lib/admin/rbac'
+import { appErrors } from '@/lib/app-error'
 
 export const PUBLIC_REVIEW_LIMIT = 60
 
@@ -160,7 +161,7 @@ export async function getAllReviews(): Promise<AdminReviewRecord[]> {
   if (!hasDatabaseConfig()) {
     return fallbackReviews().map((review, index) => ({
       ...review,
-      status: 'published',
+      status: 'draft',
       source: 'seed',
       sortOrder: index,
       userId: null,
@@ -188,7 +189,7 @@ export async function createPublicReview(input: {
   userId?: string | null
 }): Promise<PublicReviewRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.review.create({
@@ -198,10 +199,10 @@ export async function createPublicReview(input: {
       location: input.location?.trim() || null,
       rating: input.rating ?? 5,
       body: input.body.trim(),
-      status: 'published',
+      status: 'draft',
       source: 'public_submission',
       userId: input.userId || null,
-      publishedAt: new Date(),
+      publishedAt: null,
     },
     include: { _count: { select: { helpfuls: true } } },
   })
@@ -225,7 +226,7 @@ export async function createAdminReview(
   actor: { email: string; role: AdminRole }
 ): Promise<AdminReviewRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const isPublished = (input.status ?? 'published') === 'published'
@@ -277,7 +278,7 @@ export async function updateAdminReview(
   actor: { email: string; role: AdminRole }
 ): Promise<AdminReviewRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const replyChanged = input.adminReply !== undefined
@@ -325,7 +326,7 @@ export async function deleteAdminReview(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.review.delete({ where: { id } })
@@ -343,7 +344,7 @@ export async function deleteAdminReview(
 
 export async function markReviewHelpful(reviewId: string, identity: ReviewHelpfulIdentity): Promise<number> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   if (identity.userId) {
@@ -371,7 +372,7 @@ export async function markReviewHelpful(reviewId: string, identity: ReviewHelpfu
 
 export async function unmarkReviewHelpful(reviewId: string, identity: ReviewHelpfulIdentity): Promise<number> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const OR = [

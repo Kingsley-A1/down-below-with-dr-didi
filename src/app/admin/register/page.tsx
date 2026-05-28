@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AdminRegisterForm from '@/components/admin/AdminRegisterForm'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
+import { validateAdminSessionWithDatabase } from '@/lib/admin/session-validation'
 import { env } from '@/lib/env'
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default async function AdminRegisterPage() {
   const cookieStore = await cookies()
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
-  const session = await verifyAdminSession(token)
+  const session = await validateAdminSessionWithDatabase(await verifyAdminSession(token))
 
   if (session) {
     redirect('/admin')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deactivateUser, getUserById } from '@/lib/admin/user-repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { extractClientIP } from '@/lib/security'
+import { serverError } from '@/lib/api/errors'
 
 /**
  * POST /api/admin/users/[id]/deactivate
@@ -67,10 +68,11 @@ export async function POST(
     })
 
     if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to deactivate user' },
-        { status: 500 }
-      )
+      return serverError('Failed to deactivate user', {
+        request,
+        identity: { email: session.email, role: session.role },
+        metadata: { userId },
+      })
     }
 
     // Fetch updated user
@@ -85,6 +87,6 @@ export async function POST(
       { status: 200 }
     )
   } catch (error) {
-    return mapApiError(error, 'Failed to deactivate user')
+    return mapApiError(error, 'Failed to deactivate user', { request, identity: { email: session.email, role: session.role } })
   }
 }
