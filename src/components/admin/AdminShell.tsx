@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   ArrowUpRight,
+  Activity,
   Bell,
   CalendarDays,
   Crown,
@@ -65,6 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/alerts', label: 'Site Alerts', icon: Bell },
       { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
       { href: '/admin/admin-users', label: 'Admin Accounts', icon: Crown },
+      { href: '/admin/health', label: 'Platform Health', icon: Activity },
     ],
   },
 ]
@@ -108,6 +110,10 @@ function AdminNav({
           <div className="space-y-1.5">
             {section.links.filter((link) => {
               if (link.href === '/admin/admin-users') {
+                return role === 'super_admin'
+              }
+
+              if (link.href === '/admin/health') {
                 return role === 'super_admin'
               }
 

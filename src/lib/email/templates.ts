@@ -512,3 +512,90 @@ export function adminAccountReactivated(props: {
     text: `Hi ${recipientName},\n\nYour DownBelow admin account is reactivated. Sign in: ${actionUrl}\n\nIf you didn't request this, contact your super admin.`,
   }
 }
+
+export function adminAccountUpdated(props: {
+  recipientName: string
+  actionUrl: string
+  role: string
+  changedFields: string[]
+  actorEmail: string
+}): TemplateOutput {
+  const { recipientName, actionUrl, role, changedFields, actorEmail } = props
+  const changedFieldText = changedFields.length > 0 ? changedFields.join(', ') : 'Account details'
+  const html = shell({
+    title: 'Your DownBelow admin account was updated',
+    preheader: 'A super admin updated your DownBelow admin account.',
+    kicker: 'Admin · account updated',
+    heading: 'Your admin account was updated',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - your DownBelow admin account was updated by ${escape(actorEmail)}.`)}
+      ${detailList([
+        { label: 'Current role', value: role },
+        { label: 'Updated fields', value: changedFieldText },
+      ])}
+      ${callout(`If this change looks wrong, contact a super admin before continuing sensitive admin work.`, 'warning')}
+      ${ctaButton('Open admin sign in', actionUrl)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin account was updated',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow admin account was updated by ${actorEmail}.\n\nCurrent role: ${role}\nUpdated fields: ${changedFieldText}\n\nSign in: ${actionUrl}`,
+  }
+}
+
+export function adminAccountSuspended(props: {
+  recipientName: string
+  actorEmail: string
+  supportEmail: string
+}): TemplateOutput {
+  const { recipientName, actorEmail, supportEmail } = props
+  const html = shell({
+    title: 'Your DownBelow admin account was suspended',
+    preheader: 'Your DownBelow admin sign-in access has been paused.',
+    kicker: 'Admin · account suspended',
+    heading: 'Your admin access is suspended',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - your DownBelow admin account was suspended by ${escape(actorEmail)}. You cannot sign in to the admin console while the account is suspended.`)}
+      ${detailList([
+        { label: 'Admin status', value: 'Suspended' },
+        { label: 'Sign-in access', value: 'Paused' },
+      ])}
+      ${callout(`If you believe this was a mistake, contact a super admin or email ${mailtoLink(supportEmail)}.`, 'warning')}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin account was suspended',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow admin account was suspended by ${actorEmail}. You cannot sign in while the account is suspended.\n\nIf you believe this was a mistake, contact a super admin or email ${supportEmail}.`,
+  }
+}
+
+export function adminAccountDeleted(props: {
+  recipientName: string
+  actorEmail: string
+  supportEmail: string
+}): TemplateOutput {
+  const { recipientName, actorEmail, supportEmail } = props
+  const html = shell({
+    title: 'Your DownBelow admin account was deleted',
+    preheader: 'Your DownBelow admin account has been removed.',
+    kicker: 'Admin · account deleted',
+    heading: 'Your admin account was deleted',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - your DownBelow admin account was deleted by ${escape(actorEmail)}. This email address no longer has admin-console access.`)}
+      ${detailList([
+        { label: 'Admin status', value: 'Deleted' },
+        { label: 'Sign-in access', value: 'Removed' },
+      ])}
+      ${paragraph('If this was expected, no action is needed. Audit records may remain for security and operational history.')}
+      ${callout(`If you believe this was a mistake, contact a super admin or email ${mailtoLink(supportEmail)}.`, 'warning')}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin account was deleted',
+    html,
+    text: `Hi ${recipientName},\n\nYour DownBelow admin account was deleted by ${actorEmail}. This email address no longer has admin-console access.\n\nIf this was expected, no action is needed. Audit records may remain for security and operational history.\n\nIf you believe this was a mistake, contact a super admin or email ${supportEmail}.`,
+  }
+}

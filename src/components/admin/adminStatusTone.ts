@@ -10,6 +10,7 @@ const ERROR_PATTERNS = [
   'invalid',
   'must',
   'not configured',
+  'not sent',
   'permission',
   'reference id:',
   'required',

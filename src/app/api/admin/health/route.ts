@@ -9,39 +9,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { getAdminHealthEnvStatus, hasDatabaseConfig, hasEmailProvider, hasR2Config } from '@/lib/env'
 import { requireAdminSession, requireAdminRole } from '@/lib/admin/api-guard'
-import { OPERATOR_ERROR_REFERENCE, type OperatorErrorReference } from '@/lib/api/error-reference'
+import { getAdminHealthSnapshot } from '@/lib/admin/health'
 import { logApiServerError, resolveRequestId } from '@/lib/api/observability'
-
-type HealthResponse = {
-  ok: true
-  requestId: string
-  timestamp: string
-  database: {
-    configured: boolean
-    reachable: boolean
-  }
-  email: {
-    provider: 'resend' | null
-    configured: boolean
-  }
-  storage: {
-    configured: boolean
-  }
-  adminEnv: {
-    sessionSecretSet: boolean
-    accessCodesConfigured: number
-  }
-  adminUsers: {
-    total: number
-    active: number
-    unverified: number
-    locked: number
-  }
-  errorReference: OperatorErrorReference[]
-}
 
 export async function GET(request: NextRequest) {
   const requestId = resolveRequestId(request)
@@ -55,70 +25,22 @@ export async function GET(request: NextRequest) {
     return roleError
   }
 
-  const databaseConfigured = hasDatabaseConfig()
-  let databaseReachable = false
-  let adminUsersTotal = 0
-  let adminUsersActive = 0
-  let adminUsersUnverified = 0
-  let adminUsersLocked = 0
-
-  if (databaseConfigured) {
-    try {
-      const now = new Date()
-      const [total, active, unverified, locked] = await Promise.all([
-        prisma.adminUser.count(),
-        prisma.adminUser.count({ where: { isActive: true } }),
-        prisma.adminUser.count({ where: { emailVerified: false } }),
-        prisma.adminUser.count({ where: { lockoutUntil: { gt: now } } }),
-      ])
-      databaseReachable = true
-      adminUsersTotal = total
-      adminUsersActive = active
-      adminUsersUnverified = unverified
-      adminUsersLocked = locked
-    } catch (error) {
+  const body = await getAdminHealthSnapshot({
+    requestId,
+    onProbeError: ({ probe, error }) => {
       logApiServerError({
         code: 'database_unavailable',
-        message: 'Admin health database probe failed.',
+        message: `Admin health database probe failed for ${probe.model}.`,
         requestId,
         context: {
           request,
           error,
           identity: { email: session.email, role: session.role },
-          metadata: { probe: 'admin_health' },
+          metadata: { probe: 'admin_health', model: probe.model },
         },
       })
-    }
-  }
-  const adminEnvStatus = getAdminHealthEnvStatus()
-
-  const body: HealthResponse = {
-    ok: true,
-    requestId,
-    timestamp: new Date().toISOString(),
-    database: {
-      configured: databaseConfigured,
-      reachable: databaseReachable,
     },
-    email: {
-      provider: hasEmailProvider() ? 'resend' : null,
-      configured: hasEmailProvider(),
-    },
-    storage: {
-      configured: hasR2Config(),
-    },
-    adminEnv: {
-      sessionSecretSet: adminEnvStatus.sessionSecretSet,
-      accessCodesConfigured: adminEnvStatus.accessCodesConfigured,
-    },
-    adminUsers: {
-      total: adminUsersTotal,
-      active: adminUsersActive,
-      unverified: adminUsersUnverified,
-      locked: adminUsersLocked,
-    },
-    errorReference: OPERATOR_ERROR_REFERENCE,
-  }
+  })
 
   return NextResponse.json(body, {
     status: 200,

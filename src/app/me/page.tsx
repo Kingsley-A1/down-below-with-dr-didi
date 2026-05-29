@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getSession } from '@/lib/auth/session'
 import { getUserById } from '@/lib/admin/user-repository'
 import { ProfileForm } from '@/components/auth/ProfileForm'
@@ -44,6 +45,14 @@ export default async function MePage() {
           <p className="mt-2 font-body text-sm leading-relaxed text-slate-600">
             Your V-Vault submissions remain anonymous to public audiences. Account linkage is used internally only to deliver your private responses securely.
           </p>
+          <div className="mt-4 flex flex-wrap gap-3 font-body text-sm">
+            <Link href="/privacy" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
+              Terms of Use
+            </Link>
+          </div>
         </section>
       </div>
     </main>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { PauseCircle, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
@@ -50,6 +50,7 @@ export default function AdminAccountsBoard({
   const [message, setMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [pendingDelete, setPendingDelete] = useState<AdminAccountRecord | null>(null)
+  const [pendingSuspend, setPendingSuspend] = useState<AdminAccountRecord | null>(null)
 
   const sortedAccounts = useMemo(
     () => [...accounts].sort((left, right) => left.email.localeCompare(right.email)),
@@ -150,7 +151,12 @@ export default function AdminAccountsBoard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = await readJsonResponse<{ error?: string; account?: AdminAccountRecord; accounts?: AdminAccountRecord[] }>(response)
+      const data = await readJsonResponse<{
+        error?: string
+        account?: AdminAccountRecord
+        accounts?: AdminAccountRecord[]
+        emailSent?: boolean
+      }>(response)
 
       if (!response.ok) {
         const parsedError = parseApiError(data, 'Save failed')
@@ -160,7 +166,13 @@ export default function AdminAccountsBoard({
 
       await refresh()
       closeForm()
-      setMessage(editId ? 'Admin account updated.' : 'Admin account created.')
+      setMessage(
+        editId
+          ? data?.emailSent === false
+            ? 'Admin account updated. Notification email was not sent; check email provider status.'
+            : 'Admin account updated and notification email sent.'
+          : 'Admin account created.'
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Save failed')
     } finally {
@@ -179,7 +191,7 @@ export default function AdminAccountsBoard({
 
     try {
       const response = await fetch(`/api/admin/admin-users/${pendingDelete.id}`, { method: 'DELETE' })
-      const data = await readJsonResponse<{ error?: string }>(response)
+      const data = await readJsonResponse<{ error?: string; emailSent?: boolean }>(response)
 
       if (!response.ok) {
         throw new Error(parseApiError(data, 'Delete failed').message)
@@ -187,9 +199,44 @@ export default function AdminAccountsBoard({
 
       await refresh()
       setPendingDelete(null)
-      setMessage('Admin account deleted.')
+      setMessage(
+        data?.emailSent === false
+          ? 'Admin account deleted. Notification email was not sent; check email provider status.'
+          : 'Admin account deleted and notification email sent.'
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Delete failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmSuspend() {
+    if (!pendingSuspend) {
+      return
+    }
+
+    setBusy(true)
+    setMessage('')
+    setFieldErrors({})
+
+    try {
+      const response = await fetch(`/api/admin/admin-users/${pendingSuspend.id}/suspend`, { method: 'POST' })
+      const data = await readJsonResponse<{ error?: string; emailSent?: boolean }>(response)
+
+      if (!response.ok) {
+        throw new Error(parseApiError(data, 'Suspend failed').message)
+      }
+
+      await refresh()
+      setPendingSuspend(null)
+      setMessage(
+        data?.emailSent === false
+          ? 'Admin account suspended. Notification email was not sent; check email provider status.'
+          : 'Admin account suspended and notification email sent.'
+      )
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Suspend failed')
     } finally {
       setBusy(false)
     }
@@ -333,6 +380,17 @@ export default function AdminAccountsBoard({
                     <Pencil className="h-3.5 w-3.5" />
                     Edit
                   </button>
+                  {account.isActive ? (
+                    <button
+                      type="button"
+                      onClick={() => setPendingSuspend(account)}
+                      disabled={busy || account.email === currentAdminEmail}
+                      className="admin-interactive inline-flex items-center justify-center gap-1 rounded-full bg-amber-50 px-4 py-2 font-body text-xs font-semibold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <PauseCircle className="h-3.5 w-3.5" />
+                      Suspend
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setPendingDelete(account)}
@@ -363,6 +421,22 @@ export default function AdminAccountsBoard({
         }}
         onConfirm={() => {
           void confirmDelete()
+        }}
+      />
+      <AdminConfirmDialog
+        open={Boolean(pendingSuspend)}
+        title="Suspend admin account"
+        message={pendingSuspend ? `Suspend ${pendingSuspend.email}? They will lose admin access immediately and receive an email notification.` : ''}
+        confirmLabel="Suspend admin"
+        confirmTone="danger"
+        busy={busy}
+        onCancel={() => {
+          if (!busy) {
+            setPendingSuspend(null)
+          }
+        }}
+        onConfirm={() => {
+          void confirmSuspend()
         }}
       />
     </section>

@@ -157,6 +157,14 @@ export default async function Footer() {
         <div className="max-w-container mx-auto flex flex-col items-center justify-between gap-3 text-center font-body text-xs sm:flex-row sm:text-left" style={{ color: 'rgba(255,255,255,0.72)' }}>
           <p>© 2026 {siteSettings.siteName}. All rights reserved.</p>
           <p>Content on this site is for educational purposes only and does not substitute professional medical advice.</p>
+          <div className="flex items-center gap-3">
+            <Link href="/privacy" className="font-semibold underline-offset-4 hover:underline" style={{ color: 'rgba(255,255,255,0.9)' }}>
+              Privacy
+            </Link>
+            <Link href="/terms" className="font-semibold underline-offset-4 hover:underline" style={{ color: 'rgba(255,255,255,0.9)' }}>
+              Terms
+            </Link>
+          </div>
           <p>
             Designed &amp; Developed by{' '}
             <a
