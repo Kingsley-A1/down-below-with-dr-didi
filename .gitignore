@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files  NEVER COMMIT THIS FILE TO VERSION CONTROL. IT CONTAINS SENSITIVE INFORMATION.
 .env*
+.env.local
 
 # vercel
 .vercel

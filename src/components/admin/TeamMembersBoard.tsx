@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Camera } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { TeamMemberRecord } from '@/lib/admin/repository'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Tier = 'founder' | 'leadership' | 'core'
 type Status = 'draft' | 'published' | 'archived'
@@ -44,13 +46,7 @@ function slugify(value: string) {
 }
 
 function getTone(message: string) {
-  const value = message.toLowerCase()
-
-  if (value.includes('failed') || value.includes('required') || value.includes('cannot')) {
-    return 'error' as const
-  }
-
-  return 'success' as const
+  return getAdminStatusTone(message)
 }
 
 export default function TeamMembersBoard({
@@ -69,6 +65,7 @@ export default function TeamMembersBoard({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [slugManual, setSlugManual] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const previewUrl = useMemo(() => {
     if (imageFile) {
       return URL.createObjectURL(imageFile)
@@ -95,8 +92,12 @@ export default function TeamMembersBoard({
 
   async function refresh() {
     const res = await fetch('/api/admin/team', { cache: 'no-store' })
-    const data = await res.json()
-    setMembers(data.members ?? [])
+    const data = await readJsonResponse<{ members?: TeamMemberRecord[] }>(res)
+    if (!res.ok) {
+      setMsg(parseApiError(data, 'Refresh failed').message)
+      return
+    }
+    setMembers(data?.members ?? [])
   }
 
   function startCreate() {
@@ -106,6 +107,7 @@ export default function TeamMembersBoard({
     setImageFile(null)
     setSlugManual(false)
     setShowForm(true)
+    setFieldErrors({})
     setMsg(draft ? `Recovered a team draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -128,6 +130,7 @@ export default function TeamMembersBoard({
     setForm(draft?.value ?? nextForm)
     setImageFile(null)
     setShowForm(true)
+    setFieldErrors({})
     setMsg(draft ? `Recovered a team draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -138,6 +141,7 @@ export default function TeamMembersBoard({
     setForm(EMPTY_FORM)
     setImageFile(null)
     setSlugManual(false)
+    setFieldErrors({})
     setMsg('')
   }
 
@@ -149,6 +153,7 @@ export default function TeamMembersBoard({
     e.preventDefault()
     setBusy(true)
     setMsg('')
+    setFieldErrors({})
 
     if (!editId && !imageFile) {
       setBusy(false)
@@ -199,11 +204,17 @@ export default function TeamMembersBoard({
       body: JSON.stringify(body),
     })
 
-    const data = await res.json()
+    const data = await readJsonResponse(res)
     setBusy(false)
 
     if (!res.ok) {
-      setMsg(data.error ?? 'Save failed')
+      const parsed = parseApiError(data, 'Save failed')
+      setFieldErrors(
+        Object.fromEntries(
+          Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+        )
+      )
+      setMsg(parsed.message)
       return
     }
 
@@ -218,11 +229,11 @@ export default function TeamMembersBoard({
     setMsg('')
 
     const res = await fetch(`/api/admin/team/${id}`, { method: 'DELETE' })
-    const data = await res.json()
+    const data = await readJsonResponse(res)
     setBusy(false)
 
     if (!res.ok) {
-      setMsg(data.error ?? 'Delete failed')
+      setMsg(parseApiError(data, 'Delete failed').message)
       return
     }
 
@@ -269,7 +280,7 @@ export default function TeamMembersBoard({
             {editId ? 'Edit Member' : 'Add New Member'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Name *">
+            <Field label="Name *" error={fieldErrors.name}>
               <input
                 value={form.name}
                 onChange={(e) => {
@@ -282,7 +293,7 @@ export default function TeamMembersBoard({
                 className="input-field"
               />
             </Field>
-            <Field label="URL Slug">
+            <Field label="URL Slug" error={fieldErrors.slug}>
               {editId ? (
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <code className="flex-1 font-mono text-xs text-slate-700">{form.slug}</code>
@@ -319,26 +330,26 @@ export default function TeamMembersBoard({
                 </div>
               )}
             </Field>
-            <Field label="Role *">
+            <Field label="Role *" error={fieldErrors.role}>
               <input value={form.role} onChange={(e) => set('role', e.target.value)} required className="input-field" />
             </Field>
-            <Field label="Tier *">
+            <Field label="Tier *" error={fieldErrors.tier}>
               <select value={form.tier} onChange={(e) => set('tier', e.target.value)} className="input-field">
                 {TIER_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
-            <Field label="Sort Order">
+            <Field label="Sort Order" error={fieldErrors.sortOrder}>
               <input type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className="input-field" />
             </Field>
-            <Field label="Status">
+            <Field label="Status" error={fieldErrors.status}>
               <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field">
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
-            <Field label="Credentials">
+            <Field label="Credentials" error={fieldErrors.credentials}>
               <input value={form.credentials} onChange={(e) => set('credentials', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Upload Image">
+            <Field label="Upload Image" error={fieldErrors.imageUrl}>
               <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                 <Camera className="h-3.5 w-3.5" />
                 <span>Camera</span>
@@ -363,11 +374,11 @@ export default function TeamMembersBoard({
                     : 'Required: upload image from media pipeline.'}
               </p>
             </Field>
-            <Field label="Image Alt">
+            <Field label="Image Alt" error={fieldErrors.imageAlt}>
               <input value={form.imageAlt} onChange={(e) => set('imageAlt', e.target.value)} className="input-field" />
             </Field>
             <div className="sm:col-span-2">
-              <Field label="Bio (min 40 chars) *">
+              <Field label="Bio (min 40 chars) *" error={fieldErrors.bio}>
                 <textarea
                   value={form.bio}
                   onChange={(e) => set('bio', e.target.value)}
@@ -462,11 +473,12 @@ export default function TeamMembersBoard({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
       {children}
+      {error ? <span className="block font-body text-xs text-red-600">{error}</span> : null}
     </label>
   )
 }

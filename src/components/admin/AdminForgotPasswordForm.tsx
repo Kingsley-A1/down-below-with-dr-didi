@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 export function AdminForgotPasswordForm() {
   const [email, setEmail] = useState('')
@@ -18,9 +19,9 @@ export function AdminForgotPasswordForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await res.json()
-      if (res.status === 429) {
-        setError(data.error ?? 'Too many requests. Please wait and try again.')
+      const data = await readJsonResponse(res)
+      if (!res.ok) {
+        setError(parseApiError(data, 'Could not request a reset link.').message)
         return
       }
       setSubmitted(true)

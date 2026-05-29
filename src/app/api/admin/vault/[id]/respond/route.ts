@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createVaultResponse } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { vaultResponseSchema } from '@/lib/validations'
+import { validationError } from '@/lib/api/errors'
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function POST(
     const parsed = vaultResponseSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const result = await createVaultResponse(
@@ -45,6 +46,6 @@ export async function POST(
       notificationCreated: result.notificationCreated,
     })
   } catch (error) {
-    return mapApiError(error, 'Failed to create V-Vault response')
+    return mapApiError(error, 'Failed to create V-Vault response', { request, identity: { email: session.email, role: session.role } })
   }
 }

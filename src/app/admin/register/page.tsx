@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import AdminRegisterForm from '@/components/admin/AdminRegisterForm'
 import { ADMIN_SESSION_COOKIE, verifyAdminSession } from '@/lib/admin/session'
-import { env } from '@/lib/env'
+import { validateAdminSessionWithDatabase } from '@/lib/admin/session-validation'
 
 export const metadata: Metadata = {
   title: 'Admin Registration',
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function AdminRegisterPage() {
   const cookieStore = await cookies()
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
-  const session = await verifyAdminSession(token)
+  const session = await validateAdminSessionWithDatabase(await verifyAdminSession(token))
 
   if (session) {
     redirect('/admin')
@@ -35,7 +35,7 @@ export default async function AdminRegisterPage() {
         </div>
 
         <div className="space-y-6 px-8 py-8">
-          <AdminRegisterForm supportPhone={env.ADMIN_SUPPORT_PHONE} />
+          <AdminRegisterForm />
           <p className="font-body text-sm text-slate-600">
             Already registered?{' '}
             <Link href="/admin/sign-in" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">

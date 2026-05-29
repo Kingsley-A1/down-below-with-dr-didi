@@ -7,6 +7,7 @@ import type { PodcastEpisodeRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Status = 'draft' | 'published' | 'archived'
 
@@ -89,6 +90,7 @@ export default function PodcastEpisodesBoard({
   const [slugManual, setSlugManual] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const coverPreviewUrl = useMemo(() => {
     if (coverFile) {
       return URL.createObjectURL(coverFile)
@@ -115,8 +117,13 @@ export default function PodcastEpisodesBoard({
 
   async function refresh() {
     const res = await fetch('/api/admin/podcast', { cache: 'no-store' })
-    const data = await res.json()
-    setEpisodes(data.episodes ?? [])
+    const data = await readJsonResponse<{ error?: string; episodes?: PodcastEpisodeRecord[] }>(res)
+
+    if (!res.ok) {
+      throw new Error(parseApiError(data, 'Refresh failed').message)
+    }
+
+    setEpisodes(data?.episodes ?? [])
   }
 
   function set(field: keyof FormState, value: string | number) {
@@ -132,6 +139,7 @@ export default function PodcastEpisodesBoard({
     setSlugManual(false)
     setShowAdvanced(false)
     setUploadProgress(0)
+    setFieldErrors({})
     setShowForm(true)
     setMessage(draft ? `Recovered a podcast draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
@@ -163,6 +171,7 @@ export default function PodcastEpisodesBoard({
     setSlugManual(true)
     setShowAdvanced(false)
     setUploadProgress(0)
+    setFieldErrors({})
     setShowForm(true)
     setMessage(draft ? `Recovered a podcast draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
@@ -180,20 +189,7 @@ export default function PodcastEpisodesBoard({
     setSlugManual(false)
     setShowAdvanced(false)
     setUploadProgress(0)
-  }
-
-  async function readJsonResponse(response: Response) {
-    const text = await response.text()
-
-    if (!text.trim()) {
-      return {}
-    }
-
-    try {
-      return JSON.parse(text) as { error?: string; episodes?: PodcastEpisodeRecord[] }
-    } catch {
-      return { error: text.slice(0, 240) }
-    }
+    setFieldErrors({})
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -203,9 +199,11 @@ export default function PodcastEpisodesBoard({
     setBusyDetail('Preparing episode details')
     setUploadProgress(0)
     setMessage('')
+    setFieldErrors({})
 
     try {
       if (!editId && !audioFile) {
+        setFieldErrors({ audioUrl: 'Audio upload is required for new podcast episodes.' })
         throw new Error('Audio upload is required for new podcast episodes.')
       }
 
@@ -226,6 +224,7 @@ export default function PodcastEpisodesBoard({
       }
 
       if (!nextAudioUrl) {
+        setFieldErrors({ audioUrl: 'A podcast audio asset is required before saving.' })
         throw new Error('A podcast audio asset is required before saving.')
       }
 
@@ -268,10 +267,12 @@ export default function PodcastEpisodesBoard({
         body: JSON.stringify(payload),
       })
 
-      const data = await readJsonResponse(res)
+      const data = await readJsonResponse<{ error?: string; episode?: PodcastEpisodeRecord; episodes?: PodcastEpisodeRecord[] }>(res)
 
       if (!res.ok) {
-        throw new Error(data.error || 'Save failed')
+        const parsedError = parseApiError(data, 'Save failed')
+        setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+        throw new Error(parsedError.message)
       }
 
       await refresh()
@@ -293,13 +294,14 @@ export default function PodcastEpisodesBoard({
     setBusyLabel('Deleting podcast episode')
     setBusyDetail(title)
     setMessage('')
+    setFieldErrors({})
 
     try {
       const res = await fetch(`/api/admin/podcast/${id}`, { method: 'DELETE' })
-      const data = await res.json()
+      const data = await readJsonResponse<{ error?: string }>(res)
 
       if (!res.ok) {
-        setMessage(data.error ?? 'Delete failed')
+        setMessage(parseApiError(data, 'Delete failed').message)
         return
       }
 
@@ -363,7 +365,7 @@ export default function PodcastEpisodesBoard({
           </div>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Field label="Title *">
+            <Field label="Title *" error={fieldErrors.title}>
               <input
                 value={form.title}
                 onChange={(e) => {
@@ -378,7 +380,7 @@ export default function PodcastEpisodesBoard({
                 className="input-field"
               />
             </Field>
-            <Field label="Slug *">
+            <Field label="Slug *" error={fieldErrors.slug}>
               {editId ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <code className="font-mono text-xs text-slate-700">{form.slug}</code>
@@ -405,7 +407,7 @@ export default function PodcastEpisodesBoard({
                 </div>
               )}
             </Field>
-            <Field label="Upload audio">
+            <Field label="Upload audio" error={fieldErrors.audioUrl}>
               <input type="file" accept="audio/*" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="input-field" />
               <p className="font-body text-xs text-gray-400">
                 {audioFile
@@ -415,7 +417,7 @@ export default function PodcastEpisodesBoard({
                     : 'Required: upload podcast audio from media pipeline.'}
               </p>
             </Field>
-            <Field label="Upload cover art">
+            <Field label="Upload cover art" error={fieldErrors.coverImage}>
               <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
                 <Camera className="h-3.5 w-3.5" />
                 <span>Camera</span>
@@ -435,14 +437,14 @@ export default function PodcastEpisodesBoard({
                     : 'Optional: upload cover image from media pipeline.'}
               </p>
             </Field>
-            <Field label="Published date">
+            <Field label="Published date" error={fieldErrors.publishedAt}>
               <input type="datetime-local" value={form.publishedAt} onChange={(e) => set('publishedAt', e.target.value)} className="input-field" />
             </Field>
-            <Field label="Topic tags">
+            <Field label="Topic tags" error={fieldErrors.topicTags}>
               <input value={form.topicTags} onChange={(e) => set('topicTags', e.target.value)} placeholder="fertility, faith, wellness" className="input-field" />
               <p className="font-body text-xs text-gray-400">Separate tags with commas. Keep them short and public-friendly.</p>
             </Field>
-            <Field label="Status">
+            <Field label="Status" error={fieldErrors.status}>
               <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field">
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
@@ -452,12 +454,12 @@ export default function PodcastEpisodesBoard({
               </select>
             </Field>
             <div className="lg:col-span-2">
-              <Field label="Summary *">
+              <Field label="Summary *" error={fieldErrors.summary}>
                 <textarea value={form.summary} onChange={(e) => set('summary', e.target.value)} required minLength={20} maxLength={280} rows={3} className="input-field" />
               </Field>
             </div>
             <div className="lg:col-span-2">
-              <Field label="Show notes">
+              <Field label="Show notes" error={fieldErrors.description}>
                 <textarea value={form.description} onChange={(e) => set('description', e.target.value)} maxLength={5000} rows={6} className="input-field" />
                 <p className="font-body text-xs text-gray-400">Optional. Add notes when the episode needs context beyond the summary.</p>
               </Field>
@@ -474,17 +476,17 @@ export default function PodcastEpisodesBoard({
             </div>
             {showAdvanced ? (
               <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:col-span-2 lg:grid-cols-2">
-                <Field label="Guest name">
+                <Field label="Guest name" error={fieldErrors.guestName}>
                   <input value={form.guestName} onChange={(e) => set('guestName', e.target.value)} className="input-field" />
                 </Field>
-                <Field label="Sort order">
+                <Field label="Sort order" error={fieldErrors.sortOrder}>
                   <input type="number" min={0} value={form.sortOrder} onChange={(e) => set('sortOrder', Number(e.target.value))} className="input-field" />
                 </Field>
-                <Field label="External source link">
+                <Field label="External source link" error={fieldErrors.externalSourceUrl}>
                   <input value={form.externalSourceUrl} onChange={(e) => set('externalSourceUrl', e.target.value)} className="input-field" />
                 </Field>
                 <div className="lg:col-span-2">
-                  <Field label="Transcript">
+                  <Field label="Transcript" error={fieldErrors.transcript}>
                     <textarea value={form.transcript} onChange={(e) => set('transcript', e.target.value)} rows={5} className="input-field" />
                   </Field>
                 </div>
@@ -578,11 +580,12 @@ export default function PodcastEpisodesBoard({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
       {children}
+      {error ? <p className="font-body text-xs text-red-600">{error}</p> : null}
     </label>
   )
 }

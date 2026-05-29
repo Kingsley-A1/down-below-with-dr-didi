@@ -35,7 +35,8 @@ export class SignJWT {
     this.payload = { ...payload }
   }
 
-  setProtectedHeader(_header: Record<string, unknown>) {
+  setProtectedHeader(header: Record<string, unknown>) {
+    void header
     return this
   }
 
@@ -49,12 +50,14 @@ export class SignJWT {
     return this
   }
 
-  async sign(_secret: Uint8Array) {
+  async sign(secret: Uint8Array) {
+    void secret
     return encodePayload(this.payload)
   }
 }
 
-export async function jwtVerify(token: string, _secret: Uint8Array) {
+export async function jwtVerify(token: string, secret: Uint8Array) {
+  void secret
   const payload = decodePayload(token)
 
   if (typeof payload.exp === 'number' && payload.exp <= Math.floor(Date.now() / 1000)) {

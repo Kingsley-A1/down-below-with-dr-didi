@@ -5,9 +5,10 @@ import { userResetPasswordSchema } from '@/lib/validations'
 import { sendEmail } from '@/lib/email/send'
 import { passwordChanged as passwordChangedTemplate } from '@/lib/email/templates'
 import { env, hasDatabaseConfig } from '@/lib/env'
-import { createRateLimiter, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { serverError, serviceUnavailable, validationError } from '@/lib/api/errors'
 
-const resetByIp = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 10 })
+const RESET_WINDOW_MS = 15 * 60 * 1000
 
 function buildSigninUrl() {
   const base = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
@@ -16,7 +17,7 @@ function buildSigninUrl() {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const ipLimit = resetByIp(`auth-reset:ip:${ip}`)
+  const ipLimit = await checkRateLimit({ key: `auth-reset:ip:${ip}`, windowMs: RESET_WINDOW_MS, limit: 10 })
   if (ipLimit.limited) {
     return NextResponse.json(
       { success: false, error: 'Too many reset attempts. Please wait and try again.' },
@@ -36,17 +37,14 @@ export async function POST(request: NextRequest) {
 
   const parsed = userResetPasswordSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json(
-      { success: false, error: 'Validation failed', details: parsed.error.flatten() },
-      { status: 400 }
-    )
+    return validationError(parsed.error)
   }
 
   if (!hasDatabaseConfig()) {
-    return NextResponse.json(
-      { success: false, error: 'Authentication database is not configured.' },
-      { status: 503 }
-    )
+    return serviceUnavailable('database_unavailable', 'Authentication database is not configured.', {
+      request,
+      action: 'Set DATABASE_URL and run migrations before resetting passwords.',
+    })
   }
 
   try {
@@ -90,10 +88,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Reset password error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Password reset failed' },
-      { status: 500 }
-    )
+    return serverError('Password reset failed', { request, error })
   }
 }

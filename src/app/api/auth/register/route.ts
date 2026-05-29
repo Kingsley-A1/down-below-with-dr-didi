@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createUser } from '@/lib/admin/user-repository'
-import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { DuplicateEmailError } from '@/lib/admin/errors'
+import { RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userRegisterSchema } from '@/lib/validations'
 import { sendEmail } from '@/lib/email/send'
 import { verifyEmail as verifyEmailTemplate } from '@/lib/email/templates'
 import { env } from '@/lib/env'
+import {
+  validationError,
+  duplicateEmail,
+  rateLimited,
+  serverError,
+  serviceUnavailable,
+} from '@/lib/api/errors'
 
 function isMissingUserTableError(error: unknown) {
   if (!(error instanceof Error)) {
     return false
   }
-
   return error.message.includes('The table `public.User` does not exist')
 }
 
@@ -22,44 +30,28 @@ function buildVerifyUrl(token: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const limiter = getRateLimiter()
     const ip = extractClientIP({
       'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
       'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
     })
     const rateLimitKey = generateRateLimitKey('register', null, ip)
 
-    const rateResult = limiter.isAllowed(
-      rateLimitKey,
-      RATE_LIMIT_CONFIG.register.limit,
-      RATE_LIMIT_CONFIG.register.windowMs
-    )
+    const rateResult = await checkRateLimit({
+      key: rateLimitKey,
+      limit: RATE_LIMIT_CONFIG.register.limit,
+      windowMs: RATE_LIMIT_CONFIG.register.windowMs,
+    })
 
-    if (!rateResult.allowed) {
-      const retryAfterSeconds = Math.ceil((rateResult.retryAfterMs ?? 0) / 1000)
-      const response = NextResponse.json(
-        {
-          success: false,
-          error: RATE_LIMIT_CONFIG.register.message,
-        },
-        { status: 429 }
-      )
-      response.headers.set('Retry-After', String(retryAfterSeconds))
-      return response
+    if (rateResult.limited) {
+      const retryAfterSeconds = Math.ceil((rateResult.resetAt - Date.now()) / 1000)
+      return rateLimited(retryAfterSeconds, RATE_LIMIT_CONFIG.register.message)
     }
 
     const body = await request.json()
 
     const validation = userRegisterSchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten(),
-        },
-        { status: 400 }
-      )
+      return validationError(validation.error)
     }
 
     const { email, displayName, password, phone } = validation.data
@@ -67,10 +59,7 @@ export async function POST(request: NextRequest) {
 
     const result = await createUser(normalizedEmail, displayName, password, phone)
     if (!result) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to create user' },
-        { status: 400 }
-      )
+      return serverError('Registration could not be completed. Please try again.', { request })
     }
 
     const verifyUrl = buildVerifyUrl(result.verificationToken)
@@ -87,48 +76,34 @@ export async function POST(request: NextRequest) {
       text: template.text,
     })
 
-    // Don't fail the request if email send fails — the user can request a resend.
-    // In production we surface the failure so the UI can show a "request a new
-    // link" CTA. In dev we still want the registration to succeed cleanly.
     return NextResponse.json(
       {
+        ok: true,
         success: true,
-        message: 'Registration successful. Check your email to verify your account before signing in.',
+        message: 'Registration successful. Verify your email, then sign in.',
         user: result.user,
         emailSent: sendResult.ok,
+        requiresEmailVerification: true,
       },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Registration error:', error)
+    if (error instanceof DuplicateEmailError) {
+      return duplicateEmail('email')
+    }
 
     if (isMissingUserTableError(error)) {
-      return NextResponse.json(
+      return serviceUnavailable(
+        'database_unavailable',
+        'Authentication database is not initialized yet. Please run migrations and try again.',
         {
-          success: false,
-          error: 'Authentication database is not initialized yet. Please run migrations and try again.',
-        },
-        { status: 503 }
+          request,
+          error,
+          action: 'Run Prisma migrations and verify DATABASE_URL before users register.',
+        }
       )
     }
 
-    if (error instanceof Error && error.message.toLowerCase().includes('already exists')) {
-      // Generic message — don't confirm existence of an account.
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Registration could not be completed. If you already have an account, sign in instead.',
-        },
-        { status: 409 }
-      )
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Registration failed',
-      },
-      { status: 500 }
-    )
+    return serverError('Registration failed. Please try again.', { request, error })
   }
 }

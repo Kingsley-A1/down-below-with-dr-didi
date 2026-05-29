@@ -135,6 +135,18 @@ export function getRateLimiter(): RateLimiter {
 }
 
 /**
+ * Tear down the singleton rate-limiter. Tests call this from beforeEach to
+ * avoid cross-test pollution where one suite's failed-attempt counters bleed
+ * into another suite's expectations. Production code should not call this.
+ */
+export function resetRateLimiterForTests() {
+  if (instance) {
+    instance.destroy()
+    instance = null
+  }
+}
+
+/**
  * Rate limiter configuration for different endpoints
  */
 export const RATE_LIMIT_CONFIG = {

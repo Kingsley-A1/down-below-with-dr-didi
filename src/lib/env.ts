@@ -27,8 +27,9 @@ const envSchema = z.object({
   ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
   ADMIN_EDITOR_ACCESS_CODE: z.string().trim().optional().default(''),
-  ADMIN_SUPPORT_PHONE: z.string().trim().optional().default('09036826272'),
   ADMIN_ALLOWED_USERS: z.string().default('deblessedking001@gmail.com:super_admin'),
+  // Optional comma-separated invite tokens: email:role:token
+  ADMIN_INVITE_TOKENS: z.string().optional().default(''),
   VAULT_SUBMISSIONS_ENABLED: z.string().optional().default('true'),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('https://down-below.com'),
   // Resend (email) — validated lazily via getEmailEnv() so non-email request
@@ -50,7 +51,6 @@ const adminEnvSchema = z.object({
   ADMIN_SUPER_ADMIN_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_SUPER_ADMIN_ACCESS_CODE'),
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_FOUNDER_ADMIN_ACCESS_CODE'),
   ADMIN_EDITOR_ACCESS_CODE: requiredAdminAccessCodeSchema('ADMIN_EDITOR_ACCESS_CODE'),
-  ADMIN_SUPPORT_PHONE: z.string().trim().regex(/^\+?\d{7,15}$/, 'ADMIN_SUPPORT_PHONE must be a valid phone number'),
 })
 
 const emailEnvSchema = z.object({
@@ -114,8 +114,8 @@ const parsed = envSchema.parse({
   ADMIN_SUPER_ADMIN_ACCESS_CODE: process.env.ADMIN_SUPER_ADMIN_ACCESS_CODE,
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: process.env.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
   ADMIN_EDITOR_ACCESS_CODE: process.env.ADMIN_EDITOR_ACCESS_CODE,
-  ADMIN_SUPPORT_PHONE: process.env.ADMIN_SUPPORT_PHONE,
   ADMIN_ALLOWED_USERS: process.env.ADMIN_ALLOWED_USERS,
+  ADMIN_INVITE_TOKENS: process.env.ADMIN_INVITE_TOKENS,
   VAULT_SUBMISSIONS_ENABLED: process.env.VAULT_SUBMISSIONS_ENABLED,
   NEXT_PUBLIC_SITE_URL: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
   RESEND_API_KEY: process.env.RESEND_API_KEY,
@@ -136,7 +136,21 @@ function getRawAdminEnv() {
     ADMIN_SUPER_ADMIN_ACCESS_CODE: process.env.ADMIN_SUPER_ADMIN_ACCESS_CODE,
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: process.env.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
     ADMIN_EDITOR_ACCESS_CODE: process.env.ADMIN_EDITOR_ACCESS_CODE,
-    ADMIN_SUPPORT_PHONE: process.env.ADMIN_SUPPORT_PHONE,
+  }
+}
+
+export function getAdminHealthEnvStatus() {
+  const rawAdminEnv = getRawAdminEnv()
+  const accessCodes = [
+    rawAdminEnv.ADMIN_ACCESS_CODE,
+    rawAdminEnv.ADMIN_SUPER_ADMIN_ACCESS_CODE,
+    rawAdminEnv.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
+    rawAdminEnv.ADMIN_EDITOR_ACCESS_CODE,
+  ]
+
+  return {
+    sessionSecretSet: Boolean(rawAdminEnv.ADMIN_SESSION_SECRET?.trim() && rawAdminEnv.ADMIN_SESSION_SECRET.trim().length >= 32),
+    accessCodesConfigured: accessCodes.filter((value) => typeof value === 'string' && /^\d{6}$/.test(value.trim())).length,
   }
 }
 

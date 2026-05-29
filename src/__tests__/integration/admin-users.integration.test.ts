@@ -11,6 +11,7 @@ import {
   disconnectDatabase,
   createTestUser,
   createAdminUser,
+  ensureAdminUser,
   createMockNextRequest,
   hasIntegrationDatabase,
   parseResponseBody,
@@ -31,6 +32,7 @@ async function createAdminRequest(
   headers?: Record<string, string>,
   email: string = 'admin@example.com'
 ) {
+  await ensureAdminUser(email, 'super_admin')
   const token = await createAdminSessionToken({ email, role: 'super_admin' })
 
   return createMockNextRequest(method, url, body, {

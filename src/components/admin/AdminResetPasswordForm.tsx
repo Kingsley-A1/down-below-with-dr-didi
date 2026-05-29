@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 export function AdminResetPasswordForm() {
   const router = useRouter()
@@ -12,12 +13,14 @@ export function AdminResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const missingTokenError = 'This link is missing a reset token. Request a new email.'
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!token) return
     setError(null)
+    setFieldErrors({})
     setLoading(true)
     try {
       const res = await fetch('/api/admin/reset-password', {
@@ -25,9 +28,11 @@ export function AdminResetPasswordForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password, confirmPassword }),
       })
-      const data = await res.json()
+      const data = await readJsonResponse(res)
       if (!res.ok) {
-        setError(data.error ?? 'Could not reset password.')
+        const parsedError = parseApiError(data, 'Could not reset password.')
+        setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+        setError(parsedError.message)
         return
       }
       router.push('/admin/sign-in?message=Password reset. Please sign in.')
@@ -77,6 +82,7 @@ export function AdminResetPasswordForm() {
         <p className="mt-1 font-body text-xs text-slate-500">
           Must contain uppercase, lowercase, number, and special character. 8–128 characters.
         </p>
+        {fieldErrors.password ? <p className="mt-1 font-body text-xs text-red-600">{fieldErrors.password}</p> : null}
       </div>
       <div>
         <label className="block font-body text-sm font-semibold text-slate-700" htmlFor="admin-confirm-password">
@@ -91,6 +97,7 @@ export function AdminResetPasswordForm() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 font-body text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         />
+        {fieldErrors.confirmPassword ? <p className="mt-1 font-body text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
       </div>
       <button
         type="submit"

@@ -10,7 +10,7 @@ import {
 import { mapApiError } from '@/lib/admin/api-guard'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -35,12 +35,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return mapApiError(error, 'Failed to like event')
+    return mapApiError(error, 'Failed to like event', { request })
   }
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -62,6 +62,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return mapApiError(error, 'Failed to remove event like')
+    return mapApiError(error, 'Failed to remove event like', { request })
   }
 }

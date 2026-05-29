@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import AuthLegalLinks from '@/components/auth/AuthLegalLinks'
 import { RegisterForm } from '@/components/auth/RegisterForm'
 
@@ -22,15 +21,6 @@ export default function RegisterPage() {
 
         <div className="space-y-6 px-8 py-8">
           <RegisterForm />
-          <p className="font-body text-sm text-slate-600">
-            Already registered?{' '}
-            <Link
-              href="/login"
-              className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4"
-            >
-              Sign in here
-            </Link>
-          </p>
           <AuthLegalLinks />
         </div>
       </div>

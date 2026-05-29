@@ -1,5 +1,6 @@
 import { hasDatabaseConfig } from '@/lib/env'
 import { prisma } from '@/lib/prisma'
+import { appErrors } from '@/lib/app-error'
 
 export const PUBLIC_COMMENT_LIMIT = 50
 export const COMMENT_RATE_LIMIT_WINDOW_MS = 60 * 1000
@@ -197,7 +198,7 @@ export async function hasUserLikedEvent(eventId: string, userId: string): Promis
 
 export async function likeEvent(eventId: string, userId: string): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   await prisma.eventLike.upsert({
@@ -217,7 +218,7 @@ export async function likeEvent(eventId: string, userId: string): Promise<void> 
 
 export async function unlikeEvent(eventId: string, userId: string): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   await prisma.eventLike.deleteMany({
@@ -271,7 +272,7 @@ export async function addComment(
   body: string
 ): Promise<PublicCommentRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.eventComment.create({

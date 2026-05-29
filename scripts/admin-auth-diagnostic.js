@@ -14,6 +14,7 @@ async function diagnoseAdminAuth() {
   
   const email = 'deblessedking001@gmail.com';
   const password = 'Kingsley.A1';
+  const phone = process.env.ADMIN_DIAGNOSTIC_PHONE || '+2348000000000';
   
   console.log(`📧 Target Email: ${email}`);
   console.log(`🔐 Password: ${password}`);
@@ -52,7 +53,7 @@ async function diagnoseAdminAuth() {
         email,
         password,
         name: 'Kingsley A',
-        phone: '09036826272',
+        phone,
         accessCode: '826272' // super_admin code from .env
       })
     });

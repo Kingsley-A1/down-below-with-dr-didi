@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals'
 import * as authSession from '@/lib/auth/session'
 import * as envLib from '@/lib/env'
 import { ADMIN_SESSION_COOKIE, createAdminSessionToken } from '@/lib/admin/session'
-import { createMockNextRequest, parseResponseBody } from './setup'
+import { createMockNextRequest, ensureAdminUser, parseResponseBody } from './setup'
 
 describe('V-Vault security regressions', () => {
   afterEach(() => {
@@ -62,6 +62,7 @@ describe('V-Vault security regressions', () => {
   })
 
   it('rejects non-privileged admin role for response endpoint', async () => {
+    await ensureAdminUser('editor-regression@example.com', 'editor')
     const editorToken = await createAdminSessionToken({
       email: 'editor-regression@example.com',
       role: 'editor',
@@ -83,10 +84,12 @@ describe('V-Vault security regressions', () => {
 
     expect(response.status).toBe(403)
     const body = await parseResponseBody(response)
-    expect(String(body.error || '')).toContain('Insufficient permissions')
+    expect(body.code).toBe('permission_denied')
+    expect(String(body.error || '')).toContain('super_admin')
   })
 
   it('rejects invalid response payload with schema validation', async () => {
+    await ensureAdminUser('super-regression@example.com', 'super_admin')
     const superAdminToken = await createAdminSessionToken({
       email: 'super-regression@example.com',
       role: 'super_admin',
@@ -108,9 +111,9 @@ describe('V-Vault security regressions', () => {
 
     expect(response.status).toBe(400)
     const body = await parseResponseBody(response)
-    expect(body.error).toBe('Validation failed')
-    expect(Array.isArray(body.issues)).toBe(true)
-    expect(body.issues.length).toBeGreaterThan(0)
+    expect(body.code).toBe('validation_failed')
+    expect(body.error).toBe('Please fix the highlighted fields.')
+    expect(body.fieldErrors?.responseBody?.length || 0).toBeGreaterThan(0)
   })
 
   it('rejects invalid vault submission payload when authenticated', async () => {
@@ -135,7 +138,8 @@ describe('V-Vault security regressions', () => {
 
     expect(response.status).toBe(400)
     const body = await parseResponseBody(response)
-    expect(body.error).toBe('Validation failed')
-    expect(Array.isArray(body.issues)).toBe(true)
+    expect(body.code).toBe('validation_failed')
+    expect(body.error).toBe('Please fix the highlighted fields.')
+    expect(body.fieldErrors?.question?.length || 0).toBeGreaterThan(0)
   })
 })

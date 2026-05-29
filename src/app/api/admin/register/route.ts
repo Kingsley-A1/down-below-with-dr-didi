@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
-import { getClientIp, createRateLimiter } from '@/lib/rate-limit'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { adminRegisterSchema } from '@/lib/validations'
-import { resolveAdminRegistrationRole } from '@/lib/admin/session'
 import { env, hasDatabaseConfig } from '@/lib/env'
 import { registerAdminUserAccount, writeAuditLog } from '@/lib/admin/repository'
 import { sendEmail } from '@/lib/email/send'
 import { verifyAdminEmail as verifyAdminEmailTemplate } from '@/lib/email/templates'
+import { duplicateEmail, rateLimited, serverError, serviceUnavailable, validationError } from '@/lib/api/errors'
+import { resolveRequestId } from '@/lib/api/observability'
+import { resolveAdminRegistrationDecision } from '@/lib/admin/registration-policy'
+import { isAppError } from '@/lib/app-error'
 
-const adminRegisterIpLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 12 })
-const adminRegisterIdentityLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 6 })
+const ADMIN_REGISTER_WINDOW_MS = 60 * 60 * 1000
+const ADMIN_REGISTER_IP_LIMIT = 12
+const ADMIN_REGISTER_IDENTITY_LIMIT = 6
 
 type AuditLogEntry = Parameters<typeof writeAuditLog>[0]
 
@@ -88,11 +92,11 @@ function isPrismaAdminSchemaMismatchError(error: unknown) {
   return hasModelContext && hasUnknownArgument
 }
 
-function logAdminRegistrationError(request: NextRequest, error: unknown, context: Record<string, unknown>) {
+function logAdminRegistrationError(requestId: string, error: unknown, context: Record<string, unknown>) {
   console.error(JSON.stringify({
     level: 'error',
     route: '/api/admin/register',
-    requestId: request.headers.get('x-vercel-id'),
+    requestId,
     errorName: error instanceof Error ? error.name : 'UnknownError',
     errorCode: getPrismaErrorCode(error),
     errorMessage: getErrorMessage(error),
@@ -100,11 +104,11 @@ function logAdminRegistrationError(request: NextRequest, error: unknown, context
   }))
 }
 
-async function safeWriteAuditLog(request: NextRequest, entry: AuditLogEntry) {
+async function safeWriteAuditLog(requestId: string, entry: AuditLogEntry) {
   try {
     await writeAuditLog(entry)
   } catch (error) {
-    logAdminRegistrationError(request, error, {
+    logAdminRegistrationError(requestId, error, {
       stage: 'audit_log',
       auditAction: entry.action,
     })
@@ -113,7 +117,7 @@ async function safeWriteAuditLog(request: NextRequest, entry: AuditLogEntry) {
 
 export async function POST(request: NextRequest) {
   const startedAt = Date.now()
-  const requestId = request.headers.get('x-vercel-id')
+  const requestId = resolveRequestId(request)
 
   console.log(JSON.stringify({
     level: 'info',
@@ -123,19 +127,24 @@ export async function POST(request: NextRequest) {
   }))
 
   if (!hasDatabaseConfig()) {
-    return NextResponse.json({ error: 'Admin database is not configured.' }, { status: 503 })
+    return serviceUnavailable('database_unavailable', 'Admin database is not configured.', {
+      request,
+      requestId,
+      action: 'Set DATABASE_URL and run migrations before admin registration.',
+    })
   }
 
   const clientIp = getClientIp(request)
 
-  const ipLimit = adminRegisterIpLimiter(`admin-register:ip:${clientIp}`)
+  const ipLimit = await checkRateLimit({
+    key: `admin-register:ip:${clientIp}`,
+    windowMs: ADMIN_REGISTER_WINDOW_MS,
+    limit: ADMIN_REGISTER_IP_LIMIT,
+  })
   if (ipLimit.limited) {
-    return NextResponse.json(
-      { error: 'Too many admin registration attempts. Please wait and try again.' },
-      {
-        status: 429,
-        headers: { 'Retry-After': String(Math.ceil((ipLimit.resetAt - Date.now()) / 1000)) },
-      }
+    return rateLimited(
+      Math.ceil((ipLimit.resetAt - Date.now()) / 1000),
+      'Too many admin registration attempts. Please wait and try again.'
     )
   }
 
@@ -144,33 +153,38 @@ export async function POST(request: NextRequest) {
     const parsed = adminRegisterSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid registration payload', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const email = parsed.data.email.trim().toLowerCase()
-    const identityLimit = adminRegisterIdentityLimiter(`admin-register:email:${email}`)
+    const identityLimit = await checkRateLimit({
+      key: `admin-register:email:${email}`,
+      windowMs: ADMIN_REGISTER_WINDOW_MS,
+      limit: ADMIN_REGISTER_IDENTITY_LIMIT,
+    })
     if (identityLimit.limited) {
-      return NextResponse.json(
-        { error: 'Too many admin registration attempts. Please wait and try again.' },
-        {
-          status: 429,
-          headers: { 'Retry-After': String(Math.ceil((identityLimit.resetAt - Date.now()) / 1000)) },
-        }
+      return rateLimited(
+        Math.ceil((identityLimit.resetAt - Date.now()) / 1000),
+        'Too many admin registration attempts. Please wait and try again.'
       )
     }
 
-    const role = resolveAdminRegistrationRole(parsed.data.accessCode)
+    const registrationDecision = resolveAdminRegistrationDecision({
+      email,
+      accessCode: parsed.data.accessCode,
+    })
 
-    if (!role) {
-      await safeWriteAuditLog(request, {
+    if (!registrationDecision.ok) {
+      await safeWriteAuditLog(requestId, {
         action: 'admin.register_failed',
         entityType: 'admin_user',
         actorEmail: email,
         actorRole: 'editor',
-        summary: 'Admin registration denied: invalid role code',
+        summary: 'Admin registration denied',
         metadata: {
           clientIp,
           email,
+          reason: registrationDecision.reason,
         },
       })
 
@@ -182,11 +196,15 @@ export async function POST(request: NextRequest) {
       email,
       phone: parsed.data.phone,
       password: parsed.data.password,
-      role,
+      role: registrationDecision.role,
     })
 
     if (!account) {
-      return NextResponse.json({ error: 'Admin database is not configured.' }, { status: 503 })
+      return serviceUnavailable('database_unavailable', 'Admin database is not configured.', {
+        request,
+        requestId,
+        action: 'Set DATABASE_URL and run migrations before admin registration.',
+      })
     }
 
     // Send verification email. Admin sign-in is gated on emailVerified — no
@@ -214,7 +232,7 @@ export async function POST(request: NextRequest) {
       message: 'Admin registration received. Check your email to verify before signing in.',
     })
 
-    await safeWriteAuditLog(request, {
+    await safeWriteAuditLog(requestId, {
       action: 'admin.register',
       entityType: 'admin_user',
       actorEmail: email,
@@ -238,64 +256,77 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error) {
-    logAdminRegistrationError(request, error, {
+    logAdminRegistrationError(requestId, error, {
       stage: 'failed',
       ms: Date.now() - startedAt,
     })
 
-    if (error instanceof Error && error.message === 'ADMIN_ACCOUNT_ALREADY_REGISTERED') {
-      return NextResponse.json({ error: 'Admin account already exists. Please sign in instead.' }, { status: 409 })
+    if (isAppError(error) && error.code === 'duplicate_email') {
+      return duplicateEmail('email')
     }
 
     if (isUniqueConstraintError(error)) {
-      return NextResponse.json({ error: 'Admin account already exists. Please sign in instead.' }, { status: 409 })
+      return duplicateEmail('email')
     }
 
     if (isAdminEnvConfigurationError(error)) {
-      const message =
-        env.NODE_ENV === 'production'
-          ? 'Ask the super admin to verify the production admin registration environment variables.'
-          : getErrorMessage(error)
+      // Generic public response; the detailed `[env] ...` cause is already in
+      // the server log via logAdminRegistrationError. Operators see it via
+      // GET /api/admin/health (super_admin only) or in non-prod via a header.
+      const response = serviceUnavailable('service_unavailable', 'Admin registration is not configured.', {
+        request,
+        requestId,
+        error,
+        action: 'Ask the super admin to verify the production admin registration environment variables.',
+      })
 
-      return NextResponse.json(
-        {
-          error: 'Admin registration is not configured.',
-          message,
-        },
-        { status: 503 }
-      )
+      if (env.NODE_ENV !== 'production') {
+        response.headers.set('X-Operator-Hint', getErrorMessage(error).slice(0, 200))
+      }
+
+      return response
     }
 
     if (isMissingAdminTableError(error)) {
-      return NextResponse.json({ error: 'Admin database is not initialized yet.' }, { status: 503 })
+      return serviceUnavailable('database_unavailable', 'Admin database is not initialized yet.', {
+        request,
+        requestId,
+        error,
+        action: 'Run Prisma migrations and verify DATABASE_URL before admin registration.',
+      })
     }
 
     if (isPrismaMissingColumnError(error)) {
-      return NextResponse.json(
-        {
-          error: 'Admin database schema is not up to date.',
-          message: 'Run the latest Prisma migrations against the production database, then retry admin registration.',
-        },
-        { status: 503 }
-      )
+      return serviceUnavailable('database_unavailable', 'Admin database schema is not up to date.', {
+        request,
+        requestId,
+        error,
+        action: 'Run the latest Prisma migrations against the production database, then retry admin registration.',
+      })
     }
 
     if (isPrismaAdminSchemaMismatchError(error)) {
-      return NextResponse.json(
+      return serviceUnavailable(
+        'database_unavailable',
+        'Admin registration is temporarily unavailable while database client metadata is synchronizing.',
         {
-          error: 'Admin registration is temporarily unavailable while database client metadata is synchronizing.',
-        },
-        { status: 503 }
+          request,
+          requestId,
+          error,
+          action: 'Regenerate the Prisma client and redeploy before retrying admin registration.',
+        }
       )
     }
 
     if (isPrismaConnectionError(error)) {
-      return NextResponse.json(
-        { error: 'Admin database is temporarily unavailable. Please retry in a moment.' },
-        { status: 503 }
-      )
+      return serviceUnavailable('database_unavailable', 'Admin database is temporarily unavailable. Please retry in a moment.', {
+        request,
+        requestId,
+        error,
+        action: 'Check database connectivity, credentials, and provider status.',
+      })
     }
 
-    return NextResponse.json({ error: 'Failed to complete admin registration' }, { status: 500 })
+    return serverError('Failed to complete admin registration', { request, requestId, error })
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Send, Star } from 'lucide-react'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { PublicReviewRecord } from '@/lib/reviews/repository'
 
 const EMPTY_FORM = {
@@ -22,6 +23,7 @@ export default function ReviewSubmissionForm() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submittedReview, setSubmittedReview] = useState<PublicReviewRecord | null>(null)
 
   function set<K extends keyof ReviewFormState>(field: K, value: ReviewFormState[K]) {
@@ -33,6 +35,7 @@ export default function ReviewSubmissionForm() {
     setBusy(true)
     setMessage('')
     setError('')
+    setFieldErrors({})
 
     try {
       const response = await fetch('/api/reviews', {
@@ -40,15 +43,21 @@ export default function ReviewSubmissionForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
-      const data = (await response.json()) as { error?: string; message?: string; review?: PublicReviewRecord }
+      const data = await readJsonResponse<{ error?: string; message?: string; review?: PublicReviewRecord }>(response)
 
       if (!response.ok) {
-        setError(data.error || 'Review could not be submitted.')
+        const parsed = parseApiError(data, 'Review could not be submitted.')
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+          )
+        )
+        setError(parsed.message)
         return
       }
 
-      setMessage(data.message || 'Thank you. Your review is now live.')
-      setSubmittedReview(data.review ?? null)
+      setMessage(data?.message || 'Thank you. Your review was received and will be reviewed before publishing.')
+      setSubmittedReview(data?.review ?? null)
       setForm(EMPTY_FORM)
       router.refresh()
     } catch {
@@ -64,7 +73,7 @@ export default function ReviewSubmissionForm() {
         <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Share your experience</p>
         <h2 className="mt-2 font-heading text-2xl font-bold text-slate-900">Add a review</h2>
         <p className="mt-2 font-body text-sm leading-6 text-slate-500">
-          Your review appears immediately. The team may later add a reply when helpful.
+          Your review is reviewed by the team before it appears publicly.
         </p>
       </div>
 
@@ -83,16 +92,16 @@ export default function ReviewSubmissionForm() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name *">
+        <Field label="Name *" error={fieldErrors.displayName}>
           <input value={form.displayName} onChange={(event) => set('displayName', event.target.value)} required minLength={2} maxLength={100} className="input-field min-h-11" />
         </Field>
-        <Field label="Role or context">
+        <Field label="Role or context" error={fieldErrors.roleLabel}>
           <input value={form.roleLabel} onChange={(event) => set('roleLabel', event.target.value)} maxLength={120} placeholder="Event attendee, parent, volunteer" className="input-field min-h-11" />
         </Field>
-        <Field label="Location">
+        <Field label="Location" error={fieldErrors.location}>
           <input value={form.location} onChange={(event) => set('location', event.target.value)} maxLength={120} className="input-field min-h-11" />
         </Field>
-        <Field label="Rating">
+        <Field label="Rating" error={fieldErrors.rating}>
           <div className="flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 px-3">
             {[1, 2, 3, 4, 5].map((rating) => (
               <button
@@ -109,7 +118,7 @@ export default function ReviewSubmissionForm() {
         </Field>
       </div>
 
-      <Field label="Review *">
+      <Field label="Review *" error={fieldErrors.body}>
         <textarea
           value={form.body}
           onChange={(event) => set('body', event.target.value)}
@@ -132,6 +141,7 @@ export default function ReviewSubmissionForm() {
         />
         <span>I confirm this review may be reviewed by the team and published on the website.</span>
       </label>
+      {fieldErrors.consentToPublish ? <p className="font-body text-xs text-red-600">{fieldErrors.consentToPublish}</p> : null}
 
       {message && !submittedReview ? <p className="rounded-lg bg-emerald-50 px-3 py-2 font-body text-sm font-semibold text-emerald-800">{message}</p> : null}
       {error ? <p className="rounded-lg bg-red-50 px-3 py-2 font-body text-sm font-semibold text-red-700">{error}</p> : null}
@@ -148,11 +158,12 @@ export default function ReviewSubmissionForm() {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
+      {error ? <span className="block font-body text-xs text-red-600">{error}</span> : null}
     </label>
   )
 }

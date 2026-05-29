@@ -39,7 +39,7 @@ export async function POST(
 
     return response
   } catch (error) {
-    return mapApiError(error, 'Failed to mark review helpful')
+    return mapApiError(error, 'Failed to mark review helpful', { request })
   }
 }
 
@@ -63,6 +63,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, helpful: false, count })
   } catch (error) {
-    return mapApiError(error, 'Failed to update review helpful state')
+    return mapApiError(error, 'Failed to update review helpful state', { request })
   }
 }

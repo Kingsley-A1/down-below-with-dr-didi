@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { deleteAdminReview, updateAdminReview } from '@/lib/reviews/repository'
 import { adminReviewUpdateSchema } from '@/lib/validations'
+import { validationError } from '@/lib/api/errors'
 
 export async function PUT(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function PUT(
     const parsed = adminReviewUpdateSchema.safeParse({ ...body, id })
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const { id: parsedId, ...data } = parsed.data
@@ -47,7 +48,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, review })
   } catch (error) {
-    return mapApiError(error, 'Failed to update review')
+    return mapApiError(error, 'Failed to update review', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -72,6 +73,6 @@ export async function DELETE(
     await deleteAdminReview(id, { email: session.email, role: session.role })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return mapApiError(error, 'Failed to delete review')
+    return mapApiError(error, 'Failed to delete review', { request, identity: { email: session.email, role: session.role } })
   }
 }

@@ -230,7 +230,7 @@ async function updateLastActivityAsync(userId: string): Promise<void> {
       where: { id: userId },
       data: { lastActivityAt: new Date() },
     })
-  } catch (error) {
+  } catch {
     // Silently fail - activity updates are not critical for session management
   }
 }

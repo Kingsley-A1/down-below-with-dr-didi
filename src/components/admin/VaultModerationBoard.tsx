@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
+import { firstFieldErrorMessages, parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import type { VaultSubmissionRecord } from '@/lib/admin/repository'
 
 type VaultStatus = VaultSubmissionRecord['status']
@@ -23,18 +25,21 @@ export default function VaultModerationBoard({
   const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null)
   const [identityRevealed, setIdentityRevealed] = useState(false)
   const [identityActionLoading, setIdentityActionLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [fieldErrorOwner, setFieldErrorOwner] = useState('')
+  const [responseFieldErrors, setResponseFieldErrors] = useState<Record<string, string>>({})
 
   async function refresh(options?: { includeIdentity?: boolean }) {
     const includeIdentity = options?.includeIdentity === true
     const query = includeIdentity ? '?includeIdentity=1' : ''
 
     const response = await fetch(`/api/admin/vault${query}`, { cache: 'no-store' })
-    const result = await response.json()
+    const result = await readJsonResponse<{ error?: string; submissions?: VaultSubmissionRecord[] }>(response)
     if (!response.ok) {
-      throw new Error(result.error || 'Failed to refresh V-Vault submissions')
+      throw new Error(parseApiError(result, 'Failed to refresh V-Vault submissions').message)
     }
 
-    setSubmissions(result.submissions || [])
+    setSubmissions(result?.submissions || [])
     setIdentityRevealed(includeIdentity)
   }
 
@@ -46,6 +51,8 @@ export default function VaultModerationBoard({
   }) {
     setStatusMessage('')
     setActiveId(payload.id)
+    setFieldErrors({})
+    setFieldErrorOwner(payload.id)
 
     const response = await fetch('/api/admin/vault', {
       method: 'PUT',
@@ -53,10 +60,12 @@ export default function VaultModerationBoard({
       body: JSON.stringify(payload),
     })
 
-    const result = await response.json()
+    const result = await readJsonResponse<{ error?: string; submissions?: VaultSubmissionRecord[] }>(response)
 
     if (!response.ok) {
-      setStatusMessage(result.error || 'Failed to update submission')
+      const parsedError = parseApiError(result, 'Failed to update submission')
+      setFieldErrors(firstFieldErrorMessages(parsedError.fieldErrors))
+      setStatusMessage(parsedError.message)
       setActiveId('')
       return
     }
@@ -71,11 +80,13 @@ export default function VaultModerationBoard({
 
     if (!responseBody) {
       setStatusMessage('Response body is required before sending.')
+      setResponseFieldErrors({ [submissionId]: 'Response body is required before sending.' })
       return
     }
 
     setStatusMessage('')
     setRespondingId(submissionId)
+    setResponseFieldErrors({})
 
     const response = await fetch(`/api/admin/vault/${submissionId}/respond`, {
       method: 'POST',
@@ -83,10 +94,12 @@ export default function VaultModerationBoard({
       body: JSON.stringify({ responseBody }),
     })
 
-    const result = await response.json()
+    const result = await readJsonResponse<{ error?: string; notificationCreated?: boolean }>(response)
 
     if (!response.ok) {
-      setStatusMessage(result.error || 'Failed to send response')
+      const parsedError = parseApiError(result, 'Failed to send response')
+      setResponseFieldErrors({ [submissionId]: parsedError.fieldErrors.responseBody?.[0] ?? parsedError.message })
+      setStatusMessage(parsedError.message)
       setRespondingId('')
       return
     }
@@ -95,7 +108,7 @@ export default function VaultModerationBoard({
     setReplyOpenFor((current) => (current === submissionId ? null : current))
     await refresh({ includeIdentity: identityRevealed })
     setStatusMessage(
-      result.notificationCreated
+      result?.notificationCreated
         ? 'Response sent and user notification queued successfully.'
         : 'Response sent successfully. No linked user account was available for notification.'
     )
@@ -107,6 +120,8 @@ export default function VaultModerationBoard({
     setIdentityActionLoading(true)
 
     try {
+      setFieldErrors({})
+      setResponseFieldErrors({})
       await refresh({ includeIdentity: nextIncludeIdentity })
       setStatusMessage(
         nextIncludeIdentity
@@ -160,7 +175,7 @@ export default function VaultModerationBoard({
       {statusMessage ? (
         <div className="mb-4" aria-live="polite">
           <AdminInlineStatus
-            tone={statusMessage.toLowerCase().includes('failed') || statusMessage.toLowerCase().includes('required') ? 'error' : 'info'}
+            tone={getAdminStatusTone(statusMessage)}
             message={statusMessage}
           />
         </div>
@@ -174,6 +189,7 @@ export default function VaultModerationBoard({
         ) : (
           submissions.map((submission) => {
             const isSaving = activeId === submission.id
+            const showFieldErrors = fieldErrorOwner === submission.id
 
             return (
               <form
@@ -237,6 +253,9 @@ export default function VaultModerationBoard({
                         </option>
                       ))}
                     </select>
+                    {showFieldErrors && fieldErrors.status ? (
+                      <p className="mt-2 font-body text-xs text-red-600">{fieldErrors.status}</p>
+                    ) : null}
                   </div>
                   <div className="lg:col-span-2">
                     <label className="block font-body text-xs uppercase tracking-[0.12em] text-gray-400 mb-2">FAQ title (optional)</label>
@@ -246,6 +265,9 @@ export default function VaultModerationBoard({
                       className="w-full rounded-xl border px-4 py-3 text-sm admin-interactive"
                       style={{ borderColor: 'var(--color-border)' }}
                     />
+                    {showFieldErrors && fieldErrors.approvedFaqTitle ? (
+                      <p className="mt-2 font-body text-xs text-red-600">{fieldErrors.approvedFaqTitle}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -258,6 +280,9 @@ export default function VaultModerationBoard({
                     className="w-full rounded-xl border px-4 py-3 text-sm admin-interactive"
                     style={{ borderColor: 'var(--color-border)' }}
                   />
+                  {showFieldErrors && fieldErrors.moderationNotes ? (
+                    <p className="mt-2 font-body text-xs text-red-600">{fieldErrors.moderationNotes}</p>
+                  ) : null}
                 </div>
 
                 <button
@@ -302,6 +327,9 @@ export default function VaultModerationBoard({
                         className="mt-3 w-full rounded-xl border px-4 py-3 text-sm mb-3 admin-interactive"
                         style={{ borderColor: 'var(--color-border)' }}
                       />
+                      {responseFieldErrors[submission.id] ? (
+                        <p className="mb-3 font-body text-xs text-red-600">{responseFieldErrors[submission.id]}</p>
+                      ) : null}
                       <p className="mb-3 font-body text-xs text-gray-500">Use Ctrl+Enter (or Cmd+Enter) to send quickly.</p>
                       <button
                         type="button"

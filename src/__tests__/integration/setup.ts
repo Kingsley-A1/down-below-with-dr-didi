@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { getRateLimiter } from '@/lib/auth/rate-limiter'
+import { resetRateLimitFallbacksForTests } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const hasIntegrationDatabase = Boolean(process.env.DATABASE_URL)
@@ -16,6 +17,7 @@ const TEST_PASSWORD_HASH = '$2b$10$eJu50XvCLWvA14C6.G38FuXn8WZiQgvW7rp58QHXixraK
  */
 export async function cleanupDatabase() {
   getRateLimiter().destroy()
+  resetRateLimitFallbacksForTests()
 
   // CockroachDB does not support all PostgreSQL TRUNCATE semantics with dropping indexes,
   // so we use ordered deleteMany calls for deterministic cleanup in tests.
@@ -76,14 +78,82 @@ export async function createTestUser(
 /**
  * Create admin test user
  */
-export async function createAdminUser(
-  overrides?: Partial<{ email: string; displayName: string }>,
+/**
+ * Ensure an AdminUser row exists for the given email/role. Idempotent.
+ * Tests must call this (or createAdminUser) before issuing a cookie for that
+ * email, because requireAdminSession re-reads the AdminUser row per request
+ * (Phase F: src/lib/admin/api-guard.ts).
+ */
+export async function ensureAdminUser(
+  email: string,
+  role: 'super_admin' | 'founder_admin' | 'editor' | 'moderator' = 'super_admin',
 ) {
-  return createTestUser({
-    role: 'super_admin',
-    email: overrides?.email || 'admin@example.com',
+  return prisma.adminUser.upsert({
+    where: { email },
+    update: {
+      role,
+      isActive: true,
+      emailVerified: true,
+      tokenVersion: 0,
+      passwordHash: TEST_PASSWORD_HASH,
+      failedLoginAttempts: 0,
+      lockoutUntil: null,
+    },
+    create: {
+      email,
+      name: 'Admin User',
+      role,
+      isActive: true,
+      emailVerified: true,
+      tokenVersion: 0,
+      passwordHash: TEST_PASSWORD_HASH,
+    },
+  })
+}
+
+export async function createAdminUser(
+  overrides?: Partial<{ email: string; displayName: string; role: string }>,
+) {
+  const email = overrides?.email || 'admin@example.com'
+  const role = (overrides?.role || 'super_admin') as
+    | 'super_admin'
+    | 'founder_admin'
+    | 'editor'
+    | 'moderator'
+
+  // Keep the legacy `User` row so any test reading `prisma.user` still works.
+  const user = await createTestUser({
+    role,
+    email,
     displayName: overrides?.displayName || 'Admin User',
   })
+
+  // Phase F: requireAdminSession in src/lib/admin/api-guard.ts now re-reads
+  // the AdminUser row on every API call (isActive + emailVerified + tokenVersion).
+  // Tests must therefore have a matching AdminUser record, not just a User row.
+  await prisma.adminUser.upsert({
+    where: { email },
+    update: {
+      role,
+      isActive: true,
+      emailVerified: true,
+      tokenVersion: 0,
+      passwordHash: TEST_PASSWORD_HASH,
+      failedLoginAttempts: 0,
+      lockoutUntil: null,
+    },
+    create: {
+      email,
+      name: overrides?.displayName || 'Admin User',
+      role,
+      isActive: true,
+      emailVerified: true,
+      tokenVersion: 0,
+      passwordHash: TEST_PASSWORD_HASH,
+    },
+  })
+
+  return user
 }
 
 /**
@@ -202,11 +272,12 @@ export function createMockDate(offsetMs: number = 0) {
   return new Date(Date.now() + offsetMs)
 }
 
-export default {
+const integrationTestSetup = {
   cleanupDatabase,
   disconnectDatabase,
   createTestUser,
   createAdminUser,
+  ensureAdminUser,
   createMockNextRequest,
   parseResponseBody,
   validRegistrationPayload,
@@ -215,3 +286,5 @@ export default {
   waitFor,
   createMockDate,
 }
+
+export default integrationTestSetup

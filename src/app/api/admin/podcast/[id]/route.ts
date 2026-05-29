@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deletePodcastEpisode, updatePodcastEpisode } from '@/lib/admin/repository'
 import { podcastEpisodeSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { validationError } from '@/lib/api/errors'
 
 export async function PUT(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function PUT(
     const parsed = podcastEpisodeSchema.partial().safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const {
@@ -54,7 +55,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, episode })
   } catch (error) {
-    return mapApiError(error, 'Failed to update podcast episode')
+    return mapApiError(error, 'Failed to update podcast episode', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -79,6 +80,6 @@ export async function DELETE(
     await deletePodcastEpisode(id, { email: session.email, role: session.role })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return mapApiError(error, 'Failed to delete podcast episode')
+    return mapApiError(error, 'Failed to delete podcast episode', { request, identity: { email: session.email, role: session.role } })
   }
 }

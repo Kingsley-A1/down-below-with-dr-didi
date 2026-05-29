@@ -3,7 +3,7 @@ import { getEventBySlug } from '@/lib/events/repository'
 import { mapApiError } from '@/lib/admin/api-guard'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -16,6 +16,6 @@ export async function GET(
 
     return NextResponse.json({ event })
   } catch (error) {
-    return mapApiError(error, 'Failed to fetch event')
+    return mapApiError(error, 'Failed to fetch event', { request })
   }
 }

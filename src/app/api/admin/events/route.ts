@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createEvent, getAllEvents } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { createEventSchema } from '@/lib/events/schemas'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const parsed = createEventSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const {
@@ -70,6 +71,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, event }, { status: 201 })
   } catch (error) {
-    return mapApiError(error, 'Failed to create event')
+    return mapApiError(error, 'Failed to create event', { request, identity: { email: session.email, role: session.role } })
   }
 }

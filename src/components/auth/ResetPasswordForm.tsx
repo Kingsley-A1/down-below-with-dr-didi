@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 export function ResetPasswordForm() {
   const router = useRouter()
@@ -10,6 +11,7 @@ export function ResetPasswordForm() {
   const token = searchParams.get('token')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: '',
@@ -24,6 +26,7 @@ export function ResetPasswordForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
+    setFieldErrors({})
     setIsLoading(true)
 
     if (!token) {
@@ -43,10 +46,16 @@ export function ResetPasswordForm() {
         }),
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setError(data.error || 'Password reset failed')
+        const parsed = parseApiError(data, 'Password reset failed')
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+          )
+        )
+        setError(parsed.message)
         return
       }
 
@@ -96,6 +105,7 @@ export function ResetPasswordForm() {
         <p className="mt-1 text-xs text-gray-500">
           Must contain uppercase, lowercase, number, and special character. 8-128 characters.
         </p>
+        {fieldErrors.password ? <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p> : null}
       </div>
 
       <div>
@@ -112,6 +122,7 @@ export function ResetPasswordForm() {
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
           placeholder="••••••••"
         />
+        {fieldErrors.confirmPassword ? <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p> : null}
       </div>
 
       <button

@@ -138,7 +138,7 @@ curl -X POST http://localhost:3000/api/admin/register \
     "email": "deblessedking001@gmail.com",
     "password": "Kingsley.A1",
     "name": "Kingsley A",
-    "phone": "09036826272",
+    "phone": "+2348000000000",
     "accessCode": "826272"
   }'
 ```

@@ -8,6 +8,8 @@ import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 const MEDIA_DRAFT_KEY = 'admin-draft:media-upload'
 
@@ -76,8 +78,11 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
   async function refreshAssets() {
     const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
-    const refreshedResult = await refreshed.json()
-    setAssets(refreshedResult.assets || [])
+    const refreshedResult = await readJsonResponse<{ assets?: MediaAssetRecord[] }>(refreshed)
+    if (!refreshed.ok) {
+      throw new Error(parseApiError(refreshedResult, 'Failed to refresh media library').message)
+    }
+    setAssets(refreshedResult?.assets || [])
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -125,10 +130,10 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
     try {
       const response = await fetch(`/api/admin/media/${pendingDeleteAsset.id}`, { method: 'DELETE' })
-      const result = await response.json()
+      const result = await readJsonResponse<{ error?: string; usages?: Array<{ entityType: string; field: string; entityLabel: string }> }>(response)
 
       if (!response.ok) {
-        if (response.status === 409 && Array.isArray(result.usages)) {
+        if (response.status === 409 && Array.isArray(result?.usages)) {
           const usagePreview = result.usages
             .slice(0, 3)
             .map((usage: { entityType: string; field: string; entityLabel: string }) => `${usage.entityType}.${usage.field} (${usage.entityLabel})`)
@@ -137,7 +142,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           return
         }
 
-        setStatus(result.error || 'Delete failed')
+        setStatus(parseApiError(result, 'Delete failed').message)
         return
       }
 
@@ -151,9 +156,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }
 
-  const statusTone = status.toLowerCase().includes('failed') || status.toLowerCase().includes('cannot') || status.toLowerCase().includes('could not') || status.toLowerCase().includes('choose')
-    ? 'error'
-    : 'success'
+  const statusTone = getAdminStatusTone(status)
 
   return (
     <div className="space-y-8 admin-fade-in">

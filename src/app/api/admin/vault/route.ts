@@ -3,6 +3,7 @@ import { listVaultSubmissions, updateVaultSubmissionModeration } from '@/lib/adm
 import { vaultModerationSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { canViewVaultIdentity } from '@/lib/admin/rbac'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -49,7 +50,7 @@ export async function PUT(request: NextRequest) {
     const parsed = vaultModerationSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const record = await updateVaultSubmissionModeration(parsed.data, {
@@ -59,6 +60,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, submission: record })
   } catch (error) {
-    return mapApiError(error, 'Failed to update V-Vault submission')
+    return mapApiError(error, 'Failed to update V-Vault submission', { request, identity: { email: session.email, role: session.role } })
   }
 }

@@ -5,16 +5,25 @@ import {
   incrementFailedLoginAttempts,
   resetFailedLoginAttempts,
 } from '@/lib/admin/user-repository-lockout'
-import { getRateLimiter, RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
+import { RATE_LIMIT_CONFIG } from '@/lib/auth/rate-limiter'
 import { createSession } from '@/lib/auth/session'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userLoginSchema } from '@/lib/validations'
+import {
+  validationError,
+  rateLimited,
+  invalidCredentials,
+  emailNotVerified,
+  accountLocked,
+  serverError,
+  serviceUnavailable,
+} from '@/lib/api/errors'
 
 function isMissingUserTableError(error: unknown) {
   if (!(error instanceof Error)) {
     return false
   }
-
   return error.message.includes('The table `public.User` does not exist')
 }
 
@@ -22,17 +31,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Validate input
     const validation = userLoginSchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten(),
-        },
-        { status: 400 }
-      )
+      return validationError(validation.error)
     }
 
     const { email, password } = validation.data
@@ -42,26 +43,17 @@ export async function POST(request: NextRequest) {
       'x-forwarded-for': request.headers.get('x-forwarded-for') ?? undefined,
       'x-real-ip': request.headers.get('x-real-ip') ?? undefined,
     })
-    const limiter = getRateLimiter()
     const loginRateLimitKey = generateRateLimitKey('login', null, ip, normalizedEmail)
 
-    const rateResult = limiter.isAllowed(
-      loginRateLimitKey,
-      RATE_LIMIT_CONFIG.login.limit,
-      RATE_LIMIT_CONFIG.login.windowMs
-    )
+    const rateResult = await checkRateLimit({
+      key: loginRateLimitKey,
+      limit: RATE_LIMIT_CONFIG.login.limit,
+      windowMs: RATE_LIMIT_CONFIG.login.windowMs,
+    })
 
-    if (!rateResult.allowed) {
-      const retryAfterSeconds = Math.ceil((rateResult.retryAfterMs ?? 0) / 1000)
-      const response = NextResponse.json(
-        {
-          success: false,
-          error: RATE_LIMIT_CONFIG.login.message,
-        },
-        { status: 429 }
-      )
-      response.headers.set('Retry-After', String(retryAfterSeconds))
-      return response
+    if (rateResult.limited) {
+      const retryAfterSeconds = Math.ceil((rateResult.resetAt - Date.now()) / 1000)
+      return rateLimited(retryAfterSeconds, RATE_LIMIT_CONFIG.login.message)
     }
 
     const candidateUser = await getUserByEmail(normalizedEmail)
@@ -70,59 +62,29 @@ export async function POST(request: NextRequest) {
       const lockout = await checkAccountLockout(candidateUser.id)
       if (lockout.locked) {
         const retryAfterSeconds = Math.ceil((lockout.remainingMs ?? 0) / 1000)
-        const response = NextResponse.json(
-          {
-            success: false,
-            error: 'Account temporarily locked due to too many failed login attempts. Please try again later.',
-          },
-          { status: 429 }
-        )
-        response.headers.set('Retry-After', String(retryAfterSeconds))
-        return response
+        return accountLocked(retryAfterSeconds)
       }
     }
 
-    // Authenticate user
     const user = await authenticateUser(normalizedEmail, password)
     if (!user) {
       if (candidateUser) {
         const lockoutResult = await incrementFailedLoginAttempts(candidateUser.id)
         if (lockoutResult.locked) {
           const retryAfterSeconds = Math.ceil((lockoutResult.lockoutUntilMs ?? 0) / 1000)
-          const response = NextResponse.json(
-            {
-              success: false,
-              error: 'Account locked after multiple failed login attempts. Try again in 30 minutes.',
-            },
-            { status: 429 }
-          )
-          response.headers.set('Retry-After', String(retryAfterSeconds))
-          return response
+          return accountLocked(retryAfterSeconds)
         }
       }
 
-      return NextResponse.json(
-        { success: false, error: 'Invalid email or password' },
-        { status: 401 }
-      )
+      return invalidCredentials()
     }
 
     await resetFailedLoginAttempts(user.id)
-    limiter.reset(loginRateLimitKey)
 
-    // Email verification is mandatory before a session is issued.
     if (!user.emailVerified) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Please verify your email before signing in. Check your inbox for the verification link.',
-          requiresEmailVerification: true,
-        },
-        { status: 403 }
-      )
+      return emailNotVerified()
     }
 
-    // Create session
     await createSession({
       userId: user.id,
       email: user.email,
@@ -135,6 +97,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
+        ok: true,
         success: true,
         message: 'Login successful',
         user,
@@ -142,24 +105,18 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    console.error('Login error:', error)
-
     if (isMissingUserTableError(error)) {
-      return NextResponse.json(
+      return serviceUnavailable(
+        'database_unavailable',
+        'Authentication database is not initialized yet. Please run migrations and try again.',
         {
-          success: false,
-          error: 'Authentication database is not initialized yet. Please run migrations and try again.',
-        },
-        { status: 503 }
+          request,
+          error,
+          action: 'Run Prisma migrations and verify DATABASE_URL before users sign in.',
+        }
       )
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Login failed',
-      },
-      { status: 500 }
-    )
+    return serverError('Sign-in failed. Please try again.', { request, error })
   }
 }

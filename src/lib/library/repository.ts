@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { readPublicDatabase } from '@/lib/public-database'
 import { writeAuditLog } from '@/lib/admin/repository'
 import type { AdminRole } from '@/lib/admin/rbac'
+import { appErrors } from '@/lib/app-error'
 
 export type LibraryArticleStatus = 'draft' | 'published' | 'archived'
 
@@ -273,7 +274,7 @@ export async function createLibraryArticle(
   actor: { email: string; role: AdminRole }
 ): Promise<LibraryArticleRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const status = input.status ?? 'draft'
@@ -320,13 +321,13 @@ export async function updateLibraryArticle(
   actor: { email: string; role: AdminRole }
 ): Promise<LibraryArticleRecord> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const existing = await prisma.article.findUnique({ where: { id } })
 
   if (!existing) {
-    throw new Error('Library article not found')
+    throw appErrors.notFound('Library article not found')
   }
 
   const nextStatus = input.status ?? existing.status
@@ -369,7 +370,7 @@ export async function deleteLibraryArticle(
   actor: { email: string; role: AdminRole }
 ): Promise<void> {
   if (!hasDatabaseConfig()) {
-    throw new Error('Database is not configured')
+    throw appErrors.databaseUnavailable()
   }
 
   const record = await prisma.article.delete({ where: { id } })

@@ -6,18 +6,19 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff } from 'lucide-react'
 import { adminRegisterSchema, type AdminRegisterData } from '@/lib/validations'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
-export default function AdminRegisterForm({ supportPhone }: { supportPhone: string }) {
+export default function AdminRegisterForm() {
   const router = useRouter()
   const [serverError, setServerError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showAccessCode, setShowAccessCode] = useState(false)
-  const [showSupportContact, setShowSupportContact] = useState(false)
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<AdminRegisterData>({
     resolver: zodResolver(adminRegisterSchema),
@@ -26,26 +27,64 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
   async function onSubmit(values: AdminRegisterData) {
     setServerError('')
 
-    const response = await fetch('/api/admin/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(values),
-    })
-
-    let result: { error?: string } = {}
-    const contentType = response.headers.get('content-type') ?? ''
-
-    if (contentType.includes('application/json')) {
-      result = await response.json()
+    type AdminRegisterResponse = {
+      ok?: boolean
+      error?: string
+      code?: string
+      fieldErrors?: Record<string, string[]>
+      retryAfter?: number
+      requiresEmailVerification?: boolean
     }
 
-    if (!response.ok) {
-      setServerError(result.error || 'Unable to complete admin registration')
-      return
-    }
+    try {
+      const response = await fetch('/api/admin/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
 
-    router.push('/admin')
-    router.refresh()
+      const result = (await readJsonResponse<AdminRegisterResponse>(response)) ?? {}
+
+      if (!response.ok) {
+        const parsedError = parseApiError(result, 'Unable to complete admin registration.')
+
+        if (Object.keys(parsedError.fieldErrors).length > 0) {
+          for (const [field, messages] of Object.entries(parsedError.fieldErrors)) {
+            const message = messages?.[0]
+            if (message) {
+              setError(field as keyof AdminRegisterData, { message })
+            }
+          }
+        }
+
+        if (parsedError.code === 'rate_limited') {
+          const minutes = parsedError.retryAfter ? Math.ceil(parsedError.retryAfter / 60) : 5
+          setServerError(
+            parsedError.message +
+              ` Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`
+          )
+          return
+        }
+
+        if (Object.keys(parsedError.fieldErrors).length === 0) {
+          setServerError(parsedError.message)
+        }
+        return
+      }
+
+      // Admin registration requires email verification before sign-in. Send the
+      // operator to the verify-email page so they know what to do next.
+      if (result.requiresEmailVerification) {
+        router.push('/admin/verify-email')
+        router.refresh()
+        return
+      }
+
+      router.push('/admin')
+      router.refresh()
+    } catch {
+      setServerError('Admin registration request failed. Check your connection and try again.')
+    }
   }
 
   return (
@@ -175,24 +214,6 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
         {isSubmitting ? 'Creating admin account...' : 'Create admin account'}
       </button>
 
-      <div className="border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setShowSupportContact((previous) => !previous)}
-          className="font-body text-sm font-semibold text-slate-700 underline decoration-emerald-500 decoration-2 underline-offset-4"
-        >
-          Need help with registration?
-        </button>
-        {showSupportContact ? (
-          <p className="mt-2 font-body text-sm text-slate-600">
-            Contact the super admin on{' '}
-            <a href={`tel:${supportPhone}`} className="font-semibold text-slate-900 underline underline-offset-4">
-              {supportPhone}
-            </a>{' '}
-            for role-code and password support.
-          </p>
-        ) : null}
-      </div>
     </form>
   )
 }

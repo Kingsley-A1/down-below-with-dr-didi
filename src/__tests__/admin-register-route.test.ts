@@ -14,6 +14,8 @@ jest.mock('@/lib/env', () => ({
     NEXT_PUBLIC_SITE_URL: 'https://test.down-below.com',
     RESEND_FROM_EMAIL: 'no-reply@test.down-below.com',
     RESEND_FROM_NAME: 'Test',
+    ADMIN_ALLOWED_USERS: 'goodeals.ng@gmail.com:editor',
+    ADMIN_INVITE_TOKENS: '',
   },
   getAdminEnv: () => mockGetAdminEnv(),
   hasDatabaseConfig: () => mockHasDatabaseConfig(),
@@ -72,7 +74,6 @@ describe('POST /api/admin/register', () => {
       ADMIN_SUPER_ADMIN_ACCESS_CODE: '741206',
       ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '404653',
       ADMIN_EDITOR_ACCESS_CODE: '246810',
-      ADMIN_SUPPORT_PHONE: '+2348012345678',
     })
     mockRegisterAdminUserAccount.mockResolvedValue({
       id: 'admin-test-id',

@@ -48,6 +48,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    return mapApiError(error, 'Failed to delete media asset', { notFoundPrefix: 'Media asset not found' })
+    return mapApiError(error, 'Failed to delete media asset', { request, identity: { email: session.email, role: session.role } })
   }
 }

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
+import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { SiteAlertRecord } from '@/lib/admin/repository'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type AlertState = 'active' | 'scheduled' | 'inactive' | 'expired'
 
@@ -80,6 +82,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
   const [showForm, setShowForm] = useState(false)
   const [pendingDeleteAlert, setPendingDeleteAlert] = useState<SiteAlertRecord | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const alertStateMap = useMemo(() => {
     const map = new Map<string, AlertState>()
@@ -111,8 +114,12 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
 
   async function refresh() {
     const response = await fetch('/api/admin/alerts', { cache: 'no-store' })
-    const data = await response.json()
-    setAlerts(data.alerts ?? [])
+    const data = await readJsonResponse<{ alerts?: SiteAlertRecord[] }>(response)
+    if (!response.ok) {
+      setMessage(parseApiError(data, 'Refresh failed').message)
+      return
+    }
+    setAlerts(data?.alerts ?? [])
   }
 
   function set(field: keyof FormState, value: string | number | boolean) {
@@ -127,6 +134,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
       startsAt: new Date().toISOString().slice(0, 16),
     })
     setShowForm(true)
+    setFieldErrors({})
     setMessage(draft ? `Recovered an alert draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -144,6 +152,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
     }
     setForm(draft?.value ?? nextForm)
     setShowForm(true)
+    setFieldErrors({})
     setMessage(draft ? `Recovered an alert draft from ${new Date(draft.savedAt).toLocaleString('en-NG')}.` : '')
   }
 
@@ -151,6 +160,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
     clearAdminDraft(editId ? alertEditDraftKey(editId) : ALERT_NEW_DRAFT_KEY)
     setShowForm(false)
     setEditId(null)
+    setFieldErrors({})
     setForm({
       ...EMPTY_FORM,
       startsAt: new Date().toISOString().slice(0, 16),
@@ -161,6 +171,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
     event.preventDefault()
     setBusy(true)
     setMessage('')
+    setFieldErrors({})
 
     try {
       const payload = {
@@ -181,10 +192,16 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
         body: JSON.stringify(payload),
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setMessage(data.error ?? 'Unable to save alert')
+        const parsed = parseApiError(data, 'Unable to save alert')
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(parsed.fieldErrors).map(([field, messages]) => [field, messages[0] ?? ''])
+          )
+        )
+        setMessage(parsed.message)
         return
       }
 
@@ -212,10 +229,10 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
 
     try {
       const response = await fetch(`/api/admin/alerts/${pendingDeleteAlert.id}`, { method: 'DELETE' })
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setMessage(data.error ?? 'Unable to delete alert')
+        setMessage(parseApiError(data, 'Unable to delete alert').message)
         return
       }
 
@@ -240,10 +257,10 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
         body: JSON.stringify({ isActive: !alert.isActive }),
       })
 
-      const data = await response.json()
+      const data = await readJsonResponse(response)
 
       if (!response.ok) {
-        setMessage(data.error ?? 'Unable to update alert status')
+        setMessage(parseApiError(data, 'Unable to update alert status').message)
         return
       }
 
@@ -283,7 +300,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
         <StatCard label="History records" value={historyAlerts.length} />
       </div>
 
-      {message ? <div aria-live="polite"><AdminInlineStatus tone="info" message={message} /></div> : null}
+      {message ? <div aria-live="polite"><AdminInlineStatus tone={getAdminStatusTone(message)} message={message} /></div> : null}
 
       {showForm ? (
         <div className="admin-surface bg-white rounded-2xl border p-6 space-y-5" style={{ borderColor: 'var(--color-border)' }}>
@@ -293,7 +310,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="lg:col-span-2">
-              <Field label="Alert text *">
+              <Field label="Alert text *" error={fieldErrors.text}>
                 <textarea
                   required
                   minLength={10}
@@ -306,7 +323,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
               </Field>
             </div>
 
-            <Field label="Speed (40-220)">
+            <Field label="Speed (40-220)" error={fieldErrors.speed}>
               <input
                 type="number"
                 min={40}
@@ -317,7 +334,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
               />
             </Field>
 
-            <Field label="Duration in seconds (8-180)">
+            <Field label="Duration in seconds (8-180)" error={fieldErrors.durationSeconds}>
               <input
                 type="number"
                 min={8}
@@ -328,7 +345,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
               />
             </Field>
 
-            <Field label="Starts at">
+            <Field label="Starts at" error={fieldErrors.startsAt}>
               <input
                 type="datetime-local"
                 value={form.startsAt}
@@ -337,7 +354,7 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
               />
             </Field>
 
-            <Field label="Ends at (optional)">
+            <Field label="Ends at (optional)" error={fieldErrors.endsAt}>
               <input
                 type="datetime-local"
                 value={form.endsAt}
@@ -497,11 +514,12 @@ export default function AlertsBoard({ initialAlerts }: { initialAlerts: SiteAler
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block space-y-1.5">
       <span className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
       {children}
+      {error ? <span className="block font-body text-xs text-red-600">{error}</span> : null}
     </label>
   )
 }

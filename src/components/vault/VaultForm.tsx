@@ -5,6 +5,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertCircle, CheckCircle, ChevronDown, Shield } from 'lucide-react'
 import { vaultSchema, type VaultFormData } from '@/lib/validations'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import faqData from '@/content/faq.json'
 
 interface FaqItem {
@@ -64,6 +65,7 @@ export default function VaultForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
     reset,
     control,
@@ -82,10 +84,17 @@ export default function VaultForm() {
         body: JSON.stringify(data),
       })
 
-      const result = await res.json().catch(() => null)
+      const result = await readJsonResponse(res)
 
       if (!res.ok) {
-        setErrorMessage(result?.error || 'Something went wrong. Please try again.')
+        const parsed = parseApiError(result, 'Something went wrong. Please try again.')
+        for (const [field, messages] of Object.entries(parsed.fieldErrors)) {
+          const message = messages[0]
+          if (message && field !== 'form') {
+            setError(field as keyof VaultFormData, { message })
+          }
+        }
+        setErrorMessage(parsed.message)
         setSubmitState('error')
         return
       }

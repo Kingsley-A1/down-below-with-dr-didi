@@ -1,5 +1,7 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
+import { DuplicateEmailError } from '@/lib/admin/errors'
 import {
   generateEmailVerificationToken,
   generatePasswordResetToken,
@@ -128,18 +130,15 @@ export async function createUser(
   password: string,
   phone?: string
 ): Promise<{ user: PublicUserRecord; verificationToken: string; verificationExpiresAt: Date } | null> {
+  // Hash + token first so the insert is the only async DB call inside the try.
+  // No pre-check on `email`: a pre-check is racy under concurrent requests, and
+  // the DB unique constraint is authoritative. We catch Prisma's P2002 and
+  // throw a typed DuplicateEmailError that the route maps to a field-scoped
+  // 409 response.
+  const passwordHash = await hashPassword(password)
+  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    })
-
-    if (existingUser) {
-      throw new Error('User with this email already exists')
-    }
-
-    const passwordHash = await hashPassword(password)
-    const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
-
     const user = (await prisma.user.create({
       data: {
         email,
@@ -153,7 +152,6 @@ export async function createUser(
       },
     })) as UserDbRecord
 
-    // Audit log: user registration
     await logAuditEvent({
       action: 'user.register',
       entityType: 'User',
@@ -169,6 +167,9 @@ export async function createUser(
       verificationExpiresAt,
     }
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new DuplicateEmailError(email)
+    }
     console.error('Error creating user:', error)
     throw error
   }

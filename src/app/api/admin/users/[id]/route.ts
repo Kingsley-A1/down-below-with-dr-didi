@@ -52,6 +52,6 @@ export async function GET(
       { status: 200 }
     )
   } catch (error) {
-    return mapApiError(error, 'Failed to fetch user details')
+    return mapApiError(error, 'Failed to fetch user details', { request, identity: { email: session.email, role: session.role } })
   }
 }

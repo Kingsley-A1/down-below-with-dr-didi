@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deleteLibraryArticle, updateLibraryArticle } from '@/lib/library/repository'
 import { libraryArticleUpdateSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { validationError } from '@/lib/api/errors'
 
 export async function PUT(
   request: NextRequest,
@@ -25,7 +26,7 @@ export async function PUT(
     const parsed = libraryArticleUpdateSchema.safeParse({ ...body, id })
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const { coverImageUrl, publishedAt } = parsed.data
@@ -47,7 +48,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, article })
   } catch (error) {
-    return mapApiError(error, 'Failed to update library article', { notFoundPrefix: 'Library article' })
+    return mapApiError(error, 'Failed to update library article', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -72,6 +73,6 @@ export async function DELETE(
     await deleteLibraryArticle(id, { email: session.email, role: session.role })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return mapApiError(error, 'Failed to delete library article', { notFoundPrefix: 'Library article' })
+    return mapApiError(error, 'Failed to delete library article', { request, identity: { email: session.email, role: session.role } })
   }
 }

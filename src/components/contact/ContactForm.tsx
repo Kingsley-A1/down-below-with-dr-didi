@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 import { contactSchema, type ContactFormData } from '@/lib/validations'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 const timeSlots = [
   '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -23,25 +24,44 @@ export default function ContactForm({
   primaryWhatsapp: string
 }) {
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [serverError, setServerError] = useState('')
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
     reset,
   } = useForm<ContactFormData>({ resolver: zodResolver(contactSchema) })
 
   const onSubmit = async (data: ContactFormData) => {
     setSubmitState('loading')
+    setServerError('')
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      setSubmitState(res.ok ? 'success' : 'error')
-      if (res.ok) reset()
+      const result = await readJsonResponse(res)
+
+      if (!res.ok) {
+        const parsed = parseApiError(result, 'Something went wrong. Please try again or use WhatsApp or Gmail for direct contact.')
+        for (const [field, messages] of Object.entries(parsed.fieldErrors)) {
+          const message = messages[0]
+          if (message && field !== 'form') {
+            setError(field as keyof ContactFormData, { message })
+          }
+        }
+        setServerError(parsed.message)
+        setSubmitState('error')
+        return
+      }
+
+      setSubmitState('success')
+      reset()
     } catch {
+      setServerError('Network error. Check your connection or use WhatsApp or Gmail for direct contact.')
       setSubmitState('error')
     }
   }
@@ -199,7 +219,7 @@ export default function ContactForm({
           >
             <AlertCircle size={18} style={{ color: '#dc2626' }} />
             <p className="font-body text-sm" style={{ color: '#b91c1c' }}>
-              Something went wrong. Please try again or use WhatsApp or Gmail for direct contact.
+              {serverError || 'Something went wrong. Please try again or use WhatsApp or Gmail for direct contact.'}
             </p>
           </div>
         )}

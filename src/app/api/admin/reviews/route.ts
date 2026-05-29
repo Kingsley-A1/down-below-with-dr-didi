@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { createAdminReview, getAllReviews } from '@/lib/reviews/repository'
 import { adminReviewSchema } from '@/lib/validations'
+import { validationError } from '@/lib/api/errors'
 
 export async function GET(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     const reviews = await getAllReviews()
     return NextResponse.json({ reviews })
   } catch (error) {
-    return mapApiError(error, 'Failed to fetch reviews')
+    return mapApiError(error, 'Failed to fetch reviews', { request, identity: { email: session.email, role: session.role } })
   }
 }
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const parsed = adminReviewSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return validationError(parsed.error)
     }
 
     const review = await createAdminReview(
@@ -56,6 +57,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, review }, { status: 201 })
   } catch (error) {
-    return mapApiError(error, 'Failed to create review')
+    return mapApiError(error, 'Failed to create review', { request, identity: { email: session.email, role: session.role } })
   }
 }

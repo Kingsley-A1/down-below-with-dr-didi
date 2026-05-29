@@ -204,7 +204,6 @@ ADMIN_ACCESS_CODE=246810
 ADMIN_SUPER_ADMIN_ACCESS_CODE=123456
 ADMIN_FOUNDER_ADMIN_ACCESS_CODE=234567
 ADMIN_EDITOR_ACCESS_CODE=345678
-ADMIN_SUPPORT_PHONE=+2348012345678
 ADMIN_ALLOWED_USERS=admin@down-below.com:super_admin,editor@down-below.com:editor
 
 # Email (Resend) — REQUIRED for verification, password reset, notifications
