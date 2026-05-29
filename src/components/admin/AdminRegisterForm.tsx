@@ -8,13 +8,12 @@ import { Eye, EyeOff } from 'lucide-react'
 import { adminRegisterSchema, type AdminRegisterData } from '@/lib/validations'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
-export default function AdminRegisterForm({ supportPhone }: { supportPhone: string }) {
+export default function AdminRegisterForm() {
   const router = useRouter()
   const [serverError, setServerError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showAccessCode, setShowAccessCode] = useState(false)
-  const [showSupportContact, setShowSupportContact] = useState(false)
 
   const {
     register,
@@ -215,24 +214,6 @@ export default function AdminRegisterForm({ supportPhone }: { supportPhone: stri
         {isSubmitting ? 'Creating admin account...' : 'Create admin account'}
       </button>
 
-      <div className="border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setShowSupportContact((previous) => !previous)}
-          className="font-body text-sm font-semibold text-slate-700 underline decoration-emerald-500 decoration-2 underline-offset-4"
-        >
-          Need help with registration?
-        </button>
-        {showSupportContact ? (
-          <p className="mt-2 font-body text-sm text-slate-600">
-            Contact the super admin on{' '}
-            <a href={`tel:${supportPhone}`} className="font-semibold text-slate-900 underline underline-offset-4">
-              {supportPhone}
-            </a>{' '}
-            for role-code and password support.
-          </p>
-        ) : null}
-      </div>
     </form>
   )
 }

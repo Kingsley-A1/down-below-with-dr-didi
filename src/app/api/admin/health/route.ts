@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { hasDatabaseConfig, hasEmailProvider, hasR2Config } from '@/lib/env'
+import { getAdminHealthEnvStatus, hasDatabaseConfig, hasEmailProvider, hasR2Config } from '@/lib/env'
 import { requireAdminSession, requireAdminRole } from '@/lib/admin/api-guard'
 import { OPERATOR_ERROR_REFERENCE, type OperatorErrorReference } from '@/lib/api/error-reference'
 import { logApiServerError, resolveRequestId } from '@/lib/api/observability'
@@ -41,16 +41,6 @@ type HealthResponse = {
     locked: number
   }
   errorReference: OperatorErrorReference[]
-}
-
-function countConfiguredAccessCodes() {
-  const codes = [
-    process.env.ADMIN_ACCESS_CODE,
-    process.env.ADMIN_SUPER_ADMIN_ACCESS_CODE,
-    process.env.ADMIN_FOUNDER_ADMIN_ACCESS_CODE,
-    process.env.ADMIN_EDITOR_ACCESS_CODE,
-  ]
-  return codes.filter((value) => typeof value === 'string' && /^\d{6}$/.test(value.trim())).length
 }
 
 export async function GET(request: NextRequest) {
@@ -100,6 +90,7 @@ export async function GET(request: NextRequest) {
       })
     }
   }
+  const adminEnvStatus = getAdminHealthEnvStatus()
 
   const body: HealthResponse = {
     ok: true,
@@ -117,8 +108,8 @@ export async function GET(request: NextRequest) {
       configured: hasR2Config(),
     },
     adminEnv: {
-      sessionSecretSet: Boolean(process.env.ADMIN_SESSION_SECRET && process.env.ADMIN_SESSION_SECRET.length >= 32),
-      accessCodesConfigured: countConfiguredAccessCodes(),
+      sessionSecretSet: adminEnvStatus.sessionSecretSet,
+      accessCodesConfigured: adminEnvStatus.accessCodesConfigured,
     },
     adminUsers: {
       total: adminUsersTotal,

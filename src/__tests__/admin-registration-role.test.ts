@@ -12,7 +12,6 @@ const ADMIN_ENV_KEYS = [
   'ADMIN_SUPER_ADMIN_ACCESS_CODE',
   'ADMIN_FOUNDER_ADMIN_ACCESS_CODE',
   'ADMIN_EDITOR_ACCESS_CODE',
-  'ADMIN_SUPPORT_PHONE',
   'ADMIN_ALLOWED_USERS',
   'ADMIN_INVITE_TOKENS',
 ] as const
@@ -42,7 +41,6 @@ function configureAdminEnv(overrides?: Partial<Record<(typeof ADMIN_ENV_KEYS)[nu
     ADMIN_SUPER_ADMIN_ACCESS_CODE: '741206',
     ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '483951',
     ADMIN_EDITOR_ACCESS_CODE: '246810',
-    ADMIN_SUPPORT_PHONE: '+2348012345678',
     ADMIN_ALLOWED_USERS: 'goodeals.ng@gmail.com:editor,founder@example.com:founder_admin|super_admin',
     ADMIN_INVITE_TOKENS: 'invitee@example.com:moderator:invite-token-abcdef',
     ...overrides,

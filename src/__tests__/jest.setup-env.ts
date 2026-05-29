@@ -13,7 +13,6 @@ const TEST_OVERRIDES: Record<string, string> = {
   ADMIN_SUPER_ADMIN_ACCESS_CODE: '910112',
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '910113',
   ADMIN_EDITOR_ACCESS_CODE: '910114',
-  ADMIN_SUPPORT_PHONE: '+2348012345678',
   ADMIN_ALLOWED_USERS: [
     'goodeals.ng@gmail.com:editor|super_admin',
     'deblessedking001@gmail.com:super_admin',

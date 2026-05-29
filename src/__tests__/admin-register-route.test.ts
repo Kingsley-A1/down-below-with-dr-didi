@@ -74,7 +74,6 @@ describe('POST /api/admin/register', () => {
       ADMIN_SUPER_ADMIN_ACCESS_CODE: '741206',
       ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '404653',
       ADMIN_EDITOR_ACCESS_CODE: '246810',
-      ADMIN_SUPPORT_PHONE: '+2348012345678',
     })
     mockRegisterAdminUserAccount.mockResolvedValue({
       id: 'admin-test-id',
