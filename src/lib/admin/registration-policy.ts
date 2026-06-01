@@ -1,6 +1,6 @@
 import { env } from '@/lib/env'
 import { constantTimeCompare } from '@/lib/security'
-import { isAdminRole, type AdminRole } from '@/lib/admin/rbac'
+import { isAdminRole, isTopLevelAdmin, type AdminRole } from '@/lib/admin/rbac'
 import { resolveAdminRegistrationRole } from '@/lib/admin/session'
 
 export type AdminRegistrationDecision =
@@ -88,6 +88,33 @@ export function isAdminEmailAllowedForRole(email: string, role: AdminRole): bool
   return entry.roles.has('*') || entry.roles.has(role)
 }
 
+/**
+ * A role is "restricted" when at least one `ADMIN_ALLOWED_USERS` entry pins it
+ * to a specific email. Restricted roles may only be registered by an
+ * allow-listed email; roles that nobody pins are authorised by a valid role
+ * access code alone.
+ *
+ * A wildcard grant (`email:*`) grants that email every role but does NOT, by
+ * itself, lock a role down — it is a privilege, not a restriction. This lets
+ * leadership pin the highest-trust roles (e.g. super_admin) to known emails
+ * while still handing out lower-role codes without pre-registering every
+ * operator's address in the environment.
+ */
+export function isRoleRestrictedByAllowlist(role: AdminRole): boolean {
+  return parseAllowedAdminEntries().some((entry) => entry.roles.has(role))
+}
+
+/**
+ * Whether a registering email must appear in `ADMIN_ALLOWED_USERS` for the
+ * given role. Top-level admins (super_admin, founder_admin) are ALWAYS pinned —
+ * they hold full authority, so a leaked role code alone must never be enough to
+ * mint one; the email must also be allow-listed. Lower roles are pinned only
+ * when an `ADMIN_ALLOWED_USERS` entry explicitly names them.
+ */
+function roleRequiresAllowlistedEmail(role: AdminRole): boolean {
+  return isTopLevelAdmin(role) || isRoleRestrictedByAllowlist(role)
+}
+
 export function resolveAdminRegistrationDecision(input: {
   email: string
   accessCode: string
@@ -97,9 +124,17 @@ export function resolveAdminRegistrationDecision(input: {
   const roleFromCode = resolveAdminRegistrationRole(accessCode)
 
   if (roleFromCode) {
-    return isAdminEmailAllowedForRole(email, roleFromCode)
-      ? { ok: true, role: roleFromCode, source: 'role_code' }
-      : { ok: false, reason: 'email_not_allowed' }
+    // The role access code proves which role the operator may register for.
+    // Top-level roles (super_admin, founder_admin) ALWAYS require an
+    // allow-listed email — full authority can never be claimed by code alone.
+    // Lower roles (editor, moderator) are authorised by a valid code unless
+    // `ADMIN_ALLOWED_USERS` explicitly pins them, so their codes stay usable
+    // without pre-registering every operator's address in the environment.
+    if (roleRequiresAllowlistedEmail(roleFromCode) && !isAdminEmailAllowedForRole(email, roleFromCode)) {
+      return { ok: false, reason: 'email_not_allowed' }
+    }
+
+    return { ok: true, role: roleFromCode, source: 'role_code' }
   }
 
   for (const invite of parseInviteTokenEntries()) {

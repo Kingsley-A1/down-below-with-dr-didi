@@ -513,6 +513,36 @@ export function adminAccountReactivated(props: {
   }
 }
 
+export function adminAccountCreated(props: {
+  recipientName: string
+  actionUrl: string
+  role: string
+  actorEmail: string
+}): TemplateOutput {
+  const { recipientName, actionUrl, role, actorEmail } = props
+  const html = shell({
+    title: 'Your DownBelow admin account is ready',
+    preheader: 'A super admin created an admin account for you.',
+    kicker: 'Admin · account created',
+    heading: 'Your admin account is ready',
+    bodyHtml: `
+      ${paragraph(`Hi ${escape(recipientName)} - ${escape(actorEmail)} created a DownBelow admin account for you. You can sign in once you have the password they set for you.`)}
+      ${detailList([
+        { label: 'Assigned role', value: role },
+        { label: 'Created by', value: actorEmail },
+      ])}
+      ${callout(`If you weren't expecting this, contact a super admin before signing in.`, 'warning')}
+      ${ctaButton('Open admin sign in', actionUrl)}
+      ${fallbackLink(actionUrl)}
+    `,
+  })
+  return {
+    subject: 'Your DownBelow admin account is ready',
+    html,
+    text: `Hi ${recipientName},\n\n${actorEmail} created a DownBelow admin account for you.\n\nAssigned role: ${role}\nCreated by: ${actorEmail}\n\nSign in: ${actionUrl}\n\nIf you weren't expecting this, contact a super admin.`,
+  }
+}
+
 export function adminAccountUpdated(props: {
   recipientName: string
   actionUrl: string

@@ -27,7 +27,7 @@ const envSchema = z.object({
   ADMIN_SUPER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
   ADMIN_FOUNDER_ADMIN_ACCESS_CODE: z.string().trim().optional().default(''),
   ADMIN_EDITOR_ACCESS_CODE: z.string().trim().optional().default(''),
-  ADMIN_ALLOWED_USERS: z.string().default('deblessedking001@gmail.com:super_admin'),
+  ADMIN_ALLOWED_USERS: z.string().default('deblessedking001@gmail.com:super_admin')|| process.env.ADMIN_ALLOWED_USERS,
   // Optional comma-separated invite tokens: email:role:token
   ADMIN_INVITE_TOKENS: z.string().optional().default(''),
   VAULT_SUBMISSIONS_ENABLED: z.string().optional().default('true'),

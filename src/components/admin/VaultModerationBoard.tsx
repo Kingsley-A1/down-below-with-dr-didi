@@ -13,9 +13,11 @@ const statusOptions: VaultStatus[] = ['new', 'reviewed', 'answered_privately', '
 export default function VaultModerationBoard({
   initialSubmissions,
   canRevealIdentity,
+  canModerate,
 }: {
   initialSubmissions: VaultSubmissionRecord[]
   canRevealIdentity: boolean
+  canModerate: boolean
 }) {
   const [submissions, setSubmissions] = useState(initialSubmissions)
   const [activeId, setActiveId] = useState('')
@@ -238,6 +240,8 @@ export default function VaultModerationBoard({
 
                 <p className="font-body text-sm text-gray-700 leading-relaxed">{submission.question}</p>
 
+                {canModerate ? (
+                  <>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <div>
                     <label className="block font-body text-xs uppercase tracking-[0.12em] text-gray-400 mb-2">Status</label>
@@ -347,6 +351,12 @@ export default function VaultModerationBoard({
                     <p className="mt-2 font-body text-xs text-gray-500">Open composer to draft and send a private response.</p>
                   )}
                 </div>
+                  </>
+                ) : (
+                  <p className="font-body text-xs text-gray-500">
+                    This submission is read-only for your role. Editors and admins can update its status and send a private response.
+                  </p>
+                )}
               </form>
             )
           })

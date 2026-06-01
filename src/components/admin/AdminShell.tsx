@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import AdminSignOutButton from '@/components/admin/AdminSignOutButton'
 import AdminUploadModal from '@/components/admin/AdminUploadModal'
-import type { AdminRole } from '@/lib/admin/rbac'
+import { isTopLevelAdmin, type AdminRole } from '@/lib/admin/rbac'
 import { siteConfig } from '@/lib/site-config'
 
 type NavLinkItem = {
@@ -109,22 +109,21 @@ function AdminNav({
           </p>
           <div className="space-y-1.5">
             {section.links.filter((link) => {
+              // Admin account management and the health dashboard are top-level
+              // (super_admin / founder_admin) only.
               if (link.href === '/admin/admin-users') {
-                return role === 'super_admin'
+                return isTopLevelAdmin(role)
               }
 
               if (link.href === '/admin/health') {
-                return role === 'super_admin'
+                return isTopLevelAdmin(role)
               }
 
               if (link.href === '/admin/library') {
-                return role === 'super_admin' || role === 'founder_admin'
+                return isTopLevelAdmin(role)
               }
 
-              if (link.href === '/admin/alerts') {
-                return role === 'super_admin' || role === 'founder_admin' || role === 'editor'
-              }
-
+              // Alerts are content any admin (moderator and up) can manage.
               return true
             }).map((link) => {
               const active = isActivePath(pathname, link.href)

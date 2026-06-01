@@ -1,5 +1,6 @@
 import { sendEmail, type SendEmailResult } from '@/lib/email/send'
 import {
+  adminAccountCreated,
   adminAccountDeleted,
   adminAccountSuspended,
   adminAccountUpdated,
@@ -7,7 +8,7 @@ import {
 import { env } from '@/lib/env'
 import type { AdminAccountRecord } from '@/lib/admin/repository'
 
-type AdminAccountNotificationAction = 'updated' | 'suspended' | 'deleted'
+type AdminAccountNotificationAction = 'created' | 'updated' | 'suspended' | 'deleted'
 
 interface NotifyAdminAccountChangeInput {
   action: AdminAccountNotificationAction
@@ -43,7 +44,14 @@ export async function notifyAdminAccountChange(input: NotifyAdminAccountChangeIn
   const recipientName = getRecipientName(input.account)
   const supportEmail = env.RESEND_FROM_EMAIL
   const template =
-    input.action === 'updated'
+    input.action === 'created'
+      ? adminAccountCreated({
+          recipientName,
+          actionUrl: getAdminSignInUrl(),
+          role: input.account.role,
+          actorEmail: input.actorEmail,
+        })
+      : input.action === 'updated'
       ? adminAccountUpdated({
           recipientName,
           actionUrl: getAdminSignInUrl(),
