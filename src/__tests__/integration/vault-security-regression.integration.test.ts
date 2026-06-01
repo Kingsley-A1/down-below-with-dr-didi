@@ -62,20 +62,21 @@ describe('V-Vault security regressions', () => {
   })
 
   it('rejects non-privileged admin role for response endpoint', async () => {
-    await ensureAdminUser('editor-regression@example.com', 'editor')
-    const editorToken = await createAdminSessionToken({
-      email: 'editor-regression@example.com',
-      role: 'editor',
+    // Responding requires editor or higher; a moderator must be blocked.
+    await ensureAdminUser('moderator-regression@example.com', 'moderator')
+    const moderatorToken = await createAdminSessionToken({
+      email: 'moderator-regression@example.com',
+      role: 'moderator',
     })
 
     const request = createMockNextRequest(
       'POST',
       '/api/admin/vault/submission-2/respond',
       {
-        responseBody: 'This should be rejected because editor role lacks super_admin-level moderation authority.',
+        responseBody: 'This should be rejected because moderator role lacks editor-level moderation authority.',
       },
       {
-        cookie: `${ADMIN_SESSION_COOKIE}=${editorToken}`,
+        cookie: `${ADMIN_SESSION_COOKIE}=${moderatorToken}`,
       }
     )
 
@@ -85,7 +86,7 @@ describe('V-Vault security regressions', () => {
     expect(response.status).toBe(403)
     const body = await parseResponseBody(response)
     expect(body.code).toBe('permission_denied')
-    expect(String(body.error || '')).toContain('super_admin')
+    expect(String(body.error || '')).toContain('editor')
   })
 
   it('rejects invalid response payload with schema validation', async () => {

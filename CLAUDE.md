@@ -1,1 +1,450 @@
-@AGENTS.md
+# Down Below Family Health Initiative — Agent Operating Standard
+
+> **Classification:** Internal — Confidential
+> **Audience:** AI coding agents, GitHub Copilot, and human contributors working on this project
+> **Last updated:** 2026-06-01
+> **Repository:** `down-below-with-dr-didi` — branch `main`
+
+---
+
+## 0. Prime Directive
+
+You are working on the **Down Below Family Health Initiative with Dr. Didi** — a faith-based, clinical-grade public health website serving women across Nigeria with evidence-based reproductive health education, booking support, a safe anonymous question vault, and editorial content.
+
+Your job is not to generate code. Your job is to improve the product safely.
+
+This platform handles **patient contact details, anonymous health disclosures, faith-sensitive content, and Dr. Didi's professional reputation**. Every change must be:
+
+- **Correct:** typed, validated, schema-aligned, and tested.
+- **Useful:** solves the real patient or operational need, not only the visible symptom.
+- **Polished:** accessible, responsive, readable, and consistent with the Down Below brand voice.
+- **Safe:** no PII leakage, no insecure defaults, no broken forms, no missing auth guards.
+- **Maintainable:** clear enough that a solo maintainer can debug and extend it six months later.
+
+If speed and quality appear to conflict, choose the smallest high-quality slice. Never ship prototype behavior into production paths.
+
+---
+
+## 1. Platform Identity
+
+| Attribute | Value |
+| --- | --- |
+| **Full name** | Down Below Family Health Initiative with Dr. Didi |
+| **Short name** | Down Below Family |
+| **Tagline** | Expose in Love, teach, heal, and win the world for God. |
+| **Motto** | Expose in Love, Teach, Heal, Win. |
+| **Description** | A faith-based family health initiative led by Dr. Didi, blending clinical care, natural wellness guidance, and spiritual support for women. |
+| **Primary market** | Nigeria — faith-based women's health audience |
+| **Primary contact** | downbelowwithdrdidi@gmail.com |
+| **WhatsApp** | Configured in `SiteSettings` via admin panel |
+| **Production URL** | `https://down-below.com` |
+| **Admin panel** | `/admin` — HMAC-SHA256 signed cookie session, RBAC |
+| **Hosting** | Vercel (frontend + API routes) |
+| **Database** | CockroachDB via Prisma 7 |
+| **Media storage** | Cloudflare R2 via AWS SDK v3 |
+
+### Brand Voice
+
+- Warm, clinical, faith-affirming, non-judgmental.
+- Never clinical to the point of coldness. Never devotional to the point of vagueness.
+- Direct action copy: prefer `Book a Session`, `Submit Your Question`, `Read Article` over vague `Learn More`.
+- Error messages explain what happened and what the user should do next.
+- Health content must be accurate. Do not invent or speculate on medical information.
+
+---
+
+## 2. Architecture
+
+This is a **full-stack Next.js application** — there is no separate backend service.
+
+```
+down-below-with-dr-didi/
+├── src/
+│   ├── app/                        # Next.js App Router
+│   │   ├── page.tsx                # Home / hero
+│   │   ├── about/                  # About Dr. Didi + team
+│   │   ├── library/                # Article library + [slug]
+│   │   ├── outreach/               # Outreach events
+│   │   ├── contact/                # Booking / contact form
+│   │   ├── vault/                  # V-Vault anonymous question form
+│   │   ├── admin/                  # Admin panel (protected)
+│   │   │   ├── page.tsx            # Dashboard
+│   │   │   ├── settings/           # Site settings editor
+│   │   │   ├── media/              # Media asset browser + uploader
+│   │   │   └── vault/              # Vault submission moderation board
+│   │   └── api/
+│   │       ├── contact/            # POST — booking submissions
+│   │       ├── vault/              # POST — anonymous vault questions
+│   │       └── admin/
+│   │           ├── session/        # POST sign-in / DELETE sign-out
+│   │           ├── settings/       # GET + PUT site settings (auth required)
+│   │           ├── media/          # GET + POST media assets (auth required)
+│   │           └── vault/          # GET + PUT vault moderation (auth required)
+│   ├── components/
+│   │   ├── layout/                 # Navbar, Footer, WelcomeIntro
+│   │   ├── contact/                # ContactForm
+│   │   ├── vault/                  # VaultForm
+│   │   └── admin/                  # VaultModerationBoard, admin UI
+│   ├── lib/
+│   │   ├── env.ts                  # Zod-validated env — hard fails on missing secrets
+│   │   ├── site-config.ts          # SiteSettingsState type + defaults
+│   │   ├── validations.ts          # All Zod schemas (contact, vault, admin)
+│   │   ├── utils.ts                # clsx helper
+│   │   ├── rate-limit.ts           # In-memory sliding-window rate limiter
+│   │   ├── prisma.ts               # Prisma client singleton
+│   │   ├── admin/
+│   │   │   ├── session.ts          # HMAC-SHA256 signed cookie auth
+│   │   │   ├── rbac.ts             # Roles: super_admin, founder_admin, editor, moderator
+│   │   │   └── repository.ts       # All DB access functions
+│   │   └── storage/
+│   │       └── r2.ts               # Cloudflare R2 upload helpers
+│   ├── content/
+│   │   └── faq.json                # Static FAQ content for V-Vault preview
+│   └── data/                       # Static prototype data (MD-003 migration pending)
+│       ├── articles.ts
+│       ├── outreach.ts
+│       ├── team.ts
+│       └── vault-preview.ts
+├── prisma/
+│   ├── prisma.config.ts            # Prisma 7 config-first setup
+│   ├── schema.prisma               # CockroachDB schema
+│   └── migrations/                 # Applied migration history
+└── public/                         # Static assets
+```
+
+### Architecture Rules
+
+- **Full-stack Next.js only.** All API routes live in `src/app/api/`. No separate backend process.
+- **Server components by default.** Add `"use client"` only when hooks, event handlers, browser APIs, or local state are required.
+- **All DB access through `src/lib/admin/repository.ts`.** Do not call Prisma directly in route handlers or components.
+- **All env access through `src/lib/env.ts`.** Never read `process.env` directly outside that file.
+- **All validation through `src/lib/validations.ts`.** Never write inline Zod schemas in route handlers.
+- **Rate limiting in `src/lib/rate-limit.ts`.** The current implementation is single-process in-memory. If multi-replica deployment arrives, swap to `@upstash/ratelimit`.
+- **Media upload through `src/lib/storage/r2.ts`.** Never expose R2 credentials to the client.
+
+---
+
+## 3. Tech Stack
+
+| Layer | Technology | Version |
+| --- | --- | --- |
+| Framework | Next.js App Router | 16.2.4 |
+| Runtime | React | 19.2.4 |
+| Language | TypeScript | ^5 (strict) |
+| Styling | Tailwind CSS | v4 |
+| Animation | Framer Motion | ^12 |
+| Icons | Lucide React | ^1.14 |
+| Forms | React Hook Form | ^7.74 |
+| Form validation resolver | `@hookform/resolvers` | ^5.2 |
+| Validation | Zod | ^4.4 |
+| ORM | Prisma | 7.8.0 |
+| DB adapter | `@prisma/adapter-pg` + `pg` | required at runtime |
+| Database | CockroachDB | cloud-hosted |
+| Media | Cloudflare R2 via AWS SDK v3 | ^3.1044 |
+| Auth | Custom HMAC-SHA256 cookie session | — |
+| Lint | ESLint + `eslint-config-next` | ^9 |
+| Dev server | `next dev --webpack` on Windows | Turbopack unavailable on this machine |
+
+### Key Constraints
+
+- `ADMIN_SESSION_SECRET` must be ≥ 32 characters. No placeholder defaults — the app throws at startup if absent or insecure.
+- Admin role access codes (`ADMIN_ACCESS_CODE`, `ADMIN_SUPER_ADMIN_ACCESS_CODE`, `ADMIN_FOUNDER_ADMIN_ACCESS_CODE`, `ADMIN_EDITOR_ACCESS_CODE`) must each be a **unique 6-digit number**. The app hard-fails at startup if any is missing, malformed, or duplicated.
+- Prisma schema changes require `prisma migrate dev` **and** `prisma generate` before TypeScript sees the updated client.
+- Windows dev server: use `pnpm dev -- --webpack` (not default Turbopack) due to native binding unavailability.
+- Use `useWatch({ control, name, defaultValue })` — not `watch()` — in form components for React Compiler compatibility.
+
+---
+
+## 4. Admin System
+
+### Authentication
+
+- Cookie name: `dbfh_admin_session` — HMAC-SHA256 signed payload (email, role, expiry, tokenVersion).
+- Registration: `POST /api/admin/register` — a 6-digit role access code maps to a role (see RBAC + registration below).
+- Sign-in: `POST /api/admin/session` — email + password (bcrypt-hashed); cookie issued on success.
+- Sign-out: `DELETE /api/admin/session`.
+- API routes call `requireAdminSession(request)` (signature + DB revocation check) then `requireAdminRole(session, <role>)` where a role is required — both in `src/lib/admin/api-guard.ts`. Return `401` when the session is absent/invalid, `403` when the role is insufficient.
+- Server-rendered admin pages use `requireAdminPageSession({ requiredRole })` in `src/lib/admin/page-guard.ts`.
+
+### RBAC
+
+Four roles in a strict rank hierarchy. `canAccessRole(currentRole, requiredRole)` (in `src/lib/admin/rbac.ts`) gates by rank — a required role means "that role **or higher**". `super_admin` and `founder_admin` share the top rank: they are **equal in power** and differ only by name and registration code.
+
+| Role | Rank | Capabilities |
+| --- | --- | --- |
+| `moderator` | 1 | Create/edit content (events, podcast, gallery, media, reviews, team, alerts); list V-Vault submissions (identity masked); moderate event comments |
+| `editor` | 2 | Moderator + moderate & privately respond to V-Vault submissions |
+| `founder_admin` | 4 | Full authority — identical to `super_admin` |
+| `super_admin` | 4 | Everything: site settings writes, all content deletes, V-Vault identity reveal, app user management, admin account create/promote/demote/suspend/delete, health dashboard |
+
+Helpers in `src/lib/admin/rbac.ts`:
+- `isTopLevelAdmin(role)` — `true` for `super_admin` and `founder_admin`. Use for the highest-trust gates (identity reveal, admin account management, registration pinning).
+- `canViewVaultIdentity(role)` — top-level admins only; every reveal is audit-logged.
+- `canModerateVault(role)` — editor and up.
+
+### Admin registration & account creation
+
+- **Self-registration:** `POST /api/admin/register`. A 6-digit role access code (`ADMIN_*_ACCESS_CODE`) maps to a role. Top-level roles (`super_admin`, `founder_admin`) are **always pinned**: the registering email must also appear in `ADMIN_ALLOWED_USERS` (format `email:role`, comma-separated). Lower roles (`editor`, `moderator`) self-register by code alone unless explicitly pinned. Logic lives in `src/lib/admin/registration-policy.ts`.
+- **Admin-created accounts:** a top-level admin can create, promote/demote, suspend, and delete admins via `/api/admin/admin-users` (super_admin-gated). Account creation and role changes email the affected admin (`src/lib/admin/account-notifications.ts`).
+- The last active `super_admin` cannot be demoted or deactivated (`assertAdminAccountCanLoseSuperAdminStatus`).
+
+### Admin API Routes (minimum role)
+
+| Route(s) | Purpose | Minimum role |
+| --- | --- | --- |
+| Content list/create/update — `events`, `podcast`, `gallery`, `media`, `reviews`, `team`, `alerts` | Manage content | `moderator` |
+| `GET /api/admin/vault` | List V-Vault submissions (identity masked) | `moderator` |
+| `PUT /api/admin/vault`, `POST /api/admin/vault/[id]/respond` | Moderate / privately respond | `editor` |
+| `/api/admin/library…` | Library / articles | `founder_admin` |
+| Content deletes, `PUT /api/admin/settings`, `?includeIdentity` reveal | High-trust writes / PII reveal | `super_admin` (and `founder_admin`) |
+| `/api/admin/users…`, `/api/admin/admin-users…`, `/api/admin/health` | App users, admin accounts, health dashboard | `super_admin` (and `founder_admin`) |
+| `POST /api/admin/register` | Register (access code → role) | Public (guarded by code + allowlist) |
+| `POST /api/admin/session` / `DELETE /api/admin/session` | Sign in / sign out | Public (credentials / cookie) |
+
+---
+
+## 5. Public API Surface
+
+| Route | Method | Rate limit | Purpose |
+| --- | --- | --- | --- |
+| `/api/contact` | POST | 5 req / 10 min per IP | Booking request — persisted to `ContactSubmission` |
+| `/api/vault` | POST | 10 req / 10 min per IP | Anonymous health question — persisted to `VaultSubmission` |
+
+Both routes return `429` with `Retry-After` header when rate-limited.
+
+---
+
+## 6. Database Models
+
+Current Prisma models (CockroachDB):
+
+| Model | Purpose |
+| --- | --- |
+| `AdminUser` | Allowlisted admin accounts |
+| `SiteSettings` | Global site content (headline, blurb, hero image, contact info) |
+| `MediaAsset` | Cloudflare R2 upload metadata |
+| `AuditLog` | Admin action log |
+| `VaultSubmission` | Anonymous health questions from the public |
+| `ContactSubmission` | Booking requests from the contact form |
+| `Article` | Library articles (schema ready; public page still uses static data — MD-003) |
+| `OutreachEvent` | Outreach events (schema ready; public page still uses static data — MD-003) |
+
+Schema: `prisma/schema.prisma`
+
+```bash
+pnpm db:migrate     # prisma migrate dev
+pnpm db:deploy      # prisma migrate deploy (production)
+pnpm db:generate    # prisma generate (after schema changes)
+pnpm db:seed        # node prisma/seed.mjs
+pnpm db:studio      # prisma studio
+```
+
+---
+
+## 7. Open Work — MD-003 Migration Workstream
+
+The following public pages still render from static `src/data/` files. Migrating them to DB-backed content is **intentionally deferred** — do not touch unless explicitly requested.
+
+| Surface | Static file | Target Prisma model | Priority |
+| --- | --- | --- | --- |
+| `/library` | `src/data/articles.ts` | `Article` (schema exists) | P1 |
+| `/outreach` | `src/data/outreach.ts` | `OutreachEvent` (schema exists) | P2 |
+| `/about` | `src/data/team.ts` | `TeamMember` (needs new model) | P3 |
+
+Each migration requires: (1) seed from static file, (2) admin CRUD UI, (3) public page switched to DB query, (4) static file deleted.
+
+---
+
+## 8. Engineering Principles
+
+| Principle | Meaning | Agent behaviour |
+| --- | --- | --- |
+| **Clarity** | The system should be easy to reason about. | Explicit names, simple flows, direct responses, typed everything. |
+| **Compassion** | The audience is women seeking health guidance. | Form errors, empty states, and content copy must be warm and non-judgmental. |
+| **Confidence** | Visitors, patients, and Dr. Didi must trust the platform. | Validate inputs, guard admin routes, handle edge cases, show recovery paths. |
+| **Consistency** | Repeated patterns behave the same everywhere. | Reuse existing components, repository functions, validation schemas, and env helpers. |
+| **Competence** | Work must meet a professional production bar. | No `console.log` in route handlers, no prototype comments in production, no avoidable regressions. |
+
+---
+
+## 9. TypeScript Standard
+
+`any` is prohibited.
+
+Use:
+- `unknown` + narrowing for uncertain external data
+- `interface` for object contracts; `type` for unions/intersections
+- Explicit return types on all exported functions
+- `readonly` for immutable public data
+- `as const` for literal maps
+- Zod schemas for all external input validation
+
+Avoid:
+- `any` or implicit `any`
+- `@ts-ignore` without a dated comment explaining why
+- Inline Zod schemas in route handlers — put them in `src/lib/validations.ts`
+- Direct `process.env` reads — use `src/lib/env.ts`
+- Direct Prisma calls outside `src/lib/admin/repository.ts`
+
+---
+
+## 10. Agent Workflow
+
+Follow this sequence for every non-trivial task.
+
+### 10.1 Understand Before Changing
+
+- Read the request carefully.
+- Identify which files are in scope: route, repository, schema, component, validation, or config.
+- Read the relevant files before editing — do not infer content from memory.
+- Check current TypeScript errors with `pnpm exec tsc --noEmit` and lint with `pnpm lint`.
+- Do not introduce new type errors or lint warnings.
+
+### 10.2 Plan the Smallest Correct Slice
+
+- Define the concrete outcome.
+- List the files to change and why.
+- Identify migration, auth, rate-limit, or PII risks.
+- Keep changes scoped. Split work when a change becomes hard to review.
+
+### 10.3 Implement With Existing Patterns
+
+- Add new DB models to `prisma/schema.prisma`, run `db:migrate` then `db:generate`.
+- Add new validation schemas to `src/lib/validations.ts`.
+- Add new repository functions to `src/lib/admin/repository.ts`.
+- Add new env vars to `src/lib/env.ts` with Zod validation.
+- Reuse the existing `requireAdmin(request)` pattern for all admin routes.
+- Reuse `contactLimiter` / `vaultLimiter` pattern from `src/lib/rate-limit.ts` for new public endpoints.
+
+### 10.4 Verify
+
+Minimum verification after every change:
+
+```bash
+pnpm exec tsc --noEmit     # must produce 0 errors
+pnpm lint                  # must produce 0 errors, 0 warnings
+```
+
+For schema changes also run:
+
+```bash
+pnpm db:generate  # regenerate Prisma client
+```
+
+For significant UI changes: start the dev server with `pnpm dev -- --webpack` and verify manually.
+
+### 10.5 Report Clearly
+
+Every response must state:
+- What changed and where.
+- What was verified.
+- What is deferred and why.
+
+Do not bury failures. Do not hide assumptions.
+
+---
+
+## 11. UI, UX, and Accessibility Standard
+
+### Visual
+
+- Mobile-first layouts. The audience includes women on mid-range Nigerian Android devices.
+- Faith-warm colour palette — do not introduce jarring off-brand colours.
+- Clear hierarchy: one primary action per view.
+- Health content is the visual centre — no decorative clutter that competes with it.
+- Use `next/image` for all product and hero imagery.
+- Text must never clip, overflow, or become unreadable at any viewport.
+
+### Interaction
+
+- Links navigate. Buttons act.
+- Icon-only buttons need a descriptive `aria-label`.
+- Every interactive target is at least 44 CSS pixels on mobile.
+- Loading buttons preserve their label and show progress.
+- Forms stay submittable until submission starts.
+- Health forms (contact, vault) must feel safe — no aggressive validation noise before the user has finished typing.
+
+### Accessibility
+
+Minimum target: WCAG 2.2 AA for all patient-facing flows.
+
+Required:
+- Semantic HTML before ARIA.
+- Correct heading hierarchy.
+- Labels for every form control.
+- `aria-describedby` for errors and helper text.
+- `aria-live` for async status (form submission, loading states).
+- Keyboard navigation for all features.
+- Reduced-motion support (`prefers-reduced-motion`).
+- Colour is never the only status indicator.
+
+### Content
+
+- Warm, direct copy. Not clinical-cold. Not vague-devotional.
+- Buttons: `Book a Session`, `Submit Question`, `Read Article`, `Save Settings`.
+- Error messages: explain what happened + what to do. Never just `Error`.
+- Health disclosures: non-judgmental, never stigmatising.
+- Admin copy: operational and precise.
+
+---
+
+## 12. Security Rules
+
+Non-negotiable:
+
+- **Never** commit secrets, tokens, or credentials to source control.
+- **Never** `console.log` PII (email, phone, health questions, patient names) in any route handler.
+- **Never** use placeholder defaults for `ADMIN_SESSION_SECRET` or `ADMIN_ACCESS_CODE` — the app hard-fails at startup.
+- **Always** call `requireAdmin(request)` at the top of every admin route handler before any data access.
+- **Always** apply rate limiting on public POST endpoints.
+- **Always** validate all inbound data against a Zod schema before using it.
+- R2 credentials stay server-side only. Never pass them to the client.
+- Vault questions are anonymous — never associate IP, session, or identity data with a submission.
+- V-Vault submitter identity (only present for app-authenticated submissions) is masked by default and revealable solely by top-level admins (`super_admin`/`founder_admin`) via `?includeIdentity`; every reveal is audit-logged. Never expose identity to `editor` or `moderator`.
+- Contact submissions contain patient PII — treat `ContactSubmission` records with appropriate care.
+
+---
+
+## 13. Git and PR Standard
+
+### Branches
+
+| Type | Pattern | Example |
+| --- | --- | --- |
+| Feature | `feat/<short-desc>` | `feat/article-db-migration` |
+| Fix | `fix/<short-desc>` | `fix/contact-form-phone-validation` |
+| Hotfix | `hotfix/<short-desc>` | `hotfix/admin-session-expiry` |
+| Chore | `chore/<short-desc>` | `chore/dependency-updates` |
+
+### Commits (Conventional Commits)
+
+```
+feat(vault): add category filter to moderation board
+
+Allows moderators to filter submissions by health category
+to prioritise urgent questions.
+```
+
+### PR Standard
+
+- Prefer PRs under 300 changed lines.
+- Link issues with `Closes #<number>`.
+- Include screenshot for any UI change.
+- Include migration notes for any schema change.
+- Include rollback strategy for any destructive change.
+
+---
+
+## 14. Definition of Done
+
+A task on this project is done only when:
+
+- [ ] The change compiles: `pnpm exec tsc --noEmit` returns 0 errors.
+- [ ] The change is clean: `pnpm lint` returns 0 errors, 0 warnings.
+- [ ] No PII is logged in any modified route handler.
+- [ ] All new admin routes call `requireAdmin(request)` before accessing data.
+- [ ] All new public POST endpoints have a rate limiter applied.
+- [ ] All new DB models have a migration applied AND `prisma generate` has been run.
+- [ ] All new env vars are declared in `src/lib/env.ts` with Zod validation.
+- [ ] The `code-review-2026-05-07.md` tracker is updated if the change closes a tracked finding.
+- [ ] The change has been verified on the dev server (`pnpm dev -- --webpack`) when it affects a patient-facing route.

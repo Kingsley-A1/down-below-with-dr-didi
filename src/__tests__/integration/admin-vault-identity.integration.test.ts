@@ -1,6 +1,7 @@
 /**
  * Admin V-Vault Identity Integration Tests
- * Verifies super_admin-only reveal behavior and identity-view audit logging.
+ * Verifies top-level-admin (super_admin + founder_admin) reveal behavior and
+ * identity-view audit logging. Editors and moderators stay masked.
  */
 
 import { describe, it, expect, jest, beforeAll, afterAll, afterEach } from '@jest/globals'
@@ -101,7 +102,7 @@ describeWithDatabase('Admin V-Vault Identity', () => {
     expect(logs.length).toBeGreaterThan(0)
   })
 
-  it('blocks founder_admin from includeIdentity reveal requests', async () => {
+  it('allows founder_admin to reveal linked identity, matching super_admin', async () => {
     const user = await createTestUser({
       email: 'founder-policy-check@example.com',
       emailVerified: true,
@@ -110,7 +111,7 @@ describeWithDatabase('Admin V-Vault Identity', () => {
     await prisma.vaultSubmission.create({
       data: {
         category: 'Contraception',
-        question: 'Founder role should not reveal this identity.',
+        question: 'Founder role now has super_admin-level identity access.',
         source: 'app_authenticated',
         userId: user.id,
       },
@@ -126,7 +127,7 @@ describeWithDatabase('Admin V-Vault Identity', () => {
     const founderRes = await GET(founderReq)
     const founderBody = await parseResponseBody(founderRes)
 
-    expect(founderRes.status).toBe(403)
-    expect(String(founderBody.error || '')).toContain('Insufficient permissions')
+    expect(founderRes.status).toBe(200)
+    expect(founderBody.submissions[0].submitter.email).toBe('founder-policy-check@example.com')
   })
 })

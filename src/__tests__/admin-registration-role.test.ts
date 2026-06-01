@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from '@jest/globals'
 import {
   isAdminEmailAllowedForRole,
+  isRoleRestrictedByAllowlist,
   resolveAdminRegistrationDecision,
 } from '@/lib/admin/registration-policy'
 import { resolveAdminRegistrationRole } from '@/lib/admin/session'
@@ -110,6 +111,65 @@ describe('Admin registration role codes', () => {
     ).toEqual({ ok: false, reason: 'email_not_allowed' })
   })
 
+  it('authorises an unrestricted role by access code alone', () => {
+    // moderator is not pinned in ADMIN_ALLOWED_USERS, so a valid moderator code
+    // is sufficient for any registering email.
+    configureAdminEnv()
+
+    expect(isRoleRestrictedByAllowlist('moderator')).toBe(false)
+    expect(
+      resolveAdminRegistrationDecision({
+        email: 'new-moderator@example.com',
+        accessCode: '987654',
+      })
+    ).toEqual({ ok: true, role: 'moderator', source: 'role_code' })
+  })
+
+  it('locks top-level roles to allow-listed emails while lower role codes self-register', () => {
+    // founder_admin now has full super_admin power, so it is pinned just like
+    // super_admin: a valid code is not enough — the email must be allow-listed.
+    // editor/moderator stay code-only unless explicitly pinned.
+    configureAdminEnv({
+      ADMIN_ALLOWED_USERS: 'founder@example.com:super_admin,co-founder@example.com:founder_admin',
+    })
+
+    expect(isRoleRestrictedByAllowlist('super_admin')).toBe(true)
+    expect(isRoleRestrictedByAllowlist('founder_admin')).toBe(true)
+    expect(isRoleRestrictedByAllowlist('editor')).toBe(false)
+
+    // super_admin: only the pinned founder email.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'founder@example.com', accessCode: '741206' })
+    ).toEqual({ ok: true, role: 'super_admin', source: 'role_code' })
+    expect(
+      resolveAdminRegistrationDecision({ email: 'outsider@example.com', accessCode: '741206' })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+
+    // founder_admin: only the pinned co-founder email — the code alone is not enough.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'co-founder@example.com', accessCode: '483951' })
+    ).toEqual({ ok: true, role: 'founder_admin', source: 'role_code' })
+    expect(
+      resolveAdminRegistrationDecision({ email: 'outsider@example.com', accessCode: '483951' })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+
+    // editor stays open to any email by code alone.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'new-editor@example.com', accessCode: '246810' })
+    ).toEqual({ ok: true, role: 'editor', source: 'role_code' })
+  })
+
+  it('locks founder_admin even when it is not explicitly pinned in the allowlist', () => {
+    // Only super_admin is pinned here; founder_admin is still treated as a
+    // top-level role, so its code cannot self-register an unlisted email.
+    configureAdminEnv({ ADMIN_ALLOWED_USERS: 'founder@example.com:super_admin' })
+
+    expect(isRoleRestrictedByAllowlist('founder_admin')).toBe(false)
+    expect(
+      resolveAdminRegistrationDecision({ email: 'anyone@example.com', accessCode: '483951' })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+  })
+
   it('supports email-specific invite tokens', () => {
     configureAdminEnv()
 
@@ -126,5 +186,42 @@ describe('Admin registration role codes', () => {
         accessCode: 'invite-token-abcdef',
       })
     ).toEqual({ ok: false, reason: 'invalid_invite' })
+  })
+
+  it('resolves the original report: founder code 404653 and editor code 246810 are no longer denied at registration', () => {
+    // Reproduces the reported symptom ("they register and see Admin Access
+    // Denied") with the project's real role codes, under the intended pinning
+    // config: super_admin + founder_admin are pinned to specific emails, while
+    // editor and moderator self-register by code. A denied decision here is
+    // exactly what the register route turns into the 401 "Admin registration
+    // denied" the user saw.
+    configureAdminEnv({
+      ADMIN_SUPER_ADMIN_ACCESS_CODE: '826272',
+      ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '404653',
+      ADMIN_EDITOR_ACCESS_CODE: '246810',
+      ADMIN_ALLOWED_USERS: 'deblessedking001@gmail.com:super_admin,cofounder@example.com:founder_admin',
+    })
+
+    // Editor (246810): self-registers for any email — the denial is gone.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'new-editor@example.com', accessCode: '246810' })
+    ).toEqual({ ok: true, role: 'editor', source: 'role_code' })
+
+    // Founder (404653): registers when the email is allow-listed (the pinning the
+    // owner chose), so a trusted co-lead is no longer blocked.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'cofounder@example.com', accessCode: '404653' })
+    ).toEqual({ ok: true, role: 'founder_admin', source: 'role_code' })
+
+    // Founder (404653) for a non-allow-listed email stays denied by design — the
+    // top role can't be claimed by code alone.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'stranger@example.com', accessCode: '404653' })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+
+    // super_admin still resolves for the pinned founder email.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'deblessedking001@gmail.com', accessCode: '826272' })
+    ).toEqual({ ok: true, role: 'super_admin', source: 'role_code' })
   })
 })

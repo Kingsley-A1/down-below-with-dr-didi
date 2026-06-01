@@ -232,15 +232,20 @@ describe('admin API typed error mapping', () => {
   })
 
   it('returns permission_denied before a route reaches repository work', async () => {
-    setAdminRole('moderator')
+    // Library management is top-level (founder_admin) only; an editor is denied
+    // by the role guard before any repository call runs.
+    setAdminRole('editor')
 
-    const { POST } = await import('@/app/api/admin/events/route')
-    const response = await POST(createJsonRequest('POST', '/api/admin/events', validEventPayload))
+    const { PUT } = await import('@/app/api/admin/library/[id]/route')
+    const response = await PUT(
+      createJsonRequest('PUT', '/api/admin/library/article-1', { title: 'Updated title' }),
+      { params: Promise.resolve({ id: 'article-1' }) }
+    )
     const body = await readBody(response)
 
     expect(response.status).toBe(403)
     expect(body.code).toBe('permission_denied')
-    expect(body.error).toContain('editor')
-    expect(mockCreateEvent).not.toHaveBeenCalled()
+    expect(body.error).toContain('founder_admin')
+    expect(mockUpdateLibraryArticle).not.toHaveBeenCalled()
   })
 })

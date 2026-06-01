@@ -3,8 +3,10 @@ import { NextResponse } from 'next/server'
 import {
   adminRoles,
   canAccessRole,
+  canModerateVault,
   canViewVaultIdentity,
   isAdminRole,
+  isTopLevelAdmin,
   normaliseAdminRole,
   type AdminRole,
 } from '@/lib/admin/rbac'
@@ -31,20 +33,33 @@ describe('Admin RBAC and Vault identity policy', () => {
     expect(isAdminRole('member')).toBe(false)
   })
 
-  it('enforces role hierarchy for operation access', () => {
+  it('treats founder_admin and super_admin as equal top-level admins', () => {
     expect(canAccessRole('super_admin', 'super_admin')).toBe(true)
-    expect(canAccessRole('founder_admin', 'super_admin')).toBe(false)
+    // founder_admin now has full super_admin authority.
+    expect(canAccessRole('founder_admin', 'super_admin')).toBe(true)
     expect(canAccessRole('super_admin', 'founder_admin')).toBe(true)
     expect(canAccessRole('editor', 'super_admin')).toBe(false)
     expect(canAccessRole('moderator', 'editor')).toBe(false)
     expect(canAccessRole('editor', 'moderator')).toBe(true)
+
+    expect(isTopLevelAdmin('super_admin')).toBe(true)
+    expect(isTopLevelAdmin('founder_admin')).toBe(true)
+    expect(isTopLevelAdmin('editor')).toBe(false)
+    expect(isTopLevelAdmin('moderator')).toBe(false)
   })
 
-  it('enforces identity visibility as super_admin-only', () => {
+  it('enforces identity visibility as top-level-admin-only', () => {
     expect(canViewVaultIdentity('super_admin')).toBe(true)
-    expect(canViewVaultIdentity('founder_admin')).toBe(false)
+    expect(canViewVaultIdentity('founder_admin')).toBe(true)
     expect(canViewVaultIdentity('editor')).toBe(false)
     expect(canViewVaultIdentity('moderator')).toBe(false)
+  })
+
+  it('allows vault moderation for editor and up, but not moderators', () => {
+    expect(canModerateVault('super_admin')).toBe(true)
+    expect(canModerateVault('founder_admin')).toBe(true)
+    expect(canModerateVault('editor')).toBe(true)
+    expect(canModerateVault('moderator')).toBe(false)
   })
 
   it('normalizes unknown roles to editor for safety', () => {
