@@ -4,6 +4,7 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import EventsBoard from '@/components/admin/EventsBoard'
 import { logAdminPageLoadError } from '@/lib/admin/observability'
 import { requireAdminPageSession } from '@/lib/admin/page-guard'
+import { isTopLevelAdmin } from '@/lib/admin/rbac'
 import { getAllEvents } from '@/lib/admin/repository'
 
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,7 @@ export default async function AdminEventsPage() {
           retryPath="/admin/events"
         />
       ) : null}
-      <EventsBoard initialEvents={events} allowDelete={session.role === 'super_admin'} hideHeader />
+      <EventsBoard initialEvents={events} allowDelete={isTopLevelAdmin(session.role)} hideHeader />
     </AdminContentContainer>
   )
 }

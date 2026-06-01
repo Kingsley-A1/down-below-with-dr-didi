@@ -17,35 +17,26 @@ export default async function MePage() {
   }
 
   return (
-    <main className="min-h-screen px-4 pb-12 pt-24 md:px-6 md:pb-16 md:pt-28" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <div className="mx-auto w-full max-w-5xl space-y-6">
-        <section
-          className="overflow-hidden rounded-[28px] border bg-white"
-          style={{ borderColor: 'var(--color-border)', boxShadow: '0 8px 22px rgba(2, 12, 27, 0.045)' }}
-        >
-          <div
-            className="border-b px-6 py-6 md:px-8"
-            style={{ borderColor: 'rgba(11, 78, 65, 0.14)', background: 'linear-gradient(120deg, rgba(11,78,65,0.06), rgba(255,255,255,0.96))' }}
-          >
-            <p className="font-body text-xs uppercase tracking-[0.25em] text-emerald-700">Member Hub</p>
-            <h1 className="mt-2 font-heading text-3xl font-bold text-slate-900 md:text-4xl">
-              My Account Center
-            </h1>
-            <p className="mt-2 max-w-2xl font-body text-sm text-slate-600">
-              Manage your profile, security settings, and private V-Vault activity from one professional dashboard.
-            </p>
-          </div>
-          <div className="px-6 py-6 md:px-8">
-            <ProfileForm initialUser={user} />
-          </div>
-        </section>
+    <section className="min-h-screen px-3 pb-10 pt-24 sm:px-4 md:px-6 md:pb-14 md:pt-28" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <div className="mx-auto w-full max-w-container space-y-5">
+        <header className="border-b pb-4" style={{ borderColor: 'rgba(11, 78, 65, 0.14)' }}>
+          <p className="font-body text-xs uppercase tracking-[0.22em] text-emerald-700">Member Hub</p>
+          <h1 className="mt-1 font-heading text-3xl font-bold text-slate-900 md:text-4xl">
+            My Account Center
+          </h1>
+          <p className="mt-2 max-w-3xl font-body text-sm leading-6 text-slate-600">
+            Manage your profile, security settings, and private V-Vault activity.
+          </p>
+        </header>
 
-        <section className="rounded-2xl border bg-white p-5 md:p-6" style={{ borderColor: 'var(--color-border)' }}>
+        <ProfileForm initialUser={user} />
+
+        <section className="border-t py-4" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="font-body text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">Privacy Promise</h2>
-          <p className="mt-2 font-body text-sm leading-relaxed text-slate-600">
+          <p className="mt-2 max-w-4xl font-body text-sm leading-relaxed text-slate-600">
             Your V-Vault submissions remain anonymous to public audiences. Account linkage is used internally only to deliver your private responses securely.
           </p>
-          <div className="mt-4 flex flex-wrap gap-3 font-body text-sm">
+          <div className="mt-3 flex flex-wrap gap-3 font-body text-sm">
             <Link href="/privacy" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
               Privacy Policy
             </Link>
@@ -55,6 +46,6 @@ export default async function MePage() {
           </div>
         </section>
       </div>
-    </main>
+    </section>
   )
 }

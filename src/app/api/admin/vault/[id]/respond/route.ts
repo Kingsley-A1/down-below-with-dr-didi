@@ -14,7 +14,8 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'super_admin')
+  // Sending a private response requires editor or higher.
+  const roleError = requireAdminRole(session, 'editor')
   if (roleError) {
     return roleError
   }

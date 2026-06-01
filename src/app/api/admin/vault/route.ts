@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'super_admin')
+  // Listing is open to moderators and up; submissions are returned
+  // identity-masked. Revealing identity is gated separately below.
+  const roleError = requireAdminRole(session, 'moderator')
   if (roleError) {
     return roleError
   }
@@ -40,7 +42,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'super_admin')
+  // Moderating (status changes) requires editor or higher.
+  const roleError = requireAdminRole(session, 'editor')
   if (roleError) {
     return roleError
   }

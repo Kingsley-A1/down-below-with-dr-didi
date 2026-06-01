@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminAccount, listAdminAccounts } from '@/lib/admin/repository'
 import { adminAccountCreateSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
+import { notifyAdminAccountChange } from '@/lib/admin/account-notifications'
 import { duplicateEmail, validationError } from '@/lib/api/errors'
 
 function isDuplicateAdminEmailError(error: unknown) {
@@ -52,7 +53,12 @@ export async function POST(request: NextRequest) {
     }
 
     const account = await createAdminAccount(parsed.data, { email: session.email, role: session.role })
-    return NextResponse.json({ success: true, account }, { status: 201 })
+    const notification = await notifyAdminAccountChange({
+      action: 'created',
+      account,
+      actorEmail: session.email,
+    })
+    return NextResponse.json({ success: true, account, emailSent: notification.ok }, { status: 201 })
   } catch (error) {
     if (isDuplicateAdminEmailError(error)) {
       return duplicateEmail('email')
