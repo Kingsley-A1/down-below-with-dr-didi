@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roleError = requireAdminRole(session, 'editor')
+  const roleError = requireAdminRole(session, 'moderator')
   if (roleError) {
     return roleError
   }
