@@ -16,6 +16,12 @@ export function getR2Client() {
       accessKeyId: env.R2_ACCESS_KEY_ID,
       secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     },
+    // AWS SDK v3 (>=3.729) adds an `x-amz-checksum-crc32` by default. For a
+    // presigned PUT that checksum is computed over an empty body at signing
+    // time, so the real browser upload then fails the checksum against R2.
+    // Only attach checksums when the operation actually requires them.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
 }
 

@@ -8,7 +8,9 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://downbelowwithdrdidi.com https://www.downbelowwithdrdidi.com https://down-below-with-dr-didi.vercel.app https://*.r2.dev https://*.r2.cloudflarestorage.com",
   "font-src 'self' data:",
-  `connect-src 'self'${isDevelopment ? ' ws: http: https:' : ''}`,
+  // R2 endpoints must be allowed here too: browser uploads PUT the file
+  // directly to the presigned R2 URL via XHR, which connect-src governs.
+  `connect-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com${isDevelopment ? ' ws: http: https:' : ''}`,
   "media-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com",
   "object-src 'none'",
   "base-uri 'self'",
