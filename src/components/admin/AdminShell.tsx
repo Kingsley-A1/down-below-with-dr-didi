@@ -30,6 +30,12 @@ import AdminUploadModal from '@/components/admin/AdminUploadModal'
 import { isTopLevelAdmin, type AdminRole } from '@/lib/admin/rbac'
 import { siteConfig } from '@/lib/site-config'
 
+// Media upload is temporarily hidden from the admin UI while the R2 pipeline
+// (CSP connect-src, presign checksum, and bucket CORS) is finished and verified
+// in production. Flip to `true` to restore every upload entry point — the modal
+// and handlers are left intact. Tracking: ARCHITECURE.MD §9 / §10.
+const ADMIN_UPLOAD_ENABLED = false
+
 type NavLinkItem = {
   href: string
   label: string
@@ -151,14 +157,16 @@ function AdminNav({
       ))}
 
       <div className="border-t border-slate-200 pt-4">
-        <button
-          type="button"
-          onClick={onUpload}
-          className="admin-interactive mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
-        >
-          <Upload className="h-4 w-4" />
-          <span>Upload Asset</span>
-        </button>
+        {ADMIN_UPLOAD_ENABLED ? (
+          <button
+            type="button"
+            onClick={onUpload}
+            className="admin-interactive mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Upload Asset</span>
+          </button>
+        ) : null}
 
         <Link
           href="/"
@@ -286,22 +294,26 @@ export default function AdminShell({
             <div className="hidden text-right sm:block">
               <p className="font-body text-[11px] uppercase tracking-[0.18em] text-slate-400">{role.replace('_', ' ')}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className="admin-interactive hidden items-center gap-2 rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white lg:inline-flex"
-            >
-              <Upload className="h-4 w-4" />
-              Upload
-            </button>
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className="admin-interactive inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white lg:hidden"
-              aria-label="Upload media"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
+            {ADMIN_UPLOAD_ENABLED ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="admin-interactive hidden items-center gap-2 rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white lg:inline-flex"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="admin-interactive inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white lg:hidden"
+                  aria-label="Upload media"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       </header>
