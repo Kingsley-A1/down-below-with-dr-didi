@@ -175,6 +175,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (!registrationDecision.ok) {
+      // Surface the denial reason in the server logs (no PII) so production
+      // 401s are diagnosable from the platform logs, not only the DB audit
+      // trail. `invalid_invite` => the access code matched no role (code
+      // mismatch); `email_not_allowed` => the code resolved a role but the
+      // email is not in ADMIN_ALLOWED_USERS for it.
+      console.warn(JSON.stringify({
+        level: 'warn',
+        route: '/api/admin/register',
+        requestId,
+        stage: 'denied',
+        reason: registrationDecision.reason,
+      }))
+
       await safeWriteAuditLog(requestId, {
         action: 'admin.register_failed',
         entityType: 'admin_user',

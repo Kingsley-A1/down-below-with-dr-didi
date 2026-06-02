@@ -224,4 +224,44 @@ describe('Admin registration role codes', () => {
       resolveAdminRegistrationDecision({ email: 'deblessedking001@gmail.com', accessCode: '826272' })
     ).toEqual({ ok: true, role: 'super_admin', source: 'role_code' })
   })
+
+  it('accepts every allow-listed super_admin under the exact production ADMIN_ALLOWED_USERS', () => {
+    // Mirrors the live Vercel config. This proves the POLICY accepts these
+    // emails+code, so a production 401 for them is environmental (the env var is
+    // not in effect on the running deployment, set in the wrong scope, or the
+    // super_admin code there is not 826272) — not a bug in this code.
+    configureAdminEnv({
+      ADMIN_SUPER_ADMIN_ACCESS_CODE: '826272',
+      ADMIN_FOUNDER_ADMIN_ACCESS_CODE: '404653',
+      ADMIN_ALLOWED_USERS:
+        'deblessedking001@gmail.com:super_admin,blessedkingkinglsey2002@gmail.com:super_admin,etomabassey96@gmail.com:super_admin,edidiong67@gmail.com:founder_admin',
+    })
+
+    for (const email of [
+      'deblessedking001@gmail.com',
+      'blessedkingkinglsey2002@gmail.com',
+      'etomabassey96@gmail.com',
+    ]) {
+      expect(resolveAdminRegistrationDecision({ email, accessCode: '826272' })).toEqual({
+        ok: true,
+        role: 'super_admin',
+        source: 'role_code',
+      })
+    }
+
+    expect(
+      resolveAdminRegistrationDecision({ email: 'edidiong67@gmail.com', accessCode: '404653' })
+    ).toEqual({ ok: true, role: 'founder_admin', source: 'role_code' })
+
+    // The only super_admin denial is an email that is NOT allow-listed.
+    expect(
+      resolveAdminRegistrationDecision({ email: 'random@gmail.com', accessCode: '826272' })
+    ).toEqual({ ok: false, reason: 'email_not_allowed' })
+
+    // And a wrong code resolves to no role at all -> 'invalid_invite' (this is
+    // what a code mismatch in Vercel would produce).
+    expect(
+      resolveAdminRegistrationDecision({ email: 'blessedkingkinglsey2002@gmail.com', accessCode: '999999' })
+    ).toEqual({ ok: false, reason: 'invalid_invite' })
+  })
 })
