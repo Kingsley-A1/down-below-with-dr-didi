@@ -1,6 +1,6 @@
 # Down Below With Dr. Didi — Implementation Plan
 
-> **Agency:** King Tech Foundation · [kingtech.com.ng](https://kingtech.com.ng)  
+> **Agency:** Bespoke Tech · [bespoketech.com.ng](https://bespoketech.com.ng)  
 > **Client:** Down Below With Dr. Didi · Calabar, Cross River, Nigeria  
 > **Tagline:** *Demystifying Wellness, Empowering You*  
 > **Document version:** 1.0 · April 2026
@@ -873,7 +873,7 @@ Three-column layout:
 |---|---|---|
 | Logo + tagline + social icons | Quick Links (all 6 pages) | Contact info + Booking CTA |
 
-Bottom bar: "© 2024 Down Below With Dr. Didi. Designed & Developed by **King Tech Foundation**" with link to `kingtech.com.ng`.
+Bottom bar: "© 2024 Down Below With Dr. Didi. Designed & Developed by **Bespoke Tech**" with link to `bespoketech.com.ng`.
 
 **Medical disclaimer line in footer:**
 > "Content on this site is for educational purposes only and does not substitute professional medical advice."
@@ -1540,5 +1540,5 @@ npm install -D \
 
 ---
 
-*Implementation Plan v1.0 — Prepared by King Tech Foundation for Down Below With Dr. Didi*  
-*kingtech.com.ng · April 2026*
+*Implementation Plan v1.0 — Prepared by Bespoke Tech for Down Below With Dr. Didi*  
+*bespoketech.com.ng · April 2026*

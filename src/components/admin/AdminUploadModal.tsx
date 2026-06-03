@@ -241,7 +241,7 @@ export default function AdminUploadModal({ open, onClose }: AdminUploadModalProp
           <p className="font-body text-xs uppercase tracking-[0.22em] text-slate-300">Admin Upload</p>
           <h2 className="mt-1 font-heading text-2xl font-bold">Upload to Media Library</h2>
           <p className="mt-2 font-body text-sm text-slate-300">
-            Choose what media you are uploading and where it will be used, then send it to the media pipeline.
+            Choose what media you are uploading and where it will be used, then upload.
           </p>
         </div>
 

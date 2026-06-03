@@ -168,13 +168,13 @@ export default async function Footer() {
           <p>
             Designed &amp; Developed by{' '}
             <a
-              href="https://kingtech.com.ng"
+              href="https://bespoketech.com.ng"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold"
               style={{ color: 'var(--color-accent)' }}
             >
-              King Tech Foundation
+              Bespoke Tech
             </a>
           </p>
         </div>

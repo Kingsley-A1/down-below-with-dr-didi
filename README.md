@@ -10,7 +10,7 @@ A Family Health initiative  led by Dr. Edidiong Ekerueke(Dr. Didi) — a medical
 
 Down Below Family Health Initiative reduces stigma around reproductive health through plain-language education, anonymous Q&A, and community outreach.
 
-**Agency:** [King Tech Foundation](https://kingtech.com.ng)  
+**Agency:** [Bespoke Tech](https://bespoketech.com.ng)  
 **Client:** Down Below Family Health Initiative · Calabar, Nigeria  
 **Production:** [https://down-below.com](https://down-below.com)
 
@@ -21,14 +21,23 @@ Down Below Family Health Initiative reduces stigma around reproductive health th
 | Route | Description |
 |---|---|
 | `/` | Homepage — Hero, Pillars, V-Vault preview, Dr. Didi welcome, Latest articles |
-| `/about` | Mission & Vision, Dr. Didi bio, Team profiles, Partners |
-| `/library` | Health article grid with search & category filters |
-| `/library/[slug]` | Article detail pages (6 articles, SSG) |
+| `/about` | Mission & Vision, Dr. Didi bio, Team profiles |
+| `/library` | Health article grid with DB-backed content and public fallback |
+| `/library/[slug]` | Article detail pages with DB-backed content and public fallback |
+| `/events` | Event listing with DB-backed content, likes, comments, and stream metadata |
+| `/events/[slug]` | Event detail pages with engagement controls |
 | `/outreach` | Impact metrics & community gallery |
-| `/podcast` | Podcast episode listing with audio players and downloads |
-| `/podcast/[slug]` | Podcast detail pages with show notes and transcripts |
-| `/vault` | Anonymous Q&A submission form + FAQ accordion |
+| `/podcast` | Podcast episode listing with audio players |
+| `/podcast/[slug]` | Podcast detail pages with episode metadata |
+| `/gallery` | Public gallery listing |
+| `/gallery/[slug]` | Gallery detail route |
+| `/team` | Public team directory |
+| `/review` | Reviews, public submission, and helpful marks |
+| `/vault` | Authenticated private V-Vault question form |
+| `/me` | User profile, password change, notifications, and V-Vault history |
 | `/contact` | Booking form + social media links |
+| `/privacy` | Privacy policy |
+| `/terms` | Terms of use |
 
 ---
 
@@ -89,13 +98,26 @@ Recommended setup:
 
 ## Environment Variables
 
-For production, create `.env.local`:
+For production, create `.env.local` or provider-managed environment variables:
 
 ```env
-DIDI_EMAIL=drdidi@example.com    # Notification recipient for V-Vault & bookings
-RESEND_API_KEY=re_...            # Resend transactional email API key
+DATABASE_URL=...
+JWT_SECRET=...
+ADMIN_SESSION_SECRET=...
+ADMIN_ACCESS_CODE=...
+ADMIN_SUPER_ADMIN_ACCESS_CODE=...
+ADMIN_FOUNDER_ADMIN_ACCESS_CODE=...
+ADMIN_EDITOR_ACCESS_CODE=...
+NEXT_PUBLIC_SITE_URL=https://down-below.com
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=no-reply@down-below.com
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=...
+R2_PUBLIC_URL=...
 ```
 
 ---
 
-© 2026 Down Below Family Health Initiative · Designed & Developed by [King Tech Foundation](https://kingtech.com.ng)
+© 2026 Down Below Family Health Initiative · Designed & Developed by [Bespoke Tech](https://bespoketech.com.ng)
