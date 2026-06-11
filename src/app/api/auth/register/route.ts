@@ -7,7 +7,6 @@ import { extractClientIP, generateRateLimitKey } from '@/lib/security'
 import { userRegisterSchema } from '@/lib/validations'
 import { sendEmail } from '@/lib/email/send'
 import { verifyEmail as verifyEmailTemplate } from '@/lib/email/templates'
-import { env } from '@/lib/env'
 import {
   validationError,
   duplicateEmail,
@@ -21,11 +20,6 @@ function isMissingUserTableError(error: unknown) {
     return false
   }
   return error.message.includes('The table `public.User` does not exist')
-}
-
-function buildVerifyUrl(token: string) {
-  const base = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  return `${base}/verify-email?token=${encodeURIComponent(token)}`
 }
 
 export async function POST(request: NextRequest) {
@@ -62,10 +56,9 @@ export async function POST(request: NextRequest) {
       return serverError('Registration could not be completed. Please try again.', { request })
     }
 
-    const verifyUrl = buildVerifyUrl(result.verificationToken)
     const template = verifyEmailTemplate({
       recipientName: result.user.displayName,
-      actionUrl: verifyUrl,
+      code: result.verificationCode,
       expiresInMinutes: Math.round((result.verificationExpiresAt.getTime() - Date.now()) / 60_000),
     })
 
@@ -80,7 +73,7 @@ export async function POST(request: NextRequest) {
       {
         ok: true,
         success: true,
-        message: 'Registration successful. Verify your email, then sign in.',
+        message: 'Registration successful. Enter the 6-digit code we emailed you to verify, then sign in.',
         user: result.user,
         emailSent: sendResult.ok,
         requiresEmailVerification: true,

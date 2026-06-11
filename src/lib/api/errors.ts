@@ -159,7 +159,7 @@ export function emailNotVerified() {
   return jsonError(403, {
     ok: false,
     code: 'email_not_verified',
-    error: 'Verify your email to continue. Check your inbox for the link.',
+    error: 'Verify your email to continue. Enter the 6-digit code we sent to your inbox.',
   })
 }
 

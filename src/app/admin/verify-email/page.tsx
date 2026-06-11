@@ -15,7 +15,7 @@ export default function AdminVerifyEmailPage() {
         <div className="border-b px-8 py-7" style={{ borderColor: 'rgba(11, 78, 65, 0.14)', background: 'linear-gradient(120deg, rgba(11,78,65,0.06), rgba(255,255,255,0.96))' }}>
           <p className="font-body text-xs uppercase tracking-[0.25em] text-emerald-700">Email verification</p>
           <h1 className="mt-2 font-heading text-3xl font-bold text-slate-900 md:text-4xl">Verify your admin email</h1>
-          <p className="mt-2 font-body text-sm text-slate-600">Click the link in your inbox, or paste the verification token below.</p>
+          <p className="mt-2 font-body text-sm text-slate-600">Enter the 6-digit code we emailed you to activate your admin access.</p>
         </div>
         <div className="space-y-6 px-8 py-8">
           <Suspense fallback={<p className="font-body text-sm text-slate-500">Loading…</p>}>

@@ -3,10 +3,19 @@ import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { DuplicateEmailError } from '@/lib/admin/errors'
 import {
-  generateEmailVerificationToken,
+  generateEmailVerificationCode,
   generatePasswordResetToken,
   isTokenExpired,
 } from '@/lib/auth/token'
+
+/**
+ * Outcome of an email verification attempt. `expired` and `invalid` are kept
+ * distinct so the API can tell a user their code lapsed (and to request a new
+ * one) versus that the code is simply wrong.
+ */
+export type EmailVerificationResult =
+  | { verified: true }
+  | { verified: false; reason: 'invalid' | 'expired' }
 
 /**
  * User record for API responses (excludes sensitive fields)
@@ -120,23 +129,22 @@ export async function getUserById(userId: string): Promise<PublicUserRecord | nu
 
 /**
  * Create new user with email verification flow.
- * Returns the created user plus the raw verification token so the caller can
- * send the verification email (the token is never persisted unhashed beyond
- * the DB row).
+ * Returns the created user plus the raw verification code so the caller can
+ * email it. The code is a short, per-account 6-digit value with a 1-hour TTL.
  */
 export async function createUser(
   email: string,
   displayName: string,
   password: string,
   phone?: string
-): Promise<{ user: PublicUserRecord; verificationToken: string; verificationExpiresAt: Date } | null> {
-  // Hash + token first so the insert is the only async DB call inside the try.
+): Promise<{ user: PublicUserRecord; verificationCode: string; verificationExpiresAt: Date } | null> {
+  // Hash + code first so the insert is the only async DB call inside the try.
   // No pre-check on `email`: a pre-check is racy under concurrent requests, and
   // the DB unique constraint is authoritative. We catch Prisma's P2002 and
   // throw a typed DuplicateEmailError that the route maps to a field-scoped
   // 409 response.
   const passwordHash = await hashPassword(password)
-  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+  const { code: verificationCode, expiresAt: verificationExpiresAt } = generateEmailVerificationCode()
 
   try {
     const user = (await prisma.user.create({
@@ -145,7 +153,7 @@ export async function createUser(
         displayName,
         passwordHash,
         emailVerified: false,
-        emailVerifyToken: verificationToken,
+        emailVerifyToken: verificationCode,
         emailVerifyTokenExpiry: verificationExpiresAt,
         phone: phone || null,
         role: 'member',
@@ -163,7 +171,7 @@ export async function createUser(
 
     return {
       user: mapToPublicRecord(user),
-      verificationToken,
+      verificationCode,
       verificationExpiresAt,
     }
   } catch (error) {
@@ -176,14 +184,14 @@ export async function createUser(
 }
 
 /**
- * Re-issue a verification token for an existing unverified user. Returns the
- * fresh token + expiry, or null if the user does not exist or is already
+ * Re-issue a verification code for an existing unverified user. Returns the
+ * fresh code + expiry, or null if the user does not exist or is already
  * verified. Always-200 callers should still respond generically to avoid
  * account enumeration.
  */
-export async function regenerateEmailVerificationToken(
+export async function regenerateEmailVerificationCode(
   email: string
-): Promise<{ user: PublicUserRecord; verificationToken: string; verificationExpiresAt: Date } | null> {
+): Promise<{ user: PublicUserRecord; verificationCode: string; verificationExpiresAt: Date } | null> {
   try {
     const user = (await prisma.user.findUnique({
       where: { email },
@@ -193,12 +201,12 @@ export async function regenerateEmailVerificationToken(
       return null
     }
 
-    const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+    const { code: verificationCode, expiresAt: verificationExpiresAt } = generateEmailVerificationCode()
 
     const updated = (await prisma.user.update({
       where: { id: user.id },
       data: {
-        emailVerifyToken: verificationToken,
+        emailVerifyToken: verificationCode,
         emailVerifyTokenExpiry: verificationExpiresAt,
       },
     })) as UserDbRecord
@@ -209,43 +217,43 @@ export async function regenerateEmailVerificationToken(
       entityId: updated.id,
       userId: updated.id,
       actorEmail: updated.email,
-      summary: `Email verification re-sent to ${updated.email}`,
+      summary: `Email verification code re-sent to ${updated.email}`,
     })
 
     return {
       user: mapToPublicRecord(updated),
-      verificationToken,
+      verificationCode,
       verificationExpiresAt,
     }
   } catch (error) {
-    console.error('Error regenerating email verification token:', error)
+    console.error('Error regenerating email verification code:', error)
     throw error
   }
 }
 
 /**
- * Verify user email with token
- * Checks if token exists and has not expired (24h validity)
+ * Verify a user's email with the 6-digit code they were emailed.
+ *
+ * The code is looked up against the account identified by `email` (codes are
+ * not globally unique), compared in full, and checked against its 1-hour
+ * expiry. The code is single-use: it is cleared on success.
  */
-export async function verifyUserEmail(token: string): Promise<boolean> {
+export async function verifyUserEmail(email: string, code: string): Promise<EmailVerificationResult> {
   try {
     const user = (await prisma.user.findUnique({
-      where: { emailVerifyToken: token },
+      where: { email },
     })) as UserDbRecord | null
 
-    if (!user) {
-      console.error('Email verification token not found')
-      return false
+    // Generic 'invalid' for unknown account, already-verified, or wrong code —
+    // never reveal which, to avoid leaking account state.
+    if (!user || user.emailVerified || !user.emailVerifyToken || user.emailVerifyToken !== code) {
+      return { verified: false, reason: 'invalid' }
     }
 
-    // Check if token has expired (24-hour window)
-    const now = new Date()
-    if (user.emailVerifyTokenExpiry && now > user.emailVerifyTokenExpiry) {
-      console.error('Email verification token expired')
-      return false
+    if (user.emailVerifyTokenExpiry && new Date() >= user.emailVerifyTokenExpiry) {
+      return { verified: false, reason: 'expired' }
     }
 
-    // Token check happens implicitly - unique constraint ensures one match
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -265,7 +273,7 @@ export async function verifyUserEmail(token: string): Promise<boolean> {
       summary: `Email verified for ${user.email}`,
     })
 
-    return true
+    return { verified: true }
   } catch (error) {
     console.error('Error verifying user email:', error)
     throw error

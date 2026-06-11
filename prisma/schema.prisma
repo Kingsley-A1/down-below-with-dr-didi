@@ -21,7 +21,9 @@ model AdminUser {
   // they aren't kicked out on deploy. registerAdminUserAccount must set this
   // to `false` explicitly so new registrations go through verification.
   emailVerified          Boolean                @default(true)
-  emailVerifyToken       String?                @unique
+  // Six-digit email verification code (scoped to this account by email, so it
+  // is intentionally NOT unique). Expires 1 hour after issue.
+  emailVerifyToken       String?
   emailVerifyTokenExpiry DateTime?
   resetToken             String?                @unique
   resetTokenExpiry       DateTime?
@@ -102,7 +104,9 @@ model User {
   passwordHash           String
   isActive               Boolean                @default(true)
   emailVerified          Boolean                @default(false)
-  emailVerifyToken       String?                @unique
+  // Six-digit email verification code (scoped to this account by email, so it
+  // is intentionally NOT unique). Expires 1 hour after issue.
+  emailVerifyToken       String?
   resetToken             String?                @unique
   resetTokenExpiry       DateTime?
   createdAt              DateTime               @default(now())

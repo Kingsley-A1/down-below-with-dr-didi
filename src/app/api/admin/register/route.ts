@@ -221,11 +221,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Send verification email. Admin sign-in is gated on emailVerified — no
-    // session cookie is set here, the admin has to click the link first.
-    const verifyUrl = `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')}/admin/verify-email?token=${encodeURIComponent(account.verificationToken)}`
+    // session cookie is set here, the admin has to enter the emailed code first.
     const template = verifyAdminEmailTemplate({
       recipientName: account.name ?? account.email,
-      actionUrl: verifyUrl,
+      code: account.verificationCode,
       expiresInMinutes: Math.round((account.verificationExpiresAt.getTime() - Date.now()) / 60_000),
       role: account.role,
     })
@@ -242,7 +241,7 @@ export async function POST(request: NextRequest) {
       role: account.role,
       requiresEmailVerification: true,
       emailSent: sendResult.ok,
-      message: 'Admin registration received. Check your email to verify before signing in.',
+      message: 'Admin registration received. Enter the 6-digit code we emailed you to verify before signing in.',
     })
 
     await safeWriteAuditLog(requestId, {

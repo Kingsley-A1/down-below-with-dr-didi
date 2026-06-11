@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { regenerateEmailVerificationToken } from '@/lib/admin/user-repository'
+import { regenerateEmailVerificationCode } from '@/lib/admin/user-repository'
 import { sendEmail } from '@/lib/email/send'
 import { verifyEmail as verifyEmailTemplate } from '@/lib/email/templates'
+import { resendVerificationSchema } from '@/lib/validations'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
-import { env } from '@/lib/env'
 
 const RESEND_WINDOW_MS = 60 * 60 * 1000
-
-const schema = z.object({
-  email: z.string().trim().toLowerCase().email(),
-})
-
-function buildVerifyUrl(token: string) {
-  const base = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  return `${base}/verify-email?token=${encodeURIComponent(token)}`
-}
 
 const GENERIC_OK = NextResponse.json(
   {
     success: true,
-    message: 'If your account needs verification, a fresh link has been sent.',
+    message: 'If your account needs verification, a fresh code has been sent.',
   },
   { status: 200 }
 )
@@ -45,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 })
   }
 
-  const parsed = schema.safeParse(body)
+  const parsed = resendVerificationSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ success: false, error: 'A valid email is required' }, { status: 400 })
   }
@@ -54,20 +44,19 @@ export async function POST(request: NextRequest) {
 
   const emailLimit = await checkRateLimit({ key: `auth-resend:email:${email}`, windowMs: RESEND_WINDOW_MS, limit: 3 })
   if (emailLimit.limited) {
-    // Generic to avoid revealing existence; 429 still signals rate limiting.
+    // Generic to avoid revealing existence.
     return GENERIC_OK
   }
 
   try {
-    const result = await regenerateEmailVerificationToken(email)
+    const result = await regenerateEmailVerificationCode(email)
     if (!result) {
       return GENERIC_OK
     }
 
-    const verifyUrl = buildVerifyUrl(result.verificationToken)
     const template = verifyEmailTemplate({
       recipientName: result.user.displayName,
-      actionUrl: verifyUrl,
+      code: result.verificationCode,
       expiresInMinutes: Math.round((result.verificationExpiresAt.getTime() - Date.now()) / 60_000),
     })
 

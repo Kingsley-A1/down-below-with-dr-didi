@@ -73,9 +73,10 @@ export default function AdminRegisterForm() {
       }
 
       // Admin registration requires email verification before sign-in. Send the
-      // operator to the verify-email page so they know what to do next.
+      // operator to the verify-email page with their email prefilled so they
+      // only need to enter the 6-digit code we just emailed them.
       if (result.requiresEmailVerification) {
-        router.push('/admin/verify-email')
+        router.push(`/admin/verify-email?email=${encodeURIComponent(values.email.trim().toLowerCase())}`)
         router.refresh()
         return
       }

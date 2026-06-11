@@ -182,7 +182,7 @@ describeWithDatabase('Auth Registration Integration', () => {
       expect(user?.emailVerified).toBe(false)
       expect(user?.emailVerifyToken).toBeTruthy()
       expect(user?.emailVerifyTokenExpiry).toBeTruthy()
-      // Token expiry should be in the future (24h window per spec).
+      // Code expiry should be in the future (1h window per spec).
       const expiry = user?.emailVerifyTokenExpiry
       expect(expiry && expiry.getTime() > Date.now()).toBe(true)
     })

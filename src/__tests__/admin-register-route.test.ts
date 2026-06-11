@@ -85,8 +85,8 @@ describe('POST /api/admin/register', () => {
       lastLoginAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      verificationToken: 'test-verification-token-32-bytes-long-hex-string-1234567890abcdef',
-      verificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      verificationCode: '123456',
+      verificationExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
     })
     mockWriteAuditLog.mockRejectedValue(new Error('AuditLog write failed'))
 

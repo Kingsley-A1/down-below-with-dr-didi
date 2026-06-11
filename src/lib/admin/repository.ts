@@ -3,7 +3,7 @@ import { hasDatabaseConfig } from '@/lib/env'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { defaultSiteSettings, type SiteSettingsState } from '@/lib/site-config'
 import { canViewVaultIdentity, type AdminRole } from '@/lib/admin/rbac'
-import { generateEmailVerificationToken } from '@/lib/auth/token'
+import { generateEmailVerificationCode, generatePasswordResetToken } from '@/lib/auth/token'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { gallerySeedItems } from '@/data/gallery'
@@ -347,7 +347,7 @@ export async function registerAdminUserAccount(input: {
   password: string
   role: AdminRole
 }): Promise<
-  | (AdminAccountRecord & { verificationToken: string; verificationExpiresAt: Date })
+  | (AdminAccountRecord & { verificationCode: string; verificationExpiresAt: Date })
   | null
 > {
   if (!hasDatabaseConfig()) {
@@ -365,7 +365,7 @@ export async function registerAdminUserAccount(input: {
 
   const passwordHash = await hashPassword(input.password)
   const includePhone = supportsAdminUserField('phone')
-  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+  const { code: verificationCode, expiresAt: verificationExpiresAt } = generateEmailVerificationCode()
 
   const writeAccount = async (withPhone: boolean) => {
     return existing
@@ -379,9 +379,9 @@ export async function registerAdminUserAccount(input: {
             isActive: true,
             // Schema default is `true` (so the migration backfills existing
             // admins as verified). New registrations explicitly start
-            // unverified — they have to click the email link before login.
+            // unverified — they have to enter the emailed code before login.
             emailVerified: false,
-            emailVerifyToken: verificationToken,
+            emailVerifyToken: verificationCode,
             emailVerifyTokenExpiry: verificationExpiresAt,
             failedLoginAttempts: 0,
             lockoutUntil: null,
@@ -396,7 +396,7 @@ export async function registerAdminUserAccount(input: {
             role: input.role,
             isActive: true,
             emailVerified: false,
-            emailVerifyToken: verificationToken,
+            emailVerifyToken: verificationCode,
             emailVerifyTokenExpiry: verificationExpiresAt,
           },
         })) as AdminAccountDbRecord)
@@ -416,32 +416,45 @@ export async function registerAdminUserAccount(input: {
 
   return {
     ...mapAdminAccountRecord(account),
-    verificationToken,
+    verificationCode,
     verificationExpiresAt,
   }
 }
 
 /**
- * Verify an admin's email by token. Returns the verified admin or null on
- * invalid/expired tokens. Single-use: the token is cleared on success.
+ * Outcome of an admin email verification attempt. Mirrors the user flow:
+ * `expired` and `invalid` stay distinct so the API can tell the admin their
+ * code lapsed versus that it is simply wrong.
  */
-export async function verifyAdminEmailToken(
-  token: string
-): Promise<AdminAccountRecord | null> {
-  if (!hasDatabaseConfig() || !token) {
-    return null
+export type AdminEmailVerificationResult =
+  | { verified: true; account: AdminAccountRecord }
+  | { verified: false; reason: 'invalid' | 'expired' }
+
+/**
+ * Verify an admin's email with the 6-digit code they were emailed. The code is
+ * looked up against the account identified by `email` (codes are not globally
+ * unique), compared in full, and checked against its expiry. Single-use: the
+ * code is cleared on success.
+ */
+export async function verifyAdminEmailCode(
+  email: string,
+  code: string
+): Promise<AdminEmailVerificationResult> {
+  if (!hasDatabaseConfig() || !email || !code) {
+    return { verified: false, reason: 'invalid' }
   }
 
+  const normalizedEmail = email.trim().toLowerCase()
   const account = (await prisma.adminUser.findUnique({
-    where: { emailVerifyToken: token },
+    where: { email: normalizedEmail },
   })) as (AdminAccountDbRecord & { emailVerifyTokenExpiry: Date | null }) | null
 
-  if (!account) {
-    return null
+  if (!account || account.emailVerified || !account.emailVerifyToken || account.emailVerifyToken !== code) {
+    return { verified: false, reason: 'invalid' }
   }
 
-  if (account.emailVerifyTokenExpiry && account.emailVerifyTokenExpiry.getTime() < Date.now()) {
-    return null
+  if (account.emailVerifyTokenExpiry && account.emailVerifyTokenExpiry.getTime() <= Date.now()) {
+    return { verified: false, reason: 'expired' }
   }
 
   const updated = (await prisma.adminUser.update({
@@ -453,18 +466,18 @@ export async function verifyAdminEmailToken(
     },
   })) as AdminAccountDbRecord
 
-  return mapAdminAccountRecord(updated)
+  return { verified: true, account: mapAdminAccountRecord(updated) }
 }
 
 /**
- * Re-issue an admin's email verification token. Returns null if no admin
+ * Re-issue an admin's email verification code. Returns null if no admin
  * matches the email or the admin is already verified. Callers should respond
  * with a generic OK to avoid leaking which emails have admin accounts.
  */
-export async function regenerateAdminEmailVerificationToken(
+export async function regenerateAdminEmailVerificationCode(
   email: string
 ): Promise<
-  | { account: AdminAccountRecord; verificationToken: string; verificationExpiresAt: Date }
+  | { account: AdminAccountRecord; verificationCode: string; verificationExpiresAt: Date }
   | null
 > {
   if (!hasDatabaseConfig()) {
@@ -480,19 +493,19 @@ export async function regenerateAdminEmailVerificationToken(
     return null
   }
 
-  const { token: verificationToken, expiresAt: verificationExpiresAt } = generateEmailVerificationToken()
+  const { code: verificationCode, expiresAt: verificationExpiresAt } = generateEmailVerificationCode()
 
   const updated = (await prisma.adminUser.update({
     where: { id: account.id },
     data: {
-      emailVerifyToken: verificationToken,
+      emailVerifyToken: verificationCode,
       emailVerifyTokenExpiry: verificationExpiresAt,
     },
   })) as AdminAccountDbRecord
 
   return {
     account: mapAdminAccountRecord(updated),
-    verificationToken,
+    verificationCode,
     verificationExpiresAt,
   }
 }
@@ -517,8 +530,9 @@ export async function requestAdminPasswordReset(
     return null
   }
 
-  const resetToken = generateEmailVerificationToken().token // 32-byte hex is fine
-  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1h
+  // Password reset stays link-based: a long, unguessable hex token with a 1h
+  // expiry (distinct from the short email verification codes).
+  const { token: resetToken, expiresAt: resetTokenExpiry } = generatePasswordResetToken()
 
   const updated = (await prisma.adminUser.update({
     where: { id: account.id },

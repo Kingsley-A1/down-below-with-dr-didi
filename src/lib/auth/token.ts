@@ -1,4 +1,10 @@
-import { randomBytes } from 'crypto'
+import { randomBytes, randomInt } from 'crypto'
+
+/** Email verification codes live for one hour from issue. */
+export const EMAIL_VERIFICATION_CODE_TTL_MS = 60 * 60 * 1000
+
+/** Number of decimal digits in an email verification code. */
+export const EMAIL_VERIFICATION_CODE_LENGTH = 6
 
 /**
  * Generate a secure random token
@@ -10,16 +16,22 @@ export function generateToken(length: number = 32): string {
 }
 
 /**
- * Generate an email verification token
- * Token: 32-char random string with 24h expiry
+ * Generate an email verification code.
+ *
+ * A cryptographically-random 6-digit code (zero-padded, e.g. "042913") with a
+ * 1-hour expiry. Codes are emailed to the registrant, who types them into the
+ * verify-email screen. They are scoped to an account by email, so they are
+ * intentionally short and not globally unique.
  */
-export function generateEmailVerificationToken(): {
-  token: string
+export function generateEmailVerificationCode(): {
+  code: string
   expiresAt: Date
 } {
+  const max = 10 ** EMAIL_VERIFICATION_CODE_LENGTH
+  const code = String(randomInt(0, max)).padStart(EMAIL_VERIFICATION_CODE_LENGTH, '0')
   return {
-    token: generateToken(32),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    code,
+    expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_CODE_TTL_MS),
   }
 }
 

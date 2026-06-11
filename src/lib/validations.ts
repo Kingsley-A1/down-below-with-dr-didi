@@ -396,8 +396,25 @@ export const userLoginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
+// Six-digit numeric code emailed to a registrant. Shared by user + admin
+// verification so the format stays identical across both flows.
+const emailVerificationCodeField = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Enter the 6-digit code from your email')
+
 export const userVerifyEmailSchema = z.object({
-  token: z.string().min(1, 'Verification token is required'),
+  email: z.string().trim().toLowerCase().email('Please enter a valid email address').max(255),
+  code: emailVerificationCodeField,
+})
+
+export const adminVerifyEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid admin email address').max(255),
+  code: emailVerificationCodeField,
+})
+
+export const resendVerificationSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Please enter a valid email address').max(255),
 })
 
 export const userForgotPasswordSchema = z.object({
@@ -469,6 +486,8 @@ export const userChangePasswordSchema = z.object({
 export type UserRegisterData = z.infer<typeof userRegisterSchema>
 export type UserLoginData = z.infer<typeof userLoginSchema>
 export type UserVerifyEmailData = z.infer<typeof userVerifyEmailSchema>
+export type AdminVerifyEmailData = z.infer<typeof adminVerifyEmailSchema>
+export type ResendVerificationData = z.infer<typeof resendVerificationSchema>
 export type UserForgotPasswordData = z.infer<typeof userForgotPasswordSchema>
 export type UserPhoneVerificationData = z.infer<typeof userPhoneVerificationSchema>
 export type UserPhoneVerifyCodeData = z.infer<typeof userPhoneVerifyCodeSchema>

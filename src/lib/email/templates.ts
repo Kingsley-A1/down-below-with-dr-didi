@@ -180,6 +180,15 @@ function fallbackLink(href: string) {
   return `<p style="margin:16px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};font-weight:600;">${escape(href)}</span></p>`
 }
 
+// Large, monospaced, easy-to-copy verification code block. Letter-spacing is
+// applied per digit so the code reads clearly on every email client.
+function verificationCodeBlock(code: string) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:20px 0 8px 0;"><tr><td align="center" style="background:${COLOR.accentSoft};border:1px solid ${COLOR.accent};border-radius:14px;padding:22px 16px;">
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${COLOR.accentInk};">Your verification code</div>
+    <div style="margin-top:10px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:34px;font-weight:800;letter-spacing:0.32em;color:${COLOR.ink};padding-left:0.32em;">${escape(code)}</div>
+  </td></tr></table>`
+}
+
 function callout(text: string, tone: 'info' | 'warning' = 'info') {
   const styles = tone === 'warning'
     ? {
@@ -226,26 +235,25 @@ function truncateText(value: string, maxLength: number) {
 
 export function verifyEmail(props: {
   recipientName: string
-  actionUrl: string
+  code: string
   expiresInMinutes: number
 }): TemplateOutput {
-  const { recipientName, actionUrl, expiresInMinutes } = props
+  const { recipientName, code, expiresInMinutes } = props
   const html = shell({
     title: 'Verify your DownBelow email',
-    preheader: 'Confirm your email to finish creating your DownBelow account.',
+    preheader: `Your DownBelow verification code is ${code}.`,
     kicker: 'Email verification',
     heading: `Hi ${recipientName}, verify your email`,
     bodyHtml: `
-      ${paragraph('Confirm this is you and activate your DownBelow account by tapping the button below.')}
-      ${ctaButton('Verify email', actionUrl)}
-      ${muted(`This link expires in ${expiresInMinutes} minutes. After that you'll need to request a new one from the sign-in page.`)}
-      ${fallbackLink(actionUrl)}
+      ${paragraph('Enter the code below on the verification screen to activate your DownBelow account.')}
+      ${verificationCodeBlock(code)}
+      ${muted(`This code expires in ${expiresInMinutes} minutes. After that you'll need to request a new one from the verification screen. If you didn't create a DownBelow account, you can ignore this email.`)}
     `,
   })
   return {
     subject: 'Verify your DownBelow email',
     html,
-    text: `Hi ${recipientName},\n\nConfirm your email to finish creating your DownBelow account: ${actionUrl}\n\nThis link expires in ${expiresInMinutes} minutes.`,
+    text: `Hi ${recipientName},\n\nYour DownBelow verification code is: ${code}\n\nEnter it on the verification screen to activate your account. This code expires in ${expiresInMinutes} minutes.`,
   }
 }
 
@@ -418,27 +426,26 @@ export function vaultResponseReady(props: {
 
 export function verifyAdminEmail(props: {
   recipientName: string
-  actionUrl: string
+  code: string
   expiresInMinutes: number
   role: string
 }): TemplateOutput {
-  const { recipientName, actionUrl, expiresInMinutes, role } = props
+  const { recipientName, code, expiresInMinutes, role } = props
   const html = shell({
     title: 'Verify your DownBelow admin email',
-    preheader: 'Confirm your address to activate your admin access.',
+    preheader: `Your DownBelow admin verification code is ${code}.`,
     kicker: 'Admin · email verification',
     heading: `Welcome, ${recipientName}`,
     bodyHtml: `
-      ${paragraph(`You've registered for ${escape(BRAND_NAME)} admin access with the <strong>${escape(role)}</strong> role. Verify your email to activate your account.`)}
-      ${ctaButton('Verify admin email', actionUrl)}
-      ${muted(`This link expires in ${expiresInMinutes} minutes. You won't be able to sign in until verification is complete.`)}
-      ${fallbackLink(actionUrl)}
+      ${paragraph(`You've registered for ${escape(BRAND_NAME)} admin access with the <strong>${escape(role)}</strong> role. Enter the code below on the verification screen to activate your account.`)}
+      ${verificationCodeBlock(code)}
+      ${muted(`This code expires in ${expiresInMinutes} minutes. You won't be able to sign in until verification is complete.`)}
     `,
   })
   return {
     subject: 'Verify your DownBelow admin email',
     html,
-    text: `Hi ${recipientName},\n\nVerify your DownBelow admin email (${role}): ${actionUrl}\n\nLink expires in ${expiresInMinutes} minutes.`,
+    text: `Hi ${recipientName},\n\nYour DownBelow admin verification code (${role}) is: ${code}\n\nEnter it on the verification screen to activate your account. This code expires in ${expiresInMinutes} minutes.`,
   }
 }
 

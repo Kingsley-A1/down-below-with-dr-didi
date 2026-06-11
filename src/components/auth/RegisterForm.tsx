@@ -83,13 +83,15 @@ export function RegisterForm() {
       }
 
       setSuccessMessage(
-        'Registration successful. Check your email for the verification link before signing in.'
+        'Registration successful. Check your email for the 6-digit verification code.'
       )
-      // Redirect to login so the user knows the next step is signing in
-      // (after verifying their email). The verify-email page handles the
-      // token-click flow separately.
+      // Send the user to the verification screen with their email prefilled so
+      // they only need to enter the code we just emailed them.
       window.dispatchEvent(new Event('auth-state-changed'))
-      setTimeout(() => router.push('/login'), 1500)
+      setTimeout(
+        () => router.push(`/verify-email?email=${encodeURIComponent(values.email.trim().toLowerCase())}`),
+        1500
+      )
       router.refresh()
     } catch (err) {
       console.error('[register] request failed', err)
