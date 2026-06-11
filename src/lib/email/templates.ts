@@ -180,13 +180,23 @@ function fallbackLink(href: string) {
   return `<p style="margin:16px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};font-weight:600;">${escape(href)}</span></p>`
 }
 
-// Large, monospaced, easy-to-copy verification code block. Letter-spacing is
-// applied per digit so the code reads clearly on every email client.
+// Sharp, monospaced verification code with a copy affordance beside it. The
+// code sits in a crisp bordered chip (one selectable string, so a long-press /
+// double-click copies it cleanly), with a clipboard "Copy" cue to its right.
+// Email clients can't run JavaScript, so the chip itself is the copy target.
 function verificationCodeBlock(code: string) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:20px 0 8px 0;"><tr><td align="center" style="background:${COLOR.accentSoft};border:1px solid ${COLOR.accent};border-radius:14px;padding:22px 16px;">
-    <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${COLOR.accentInk};">Your verification code</div>
-    <div style="margin-top:10px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:34px;font-weight:800;letter-spacing:0.32em;color:${COLOR.ink};padding-left:0.32em;">${escape(code)}</div>
-  </td></tr></table>`
+  const copyPill = `<span title="Copy your code" style="display:inline-block;border:1.5px solid ${COLOR.accent};border-radius:8px;padding:11px 12px;background:${COLOR.card};color:${COLOR.accentInk};white-space:nowrap;"><span style="font-size:14px;">&#128203;</span>&nbsp;<span style="font-size:12px;font-weight:800;letter-spacing:0.04em;">Copy</span></span>`
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:22px 0 6px 0;">
+    <tr><td align="center" style="padding-bottom:12px;font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${COLOR.accentInk};">Your verification code</td></tr>
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>
+        <td valign="middle" align="center" style="border:2px solid ${COLOR.accent};border-radius:10px;padding:14px 8px 14px 20px;background:${COLOR.accentWash};font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:32px;font-weight:800;letter-spacing:0.34em;color:${COLOR.ink};">${escape(code)}</td>
+        <td width="12" style="width:12px;font-size:0;line-height:0;">&nbsp;</td>
+        <td valign="middle">${copyPill}</td>
+      </tr></table>
+    </td></tr>
+  </table>`
 }
 
 function callout(text: string, tone: 'info' | 'warning' = 'info') {

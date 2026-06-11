@@ -10,18 +10,18 @@ export const metadata: Metadata = {
 
 export default function AdminVerifyEmailPage() {
   return (
-    <div className="min-h-screen px-4 pb-12 pt-10 md:px-6 md:pb-16 md:pt-14" style={{ backgroundColor: 'var(--color-surface)' }}>
-      <div className="mx-auto w-full max-w-xl overflow-hidden rounded-[28px] border bg-white" style={{ borderColor: 'var(--color-border)', boxShadow: '0 8px 22px rgba(2, 12, 27, 0.045)' }}>
-        <div className="border-b px-8 py-7" style={{ borderColor: 'rgba(11, 78, 65, 0.14)', background: 'linear-gradient(120deg, rgba(11,78,65,0.06), rgba(255,255,255,0.96))' }}>
-          <p className="font-body text-xs uppercase tracking-[0.25em] text-emerald-700">Email verification</p>
-          <h1 className="mt-2 font-heading text-3xl font-bold text-slate-900 md:text-4xl">Verify your admin email</h1>
-          <p className="mt-2 font-body text-sm text-slate-600">Enter the 6-digit code we emailed you to activate your admin access.</p>
-        </div>
-        <div className="space-y-6 px-8 py-8">
+    <div className="flex min-h-screen items-center justify-center px-4 py-12" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <div className="w-full max-w-md border-t-2 border-emerald-600 bg-white px-8 py-10" style={{ boxShadow: '0 1px 0 rgba(2, 12, 27, 0.04)' }}>
+        <header>
+          <p className="font-body text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">Admin · email verification</p>
+          <h1 className="mt-2 font-heading text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">Verify your admin email</h1>
+          <p className="mt-2 font-body text-sm leading-relaxed text-slate-600">Enter the 6-digit code we emailed you to activate your admin access.</p>
+        </header>
+        <div className="mt-7">
           <Suspense fallback={<p className="font-body text-sm text-slate-500">Loading…</p>}>
             <AdminVerifyEmailForm />
           </Suspense>
-          <p className="font-body text-sm text-slate-600">
+          <p className="mt-6 border-t border-slate-100 pt-4 font-body text-sm text-slate-600">
             Already verified?{' '}
             <Link href="/admin/sign-in" className="font-semibold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
               Sign in
