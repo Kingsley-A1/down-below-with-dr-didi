@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight } from 'lucide-react'
+import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight, PlayCircle } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl, siteConfig } from '@/lib/site-config'
 import { getPublicVaultPreviewItems } from '@/lib/vault/public-preview'
 import { getPublishedLibraryArticles } from '@/lib/library/repository'
+import { getPublishedGalleryImages } from '@/lib/admin/repository'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
@@ -47,9 +48,11 @@ export default async function HomePage() {
   const siteSettings = await getPublicSiteSettings()
   const vaultPreviewItems = await getPublicVaultPreviewItems(4)
   const articles = await getPublishedLibraryArticles()
+  const galleryMedia = await getPublishedGalleryImages()
   const latestArticles = [...articles]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
+  const featuredMedia = galleryMedia.slice(0, 3)
 
   const heroImageSrc = siteSettings.heroImageUrl || '/events/June-2026-Banner.jpg'
   const heroImageAlt = siteSettings.heroImageAlt || `${siteSettings.siteName} hero image`
@@ -249,6 +252,111 @@ export default async function HomePage() {
                 </Link>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Latest Gallery Media ─────────────────────────────────────────── */}
+      <section className="py-20 md:py-24 bg-white">
+        <div className="max-w-container mx-auto px-6">
+          <div className="mb-12 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="max-w-2xl">
+              <div
+                className="mb-4 inline-block rounded-full px-4 py-1.5 font-body text-sm font-semibold"
+                style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
+              >
+                Latest From the Field
+              </div>
+              <h2 className="font-heading font-bold" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', color: 'var(--color-primary)' }}>
+                Teaching, care, and outreach in motion
+              </h2>
+              <p className="mt-3 font-body text-sm leading-relaxed text-gray-600">
+                Recent gallery uploads help the public see the real work: health education, family support, and community care.
+              </p>
+            </div>
+            <Link
+              href="/gallery"
+              className="inline-flex w-fit items-center gap-2 rounded-full px-6 py-3 font-body font-semibold text-white transition-all hover:-translate-y-0.5"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+            >
+              View Gallery <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {featuredMedia.map((item, index) => (
+              <Link
+                key={item.id}
+                href={`/gallery?image=${encodeURIComponent(item.slug)}`}
+                className="home-featured-media-card group overflow-hidden rounded-2xl border bg-white shadow-sm"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  ['--media-delay' as string]: `${index * 3}s`,
+                }}
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-950">
+                  {item.mediaType === 'video' ? (
+                    <>
+                      <video
+                        src={item.imageUrl}
+                        muted
+                        preload="metadata"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">
+                        <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        Video
+                      </span>
+                    </>
+                  ) : (
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.imageAlt}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 768px) 92vw, 31vw"
+                    />
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-4">
+                    <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-white/75">
+                      {item.featured ? 'Featured' : item.category}
+                    </p>
+                    <h3 className="mt-1 line-clamp-2 font-heading text-lg font-bold text-white">{item.title}</h3>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Link
+              href="/podcast"
+              className="group rounded-2xl border p-6 transition-all hover:-translate-y-0.5"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-primary-muted)' }}
+            >
+              <BookOpen className="mb-4 h-7 w-7" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
+              <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Podcast</h3>
+              <p className="mt-2 font-body text-sm leading-relaxed text-gray-600">
+                Listen to clear conversations on family, sexuality, fertility, faith, and healing.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                Go to Podcast <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </Link>
+            <Link
+              href="/outreach"
+              className="group rounded-2xl border p-6 transition-all hover:-translate-y-0.5"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: '#fffbea' }}
+            >
+              <Users className="mb-4 h-7 w-7" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
+              <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Outreach</h3>
+              <p className="mt-2 font-body text-sm leading-relaxed text-gray-600">
+                Follow public programs, teaching moments, and practical community support.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                See Outreach <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </Link>
           </div>
         </div>
       </section>

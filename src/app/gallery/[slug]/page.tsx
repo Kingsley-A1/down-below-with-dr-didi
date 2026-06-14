@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: image.title,
       description: image.description.slice(0, 160),
       url: canonicalUrl(`/gallery?image=${image.slug}`),
-      images: [{ url: image.imageUrl, alt: image.imageAlt }],
+      ...(image.mediaType === 'image' ? { images: [{ url: image.imageUrl, alt: image.imageAlt }] } : {}),
     },
   }
 }

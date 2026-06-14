@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, X, MapPin, Calendar, Tag } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, MapPin, Calendar, Tag, PlayCircle } from 'lucide-react'
 import type { PublicGalleryImage, GalleryImageCategory } from '@/lib/admin/repository'
 import { formatDate } from '@/lib/utils'
 
@@ -178,16 +178,31 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
               onClick={() => openAt(index)}
               className="admin-interactive group block w-full rounded-xl overflow-hidden shadow-sm break-inside-avoid relative text-left"
               style={{ borderRadius: 'var(--radius-md, 0.75rem)' }}
-              aria-label={`Open image viewer for ${image.title}`}
+              aria-label={`Open ${image.mediaType} viewer for ${image.title}`}
             >
               <div className="relative w-full" style={{ aspectRatio: '3/4' }}>
-                <Image
-                  src={image.imageUrl}
-                  alt={image.imageAlt}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                />
+                {image.mediaType === 'video' ? (
+                  <>
+                    <video
+                      src={image.imageUrl}
+                      muted
+                      preload="metadata"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white">
+                      <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Video
+                    </span>
+                  </>
+                ) : (
+                  <Image
+                    src={image.imageUrl}
+                    alt={image.imageAlt}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  />
+                )}
                 <div
                   className="absolute inset-x-0 bottom-0 p-3"
                   style={{
@@ -210,11 +225,11 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
       </div>
 
       {activeImage ? (
-        <div className="fixed inset-0 z-70" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <div className="fixed inset-0 z-70" role="dialog" aria-modal="true" aria-label="Gallery media viewer">
           <button
             type="button"
             className="absolute inset-0 bg-black/85"
-            aria-label="Close image viewer"
+            aria-label="Close gallery media viewer"
             onClick={close}
           />
 
@@ -234,7 +249,7 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                 type="button"
                 onClick={showPrevious}
                 className="admin-interactive absolute left-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/55 text-white p-2 hover:bg-black/75"
-                aria-label="Previous image"
+                aria-label="Previous gallery item"
               >
                 <ChevronLeft size={22} />
               </button>
@@ -243,7 +258,7 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                 type="button"
                 onClick={showNext}
                 className="admin-interactive absolute right-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/55 text-white p-2 hover:bg-black/75"
-                aria-label="Next image"
+                aria-label="Next gallery item"
               >
                 <ChevronRight size={22} />
               </button>
@@ -255,14 +270,23 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                   onTouchStart={onTouchStart}
                   onTouchEnd={onTouchEnd}
                 >
-                  <Image
-                    src={activeImage.imageUrl}
-                    alt={activeImage.imageAlt}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 1024px) 100vw, 72vw"
-                    priority
-                  />
+                  {activeImage.mediaType === 'video' ? (
+                    <video
+                      src={activeImage.imageUrl}
+                      controls
+                      preload="metadata"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <Image
+                      src={activeImage.imageUrl}
+                      alt={activeImage.imageAlt}
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 1024px) 100vw, 72vw"
+                      priority
+                    />
+                  )}
                 </div>
 
                 <div className="bg-white p-5 md:p-6 space-y-4 overflow-y-auto" style={{ maxHeight: '82vh' }}>

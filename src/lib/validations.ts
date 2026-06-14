@@ -11,7 +11,7 @@ export const vaultSchema = z.object({
   ]),
   question: z
     .string()
-    .min(50, 'Please provide at least 50 characters so Dr. Didi can help you best.')
+    .min(40, 'Please provide at least 40 characters so Dr. Didi can help you best.')
     .max(500, 'Maximum 500 characters.'),
 })
 
@@ -204,7 +204,7 @@ export type TeamMemberFormData = z.infer<typeof teamMemberSchema>
 export type TeamMemberUpdateData = z.infer<typeof teamMemberUpdateSchema>
 
 // ─────────────────────────────────────────────
-// GALLERY IMAGE VALIDATION
+// GALLERY MEDIA VALIDATION
 // ─────────────────────────────────────────────
 
 export const galleryImageSchema = z.object({
@@ -216,11 +216,13 @@ export const galleryImageSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(160),
   description: z
     .string()
-    .min(40, 'Description must be at least 40 characters')
+    .min(20, 'Description must be at least 20 characters')
     .max(800, 'Description may not exceed 800 characters'),
   caption: z.string().max(200).optional().or(z.literal('')),
-  imageUrl: z.string().min(1, 'Image URL is required').max(500),
-  imageAlt: z.string().min(5, 'Alt text must be at least 5 characters').max(200),
+  mediaType: z.enum(['image', 'video']).optional().default('image'),
+  featured: z.boolean().optional().default(false),
+  imageUrl: z.string().min(1, 'Media URL is required').max(500),
+  imageAlt: z.string().min(5, 'Media label must be at least 5 characters').max(200),
   category: z.enum(['outreach', 'event', 'team', 'community', 'facility']),
   eventName: z.string().max(160).optional().or(z.literal('')),
   location: z.string().max(160).optional().or(z.literal('')),

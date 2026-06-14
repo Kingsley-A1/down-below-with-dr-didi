@@ -42,7 +42,7 @@ export function CodeInput({
       onChange={(event) => {
         onChange(event.target.value.replace(/\D/g, '').slice(0, length))
       }}
-      className="h-14 w-full border-0 border-b-2 border-slate-300 bg-transparent px-3 text-center font-mono text-3xl font-semibold tracking-[0.45em] text-slate-900 caret-emerald-600 transition-colors focus:border-emerald-600 focus:outline-none disabled:opacity-50"
+      className="h-14 w-full rounded-xl border border-slate-300 bg-white px-3 text-center font-mono text-3xl font-semibold tracking-[0.45em] text-slate-900 caret-emerald-600 transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 disabled:opacity-50"
     />
   )
 }

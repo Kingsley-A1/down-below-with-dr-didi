@@ -373,6 +373,8 @@ model GalleryImage {
   title       String
   description String
   caption     String?
+  mediaType   GalleryMediaType  @default(image)
+  featured    Boolean           @default(false)
   imageUrl    String
   imageAlt    String
   category    GalleryCategory
@@ -472,6 +474,11 @@ enum GalleryCategory {
   team
   community
   facility
+}
+
+enum GalleryMediaType {
+  image
+  video
 }
 
 enum crdb_internal_region {

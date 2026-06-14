@@ -2,18 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, ImageOff } from 'lucide-react'
+import { Camera, ImageOff, Video } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
-import type { GalleryImageRecord, GalleryImageCategory } from '@/lib/admin/repository'
-import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import type { GalleryImageRecord, GalleryImageCategory, GalleryMediaType } from '@/lib/admin/repository'
+import { deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Status = 'draft' | 'published' | 'archived'
 
 const CATEGORIES: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
 const STATUS_OPTIONS: Status[] = ['draft', 'published', 'archived']
+const MEDIA_TYPES: GalleryMediaType[] = ['image', 'video']
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+const ACCEPTED_BY_TYPE: Record<GalleryMediaType, string> = {
+  image: 'image/jpeg,image/png,image/webp,image/gif,image/avif',
+  video: 'video/mp4,video/webm',
+}
 
 const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }> = {
   outreach:  { bg: '#dcfce7', text: '#166534' },
@@ -28,6 +35,8 @@ const EMPTY_FORM = {
   title: '',
   description: '',
   caption: '',
+  mediaType: 'image' as GalleryMediaType,
+  featured: false,
   imageUrl: '',
   imageAlt: '',
   category: 'outreach' as GalleryImageCategory,
@@ -53,6 +62,17 @@ function getTone(message: string) {
   return getAdminStatusTone(message)
 }
 
+function formatBytes(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function autoGalleryDescription(title: string) {
+  const cleanTitle = title.trim() || 'this gallery moment'
+  return `Gallery highlight from DownBelow Family Health Initiative showing ${cleanTitle.toLowerCase()} as part of our public education, care, and outreach work.`
+}
+
 export default function GalleryImagesBoard({
   initialImages,
   hideHeader = false,
@@ -67,7 +87,7 @@ export default function GalleryImagesBoard({
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [slugManual, setSlugManual] = useState(false)
   const [openingEditId, setOpeningEditId] = useState<string | null>(null)
@@ -76,20 +96,20 @@ export default function GalleryImagesBoard({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLDivElement | null>(null)
   const previewUrl = useMemo(() => {
-    if (imageFile) {
-      return URL.createObjectURL(imageFile)
+    if (mediaFile) {
+      return URL.createObjectURL(mediaFile)
     }
 
     return form.imageUrl || ''
-  }, [form.imageUrl, imageFile])
+  }, [form.imageUrl, mediaFile])
 
   useEffect(() => {
     return () => {
-      if (imageFile && previewUrl.startsWith('blob:')) {
+      if (mediaFile && previewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl)
       }
     }
-  }, [imageFile, previewUrl])
+  }, [mediaFile, previewUrl])
 
   useEffect(() => {
     if (!showForm) {
@@ -117,7 +137,7 @@ export default function GalleryImagesBoard({
   function startCreate() {
     setEditId(null)
     setForm(EMPTY_FORM)
-    setImageFile(null)
+    setMediaFile(null)
     setSlugManual(false)
     setShowForm(true)
     setFieldErrors({})
@@ -132,6 +152,8 @@ export default function GalleryImagesBoard({
       title: img.title,
       description: img.description,
       caption: img.caption ?? '',
+      mediaType: img.mediaType,
+      featured: img.featured,
       imageUrl: img.imageUrl,
       imageAlt: img.imageAlt,
       category: img.category as GalleryImageCategory,
@@ -141,7 +163,7 @@ export default function GalleryImagesBoard({
       sortOrder: img.sortOrder,
       status: img.status as Status,
     })
-    setImageFile(null)
+    setMediaFile(null)
     setShowForm(true)
     setFieldErrors({})
     setMsg('')
@@ -151,13 +173,47 @@ export default function GalleryImagesBoard({
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
-    setImageFile(null)
+    setMediaFile(null)
     setSlugManual(false)
     setFieldErrors({})
   }
 
-  function set(field: keyof FormState, value: string | number) {
+  function set(field: keyof FormState, value: string | number | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function selectMediaFile(file: File | null) {
+    if (!file) {
+      return
+    }
+
+    const nextType: GalleryMediaType = file.type.startsWith('video/') ? 'video' : 'image'
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      setMsg('Choose an image or video file.')
+      return
+    }
+
+    const maxBytes = nextType === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+    if (file.size > maxBytes) {
+      setMsg(nextType === 'video' ? 'This video is larger than 200 MB.' : 'This image is larger than 10 MB.')
+      return
+    }
+
+    const title = deriveMediaLabel(file.name)
+    setMediaFile(file)
+    setForm((prev) => {
+      const nextTitle = prev.title || title
+      return {
+        ...prev,
+        mediaType: nextType,
+        title: nextTitle,
+        slug: prev.slug || slugify(nextTitle),
+        imageAlt: prev.imageAlt || nextTitle,
+        caption: prev.caption || nextTitle,
+        description: prev.description || autoGalleryDescription(nextTitle),
+      }
+    })
+    setMsg('')
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -166,28 +222,28 @@ export default function GalleryImagesBoard({
     setMsg('')
     setFieldErrors({})
 
-    if (!editId && !imageFile) {
+    if (!editId && !mediaFile) {
       setBusy(false)
-      setMsg('Image upload is required for new gallery records.')
+      setMsg('Media upload is required for new gallery records.')
       return
     }
 
     let nextImageUrl = form.imageUrl
 
-    if (imageFile) {
+    if (mediaFile) {
       setUploadingImage(true)
 
       try {
         const upload = await uploadAdminMediaAsset(
-          imageFile,
-          `${form.title || 'Gallery image'} upload`,
+          mediaFile,
+          `${form.title || 'Gallery media'} upload`,
           form.imageAlt || form.title
         )
         nextImageUrl = upload.url
       } catch (error) {
         setBusy(false)
         setUploadingImage(false)
-        setMsg(error instanceof Error ? error.message : 'Image upload failed')
+        setMsg(error instanceof Error ? error.message : 'Media upload failed')
         return
       }
 
@@ -196,7 +252,7 @@ export default function GalleryImagesBoard({
 
     if (!nextImageUrl) {
       setBusy(false)
-      setMsg('A gallery image is required before saving.')
+      setMsg('A gallery media file is required before saving.')
       return
     }
 
@@ -229,7 +285,7 @@ export default function GalleryImagesBoard({
       return
     }
 
-    setMsg(editId ? 'Image updated.' : 'Image added.')
+    setMsg(editId ? 'Gallery media updated.' : 'Gallery media added.')
     await refresh()
     cancelForm()
   }
@@ -251,7 +307,7 @@ export default function GalleryImagesBoard({
       return
     }
 
-    setMsg('Image deleted.')
+    setMsg('Gallery media deleted.')
     setDeleteTarget(null)
     await refresh()
   }
@@ -263,8 +319,8 @@ export default function GalleryImagesBoard({
       {!hideHeader ? (
         <div className="flex flex-col justify-between gap-4 rounded-2xl border bg-white p-6 sm:flex-row sm:items-center" style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <h1 className="mb-1 font-heading text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>Gallery Images</h1>
-            <p className="font-body text-sm text-gray-500">Manage public gallery images, categories, and publication status.</p>
+            <h1 className="mb-1 font-heading text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>Gallery Media</h1>
+            <p className="font-body text-sm text-gray-500">Manage public gallery images, videos, categories, and publication status.</p>
           </div>
           <button
             type="button"
@@ -272,7 +328,7 @@ export default function GalleryImagesBoard({
             className="self-start whitespace-nowrap rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90 sm:self-auto"
             style={{ backgroundColor: 'var(--color-primary)' }}
           >
-            + Add Image
+            + Add Media
           </button>
         </div>
       ) : (
@@ -283,7 +339,7 @@ export default function GalleryImagesBoard({
             className="rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-white transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-primary)' }}
           >
-            + Add Image
+            + Add Media
           </button>
         </div>
       )}
@@ -294,7 +350,7 @@ export default function GalleryImagesBoard({
       {showForm && (
         <div ref={formRef} className="scroll-mt-24 bg-white rounded-2xl border p-6 space-y-5" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="font-heading text-xl font-bold" style={{ color: 'var(--color-primary)' }}>
-            {editId ? 'Edit Image' : 'Add Gallery Image'}
+            {editId ? 'Edit Gallery Media' : 'Add Gallery Media'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Title (min 5 chars) *" error={fieldErrors.title}>
@@ -348,32 +404,54 @@ export default function GalleryImagesBoard({
                 </div>
               )}
             </Field>
-            <Field label="Upload Image" error={fieldErrors.imageUrl}>
+            <Field label="Upload Image or Video" error={fieldErrors.imageUrl}>
               <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-                <Camera className="h-3.5 w-3.5" />
-                <span>Camera</span>
+                {form.mediaType === 'video' ? <Video className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
+                <span>{form.mediaType}</span>
+              </div>
+              <div className="mb-2 inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                {MEDIA_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      set('mediaType', type)
+                      setMediaFile(null)
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
+                      form.mediaType === type ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500'
+                    }`}
+                    aria-pressed={form.mediaType === type}
+                  >
+                    {type}
+                  </button>
+                ))}
               </div>
               <input
                 type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                accept={ACCEPTED_BY_TYPE[form.mediaType]}
+                onChange={(e) => selectMediaFile(e.target.files?.[0] ?? null)}
                 className="input-field"
               />
               {previewUrl ? (
                 <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
+                  {form.mediaType === 'video' ? (
+                    <video src={previewUrl} controls preload="metadata" className="max-h-72 max-w-full rounded-lg object-contain" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
+                  )}
                 </div>
               ) : null}
               <p className="font-body text-xs text-gray-400 mt-1">
-                {imageFile
-                  ? `Selected: ${imageFile.name}`
+                {mediaFile
+                  ? `Selected: ${mediaFile.name} (${formatBytes(mediaFile.size)})`
                   : editId
-                    ? 'Upload a new file to replace the current gallery image.'
-                    : 'Required: upload image from media pipeline.'}
+                    ? 'Upload a new file to replace the current gallery media.'
+                    : 'Required: upload an image or video from the media pipeline.'}
               </p>
             </Field>
-            <Field label="Image Alt *" error={fieldErrors.imageAlt}>
+            <Field label="Media Label / Alt Text *" error={fieldErrors.imageAlt}>
               <input value={form.imageAlt} onChange={(e) => set('imageAlt', e.target.value)} required minLength={5} className="input-field" />
             </Field>
             <Field label="Category *" error={fieldErrors.category}>
@@ -385,6 +463,17 @@ export default function GalleryImagesBoard({
               <select value={form.status} onChange={(e) => set('status', e.target.value)} className="input-field">
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+            </Field>
+            <Field label="Featured" error={fieldErrors.featured}>
+              <div className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(e) => set('featured', e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+                />
+                <span className="font-body text-sm text-slate-700">Place near the front of public gallery and homepage.</span>
+              </div>
             </Field>
             <Field label="Event Name" error={fieldErrors.eventName}>
               <input value={form.eventName} onChange={(e) => set('eventName', e.target.value)} className="input-field" />
@@ -423,7 +512,7 @@ export default function GalleryImagesBoard({
                 className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {uploadingImage ? 'Uploading image…' : busy ? 'Saving…' : editId ? 'Update Image' : 'Add Image'}
+                {uploadingImage ? 'Uploading media…' : busy ? 'Saving…' : editId ? 'Update Media' : 'Add Media'}
               </button>
             </div>
           </form>
@@ -446,13 +535,13 @@ export default function GalleryImagesBoard({
             {cat}
           </button>
         ))}
-        <span className="font-body text-xs text-gray-400 ml-2">{visible.length} image{visible.length !== 1 ? 's' : ''}</span>
+        <span className="font-body text-xs text-gray-400 ml-2">{visible.length} item{visible.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Grid */}
       {visible.length === 0 ? (
         <div className="bg-white rounded-2xl border p-8 text-center" style={{ borderColor: 'var(--color-border)' }}>
-          <p className="font-body text-sm text-gray-400">No images yet. Click &quot;+ Add Image&quot; to get started.</p>
+          <p className="font-body text-sm text-gray-400">No gallery media yet. Click &quot;+ Add Media&quot; to get started.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -500,10 +589,10 @@ export default function GalleryImagesBoard({
 
       <AdminConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Delete gallery image?"
-        message={`This will remove "${deleteTarget?.title ?? 'this image'}" from the public gallery and admin records. This action cannot be undone.`}
-        confirmLabel="Delete image"
-        cancelLabel="Keep image"
+        title="Delete gallery media?"
+        message={`This will remove "${deleteTarget?.title ?? 'this item'}" from the public gallery and admin records. This action cannot be undone.`}
+        confirmLabel="Delete media"
+        cancelLabel="Keep media"
         confirmTone="danger"
         busy={Boolean(deletingId)}
         onConfirm={() => {
@@ -527,6 +616,23 @@ function GalleryThumbnail({ image }: { image: GalleryImageRecord }) {
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 p-4 text-center text-slate-500">
         <ImageOff className="h-7 w-7" aria-hidden="true" />
         <span className="font-body text-xs font-semibold">Image unavailable</span>
+      </div>
+    )
+  }
+
+  if (image.mediaType === 'video') {
+    return (
+      <div className="relative h-full w-full bg-slate-950">
+        <video
+          src={image.imageUrl}
+          muted
+          preload="metadata"
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+        <span className="absolute left-2 top-2 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+          Video
+        </span>
       </div>
     )
   }

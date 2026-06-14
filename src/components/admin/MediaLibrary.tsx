@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { File, ImageIcon, ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
+import { File, ImageIcon, ImagePlus, RefreshCw, Trash2, Video } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
@@ -11,6 +11,12 @@ import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+type UploadMediaType = 'image' | 'video'
+const ACCEPTED_BY_TYPE: Record<UploadMediaType, string> = {
+  image: 'image/jpeg,image/png,image/webp,image/gif,image/avif',
+  video: 'video/mp4,video/webm',
+}
 
 function formatBytes(size: number) {
   if (size < 1024) {
@@ -34,11 +40,12 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [uploadProgress, setUploadProgress] = useState(0)
   const [label, setLabel] = useState('')
   const [altText, setAltText] = useState('')
+  const [mediaType, setMediaType] = useState<UploadMediaType>('image')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const selectedPreviewUrl = useMemo(() => {
-    if (!selectedFile || !selectedFile.type.startsWith('image/')) {
+    if (!selectedFile) {
       return ''
     }
 
@@ -53,7 +60,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }, [selectedPreviewUrl])
 
-  function resetSelectedImage() {
+  function resetSelectedMedia() {
     setSelectedFile(null)
     setLabel('')
     setAltText('')
@@ -65,21 +72,25 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }
 
-  function selectImage(file: File | null) {
+  function selectMedia(file: File | null) {
     if (!file) {
       return
     }
 
-    if (!file.type.startsWith('image/')) {
-      setStatus('Choose an image file such as JPG, PNG, WebP, GIF, or AVIF.')
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+
+    if ((mediaType === 'image' && !isImage) || (mediaType === 'video' && !isVideo)) {
+      setStatus(mediaType === 'image' ? 'Choose an image file such as JPG, PNG, WebP, GIF, or AVIF.' : 'Choose a video file such as MP4 or WebM.')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
       return
     }
 
-    if (file.size > MAX_IMAGE_BYTES) {
-      setStatus('This image is larger than 10 MB. Choose a smaller image and try again.')
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+    if (file.size > maxBytes) {
+      setStatus(isVideo ? 'This video is larger than 200 MB. Choose a smaller video and try again.' : 'This image is larger than 10 MB. Choose a smaller image and try again.')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -114,14 +125,29 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
         throw new Error('Choose a file before uploading.')
       }
 
-      await uploadAdminMediaAsset(selectedFile, label.trim() || selectedFile.name, altText.trim(), {
+      const uploadedAsset = await uploadAdminMediaAsset(selectedFile, label.trim() || selectedFile.name, altText.trim(), {
         onProgress: setUploadProgress,
       })
 
+      setAssets((current) => [
+        {
+          id: uploadedAsset.id,
+          label: uploadedAsset.label,
+          storageKey: uploadedAsset.storageKey ?? '',
+          bucket: uploadedAsset.bucket ?? '',
+          url: uploadedAsset.url,
+          mimeType: uploadedAsset.mimeType,
+          sizeBytes: uploadedAsset.sizeBytes,
+          kind: uploadedAsset.kind,
+          altText: altText.trim() || null,
+          createdAt: new Date().toISOString(),
+        },
+        ...current.filter((asset) => asset.id !== uploadedAsset.id),
+      ])
       setUploadDetail('Refreshing media library')
       await refreshAssets()
-      setStatus('Image uploaded successfully.')
-      resetSelectedImage()
+      setStatus(`${mediaType === 'video' ? 'Video' : 'Image'} uploaded successfully.`)
+      resetSelectedMedia()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.')
     } finally {
@@ -181,34 +207,54 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
       >
         <div className="max-w-2xl">
           <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            Fast Image Upload
+            Fast Media Upload
           </p>
           <h2 className="mt-1 text-balance font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
             Select, Review & Upload
           </h2>
           <p className="mt-2 text-pretty font-body text-sm leading-6 text-gray-500">
-            Choose 1 image. Its title is filled from the file name, then you can review the preview and edit details before upload.
+            Choose 1 image or video. Its title is filled from the file name, then you can review the preview and edit details before upload.
           </p>
+        </div>
+
+        <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 p-1" aria-label="Choose upload type">
+          {(['image', 'video'] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                setMediaType(type)
+                resetSelectedMedia()
+                setStatus('')
+              }}
+              className={`rounded-full px-4 py-2 font-body text-sm font-semibold capitalize transition-colors ${
+                mediaType === type ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              aria-pressed={mediaType === type}
+            >
+              {type}
+            </button>
+          ))}
         </div>
 
         <div>
           <span className="block font-body text-sm font-semibold text-slate-800">
-            Image <span className="text-red-600" aria-hidden="true">*</span>
+            {mediaType === 'video' ? 'Video' : 'Image'} <span className="text-red-600" aria-hidden="true">*</span>
           </span>
           <p id="image-upload-help" className="mt-1 font-body text-xs text-slate-500">
-            JPG, PNG, WebP, GIF, or AVIF. Maximum size: 10&nbsp;MB.
+            {mediaType === 'video' ? 'MP4 or WebM. Maximum size: 200 MB.' : 'JPG, PNG, WebP, GIF, or AVIF. Maximum size: 10 MB.'}
           </p>
           <input
             ref={fileInputRef}
             id="image-upload-file"
             name="image"
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            accept={ACCEPTED_BY_TYPE[mediaType]}
             tabIndex={-1}
-            aria-label="Choose image to upload"
+            aria-label={`Choose ${mediaType} to upload`}
             aria-required="true"
             aria-describedby="image-upload-help"
-            onChange={(event) => selectImage(event.target.files?.[0] ?? null)}
+            onChange={(event) => selectMedia(event.target.files?.[0] ?? null)}
             className="sr-only"
             suppressHydrationWarning
           />
@@ -220,10 +266,12 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
               className="admin-interactive mt-3 flex min-h-44 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition-colors hover:border-emerald-600 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
             >
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
-                <ImagePlus className="h-6 w-6" aria-hidden="true" />
+                {mediaType === 'video' ? <Video className="h-6 w-6" aria-hidden="true" /> : <ImagePlus className="h-6 w-6" aria-hidden="true" />}
               </span>
-              <span className="mt-3 font-body text-sm font-semibold text-slate-900">Choose Image</span>
-              <span className="mt-1 font-body text-xs text-slate-500">Select an image from this device</span>
+              <span className="mt-3 font-body text-sm font-semibold text-slate-900">Choose {mediaType === 'video' ? 'Video' : 'Image'}</span>
+              <span className="mt-1 font-body text-xs text-slate-500">
+                Select {mediaType === 'image' ? 'an image' : 'a video'} from this device
+              </span>
             </button>
           ) : null}
         </div>
@@ -236,20 +284,29 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
               <figure className="flex min-h-72 items-center justify-center bg-slate-950 p-3 sm:p-5">
                 {/* Blob URLs cannot be optimized by next/image. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={selectedPreviewUrl}
-                  alt={altText || label || 'Selected image preview'}
-                  width={1200}
-                  height={800}
-                  onLoad={(event) => {
-                    setImageDimensions({
-                      width: event.currentTarget.naturalWidth,
-                      height: event.currentTarget.naturalHeight,
-                    })
-                  }}
-                  className="max-h-[28rem] w-full rounded-xl object-contain"
-                />
+                {mediaType === 'video' ? (
+                  <video
+                    src={selectedPreviewUrl}
+                    controls
+                    preload="metadata"
+                    className="max-h-[28rem] w-full rounded-xl object-contain"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedPreviewUrl}
+                    alt={altText || label || 'Selected image preview'}
+                    width={1200}
+                    height={800}
+                    onLoad={(event) => {
+                      setImageDimensions({
+                        width: event.currentTarget.naturalWidth,
+                        height: event.currentTarget.naturalHeight,
+                      })
+                    }}
+                    className="max-h-[28rem] w-full rounded-xl object-contain"
+                  />
+                )}
               </figure>
 
               <div className="min-w-0 space-y-5 p-5 sm:p-6">
@@ -262,13 +319,13 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                   </h3>
                   <p className="mt-2 font-body text-xs text-slate-500">
                     {formatBytes(selectedFile.size)}
-                    {imageDimensions ? ` · ${imageDimensions.width} × ${imageDimensions.height} px` : ''}
+                    {imageDimensions && mediaType === 'image' ? ` · ${imageDimensions.width} × ${imageDimensions.height} px` : ''}
                   </p>
                 </div>
 
                 <div>
                   <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-title">
-                    Image Title <span className="text-red-600" aria-hidden="true">*</span>
+                    Media Title <span className="text-red-600" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="image-title"
@@ -282,13 +339,13 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
                   />
                   <p id="image-title-help" className="mt-1.5 font-body text-xs text-slate-500">
-                    Filled automatically from the file name. Edit it to make the image easy to find.
+                    Filled automatically from the file name. Edit it to make the media easy to find.
                   </p>
                 </div>
 
                 <div>
                   <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-alt-text">
-                    Alt Text <span className="font-normal text-slate-500">(optional)</span>
+                    Alt Text / Video Label <span className="font-normal text-slate-500">(optional)</span>
                   </label>
                   <input
                     id="image-alt-text"
@@ -302,7 +359,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                     className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
                   />
                   <p id="image-alt-help" className="mt-1.5 font-body text-xs text-slate-500">
-                    Describe meaningful content. Leave blank only when the image is decorative.
+                    Describe meaningful content. Leave blank only when the media is decorative.
                   </p>
                 </div>
 
@@ -314,11 +371,11 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                     className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900 disabled:opacity-60"
                   >
                     <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                    Replace Image
+                    Replace Media
                   </button>
                   <button
                     type="button"
-                    onClick={resetSelectedImage}
+                    onClick={resetSelectedMedia}
                     disabled={isUploading}
                     className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-50 px-4 py-2 font-body text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
                   >
@@ -333,7 +390,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
         <UploadProgress
           active={isUploading}
-          label="Uploading image"
+          label={`Uploading ${mediaType}`}
           detail={uploadDetail}
           value={uploadProgress}
         />
@@ -344,7 +401,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             className="admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60"
             style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
           >
-            {isUploading ? 'Uploading…' : 'Upload Image'}
+            {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
           </button>
           <p className="font-body text-xs text-slate-500">2 required inputs · 1 optional input</p>
         </div>
@@ -472,6 +529,20 @@ function AssetPreview({ asset }: { asset: MediaAssetRecord }) {
           height={48}
           loading="lazy"
           className="h-full w-full object-cover"
+        />
+      </span>
+    )
+  }
+
+  if (asset.kind === 'video') {
+    return (
+      <span className="relative inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-900">
+        <video
+          src={asset.url}
+          muted
+          preload="metadata"
+          className="h-full w-full object-cover"
+          aria-label={asset.altText || asset.label}
         />
       </span>
     )

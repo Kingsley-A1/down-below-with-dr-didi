@@ -2186,6 +2186,7 @@ export async function deleteTeamMember(
 // ─────────────────────────────────────────────
 
 export type GalleryImageCategory = 'outreach' | 'event' | 'team' | 'community' | 'facility'
+export type GalleryMediaType = 'image' | 'video'
 
 export type PublicGalleryImage = {
   id: string
@@ -2193,6 +2194,8 @@ export type PublicGalleryImage = {
   title: string
   description: string
   caption: string | null
+  mediaType: GalleryMediaType
+  featured: boolean
   imageUrl: string
   imageAlt: string
   category: GalleryImageCategory
@@ -2310,6 +2313,8 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
       title: item.title,
       description: item.description,
       caption: item.caption || null,
+      mediaType: 'image' as GalleryMediaType,
+      featured: false,
       imageUrl: normalizePublicImageUrl(item.imageUrl),
       imageAlt: item.imageAlt,
       category: item.category as GalleryImageCategory,
@@ -2341,6 +2346,8 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
         title,
         description: `Gallery highlight from Down Below Family Health Initiative featuring ${title.toLowerCase()}.`,
         caption: title,
+        mediaType: 'image' as GalleryMediaType,
+        featured: false,
         imageUrl: `/assets/${originalFileName}`,
         imageAlt: title,
         category: imageCategory,
@@ -2381,6 +2388,8 @@ type GalleryImageDbRecord = {
   title: string
   description: string
   caption: string | null
+  mediaType: string
+  featured: boolean
   imageUrl: string
   imageAlt: string
   category: string
@@ -2400,6 +2409,8 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
     title: r.title,
     description: r.description,
     caption: r.caption,
+    mediaType: (r.mediaType || 'image') as GalleryMediaType,
+    featured: Boolean(r.featured),
     imageUrl: normalizePublicImageUrl(r.imageUrl),
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
@@ -2420,6 +2431,18 @@ function fallbackToGalleryRecord(item: PublicGalleryImage): GalleryImageRecord {
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
   }
+}
+
+function compareGalleryRecords(a: PublicGalleryImage, b: PublicGalleryImage) {
+  if (a.featured !== b.featured) {
+    return a.featured ? -1 : 1
+  }
+
+  if (a.sortOrder !== b.sortOrder) {
+    return a.sortOrder - b.sortOrder
+  }
+
+  return a.title.localeCompare(b.title)
 }
 
 function getSlugFromAuditMetadata(metadata: unknown) {
@@ -2503,6 +2526,8 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
         title: item.title,
         description: item.description,
         caption: item.caption,
+        mediaType: item.mediaType,
+        featured: item.featured,
         imageUrl: item.imageUrl,
         imageAlt: item.imageAlt,
         category: item.category,
@@ -2522,6 +2547,8 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
         title: item.title,
         description: item.description,
         caption: item.caption,
+        mediaType: item.mediaType,
+        featured: item.featured,
         imageUrl: item.imageUrl,
         imageAlt: item.imageAlt,
         category: item.category,
@@ -2550,7 +2577,7 @@ export async function getPublishedGalleryImages(
         status: 'published',
         ...(category ? { category } : {}),
       },
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
     })
 
     const normalizedRecords = await Promise.all(
@@ -2560,6 +2587,8 @@ export async function getPublishedGalleryImages(
         title: record.title,
         description: record.description,
         caption: record.caption,
+        mediaType: (record.mediaType || 'image') as GalleryMediaType,
+        featured: Boolean(record.featured),
         imageUrl: normalizePublicImageUrl(record.imageUrl),
         imageAlt: record.imageAlt,
         category: record.category as GalleryImageCategory,
@@ -2579,6 +2608,8 @@ export async function getPublishedGalleryImages(
         title: record.title,
         description: record.description,
         caption: record.caption,
+        mediaType: record.mediaType,
+        featured: record.featured,
         imageUrl: record.imageUrl,
         imageAlt: record.imageAlt,
         category: record.category,
@@ -2631,6 +2662,8 @@ export async function getGalleryImageBySlug(
       title: r.title,
       description: r.description,
       caption: r.caption,
+      mediaType: (r.mediaType || 'image') as GalleryMediaType,
+      featured: Boolean(r.featured),
       imageUrl: normalizedImageUrl,
       imageAlt: r.imageAlt,
       category: r.category as GalleryImageCategory,
@@ -2649,22 +2682,16 @@ export async function getAllGalleryImages(): Promise<GalleryImageRecord[]> {
     const fallback = await getFallbackGalleryImages()
     return fallback
       .map(fallbackToGalleryRecord)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .sort(compareGalleryRecords)
   }
 
   await ensureFallbackGalleryRecords()
 
   const records = await prisma.galleryImage.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    orderBy: [{ featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
   })
 
-  return records.map(mapGalleryImage).sort((a, b) => {
-    if (a.sortOrder !== b.sortOrder) {
-      return a.sortOrder - b.sortOrder
-    }
-
-    return a.title.localeCompare(b.title)
-  })
+  return records.map(mapGalleryImage).sort(compareGalleryRecords)
 }
 
 export async function createGalleryImage(
@@ -2673,6 +2700,8 @@ export async function createGalleryImage(
     title: string
     description: string
     caption?: string
+    mediaType?: GalleryMediaType
+    featured?: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2694,6 +2723,8 @@ export async function createGalleryImage(
       title: input.title.trim(),
       description: input.description.trim(),
       caption: input.caption?.trim() || null,
+      mediaType: input.mediaType ?? 'image',
+      featured: input.featured ?? false,
       imageUrl: input.imageUrl.trim(),
       imageAlt: input.imageAlt.trim(),
       category: input.category,
@@ -2711,8 +2742,8 @@ export async function createGalleryImage(
     entityId: record.id,
     actorEmail: actor.email,
     actorRole: actor.role,
-    summary: `Created gallery image "${record.title}"`,
-    metadata: { slug: record.slug, category: record.category },
+    summary: `Created gallery media "${record.title}"`,
+    metadata: { slug: record.slug, category: record.category, mediaType: record.mediaType, featured: record.featured },
   })
 
   return mapGalleryImage(record)
@@ -2725,6 +2756,8 @@ export async function updateGalleryImage(
     title: string
     description: string
     caption: string | null
+    mediaType: GalleryMediaType
+    featured: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2747,6 +2780,8 @@ export async function updateGalleryImage(
       ...(input.title !== undefined && { title: input.title.trim() }),
       ...(input.description !== undefined && { description: input.description.trim() }),
       ...(input.caption !== undefined && { caption: input.caption?.trim() || null }),
+      ...(input.mediaType !== undefined && { mediaType: input.mediaType }),
+      ...(input.featured !== undefined && { featured: input.featured }),
       ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl.trim() }),
       ...(input.imageAlt !== undefined && { imageAlt: input.imageAlt.trim() }),
       ...(input.category !== undefined && { category: input.category }),
@@ -2766,7 +2801,7 @@ export async function updateGalleryImage(
     entityId: record.id,
     actorEmail: actor.email,
     actorRole: actor.role,
-    summary: `Updated gallery image "${record.title}"`,
+    summary: `Updated gallery media "${record.title}"`,
     metadata: { slug: record.slug, changedFields: Object.keys(input) },
   })
 

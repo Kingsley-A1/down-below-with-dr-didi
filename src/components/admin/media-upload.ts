@@ -3,10 +3,14 @@ import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 export type UploadedAsset = {
   id: string
   label: string
+  storageKey: string
+  bucket: string
   url: string
   mimeType: string
   sizeBytes: number
   kind: 'image' | 'audio' | 'document' | 'video' | 'other'
+  altText: string | null
+  createdAt: string
 }
 
 type UploadAdminMediaOptions = {
