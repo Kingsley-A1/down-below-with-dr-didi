@@ -69,7 +69,7 @@ export default function AdminSignInForm() {
         if (parsedError.code === 'email_not_verified') {
           setNeedsEmailVerification(true)
           setServerError(parsedError.message)
-          setServerHint('Check your inbox for the verification link, or request a new one.')
+          setServerHint('Check your inbox for the 6-digit code, or request a new one.')
           return
         }
 

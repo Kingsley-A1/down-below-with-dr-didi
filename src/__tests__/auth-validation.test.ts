@@ -4,7 +4,13 @@
  */
 
 import { describe, it, expect } from '@jest/globals'
-import { userRegisterSchema, userLoginSchema, userPhoneVerificationSchema } from '@/lib/validations'
+import {
+  adminVerifyEmailSchema,
+  userLoginSchema,
+  userPhoneVerificationSchema,
+  userRegisterSchema,
+  userVerifyEmailSchema,
+} from '@/lib/validations'
 
 describe('Auth Validation Schemas', () => {
   describe('userRegisterSchema', () => {
@@ -102,6 +108,35 @@ describe('Auth Validation Schemas', () => {
       const result = userLoginSchema.safeParse(data)
       expect(result.success).toBe(false)
     })
+  })
+
+  describe('email verification schemas', () => {
+    it('normalizes email and accepts a 6-digit code', () => {
+      const result = userVerifyEmailSchema.safeParse({
+        email: '  USER@Example.com ',
+        code: '042913',
+      })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data).toEqual({
+          email: 'user@example.com',
+          code: '042913',
+        })
+      }
+    })
+
+    it.each(['12345', '1234567', '12a456', '      '])(
+      'rejects invalid verification code %s',
+      (code) => {
+        expect(
+          adminVerifyEmailSchema.safeParse({
+            email: 'admin@example.com',
+            code,
+          }).success
+        ).toBe(false)
+      }
+    )
   })
 
   describe('userPhoneVerificationSchema', () => {

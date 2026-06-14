@@ -68,7 +68,7 @@ export function LoginForm() {
           setNeedsEmailVerification(true)
           setVerifyEmailAddress(values.email.trim().toLowerCase())
           setServerError(data.error || 'Verify your email to continue.')
-          setServerHint('Check your inbox for the verification link or request a new one.')
+          setServerHint('Check your inbox for the 6-digit code or request a new one.')
           return
         }
 

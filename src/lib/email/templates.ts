@@ -180,21 +180,13 @@ function fallbackLink(href: string) {
   return `<p style="margin:16px 0 0 0;font-size:12px;color:${COLOR.muted};word-break:break-all;line-height:1.5;">Button not working? Paste this link into your browser:<br/><span style="color:${COLOR.accentInk};font-weight:600;">${escape(href)}</span></p>`
 }
 
-// Sharp, monospaced verification code with a copy affordance beside it. The
-// code sits in a crisp bordered chip (one selectable string, so a long-press /
-// double-click copies it cleanly), with a clipboard "Copy" cue to its right.
-// Email clients can't run JavaScript, so the chip itself is the copy target.
+// Keep the verification code as one selectable string so it can be copied
+// reliably across email clients without relying on unsupported JavaScript.
 function verificationCodeBlock(code: string) {
-  const copyPill = `<span title="Copy your code" style="display:inline-block;border:1.5px solid ${COLOR.accent};border-radius:8px;padding:11px 12px;background:${COLOR.card};color:${COLOR.accentInk};white-space:nowrap;"><span style="font-size:14px;">&#128203;</span>&nbsp;<span style="font-size:12px;font-weight:800;letter-spacing:0.04em;">Copy</span></span>`
-
   return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:22px 0 6px 0;">
     <tr><td align="center" style="padding-bottom:12px;font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${COLOR.accentInk};">Your verification code</td></tr>
     <tr><td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>
-        <td valign="middle" align="center" style="border:2px solid ${COLOR.accent};border-radius:10px;padding:14px 8px 14px 20px;background:${COLOR.accentWash};font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:32px;font-weight:800;letter-spacing:0.34em;color:${COLOR.ink};">${escape(code)}</td>
-        <td width="12" style="width:12px;font-size:0;line-height:0;">&nbsp;</td>
-        <td valign="middle">${copyPill}</td>
-      </tr></table>
+      <span style="display:inline-block;border:2px solid ${COLOR.accent};border-radius:10px;padding:14px 10px 14px 22px;background:${COLOR.accentWash};font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:32px;font-weight:800;letter-spacing:0.34em;color:${COLOR.ink};">${escape(code)}</span>
     </td></tr>
   </table>`
 }

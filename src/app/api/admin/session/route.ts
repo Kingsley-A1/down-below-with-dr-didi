@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
             {
               ok: false,
               code: 'email_not_verified',
-              error: 'Email not verified. Check your inbox for the verification link.',
+              error: 'Email not verified. Enter the 6-digit code sent to your inbox.',
             },
             { status: 403 }
           )
