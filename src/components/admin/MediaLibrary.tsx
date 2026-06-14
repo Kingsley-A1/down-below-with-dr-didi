@@ -1,17 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Camera, File, ImageIcon } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { File, ImageIcon, ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
-import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
-import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import { deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
-const MEDIA_DRAFT_KEY = 'admin-draft:media-upload'
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 function formatBytes(size: number) {
   if (size < 1024) {
@@ -36,6 +35,8 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [label, setLabel] = useState('')
   const [altText, setAltText] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const selectedPreviewUrl = useMemo(() => {
     if (!selectedFile || !selectedFile.type.startsWith('image/')) {
       return ''
@@ -52,29 +53,45 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     }
   }, [selectedPreviewUrl])
 
-  useEffect(() => {
-    const draft = readAdminDraft<{ label: string; altText: string }>(MEDIA_DRAFT_KEY)
+  function resetSelectedImage() {
+    setSelectedFile(null)
+    setLabel('')
+    setAltText('')
+    setImageDimensions(null)
+    setUploadProgress(0)
 
-    if (!draft) {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  function selectImage(file: File | null) {
+    if (!file) {
       return
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setLabel(draft.value.label)
-      setAltText(draft.value.altText)
-      setStatus(`Recovered upload details from ${new Date(draft.savedAt).toLocaleString('en-NG')}. Choose the file again to continue.`)
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [])
-
-  useEffect(() => {
-    if (!label && !altText) {
+    if (!file.type.startsWith('image/')) {
+      setStatus('Choose an image file such as JPG, PNG, WebP, GIF, or AVIF.')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
-    writeAdminDraft(MEDIA_DRAFT_KEY, { label, altText })
-  }, [altText, label])
+    if (file.size > MAX_IMAGE_BYTES) {
+      setStatus('This image is larger than 10 MB. Choose a smaller image and try again.')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    setStatus('')
+    setSelectedFile(file)
+    setLabel(deriveMediaLabel(file.name))
+    setAltText('')
+    setImageDimensions(null)
+  }
 
   async function refreshAssets() {
     const refreshed = await fetch('/api/admin/media', { cache: 'no-store' })
@@ -103,11 +120,8 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
       setUploadDetail('Refreshing media library')
       await refreshAssets()
-      setStatus('Asset uploaded successfully.')
-      clearAdminDraft(MEDIA_DRAFT_KEY)
-      setLabel('')
-      setAltText('')
-      setSelectedFile(null)
+      setStatus('Image uploaded successfully.')
+      resetSelectedImage()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.')
     } finally {
@@ -160,59 +174,179 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
   return (
     <div className="space-y-8 admin-fade-in">
-      <form onSubmit={handleSubmit} className="admin-surface bg-white rounded-2xl border p-6 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
-        <div>
-          <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Upload Asset</h2>
-          <p className="font-body text-sm text-gray-500">Add approved files to the managed media pipeline for use across the platform.</p>
+      <form
+        onSubmit={handleSubmit}
+        className="admin-surface space-y-6 rounded-2xl border bg-white p-5 sm:p-6"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <div className="max-w-2xl">
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+            Fast Image Upload
+          </p>
+          <h2 className="mt-1 text-balance font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
+            Select, Review & Upload
+          </h2>
+          <p className="mt-2 text-pretty font-body text-sm leading-6 text-gray-500">
+            Choose 1 image. Its title is filled from the file name, then you can review the preview and edit details before upload.
+          </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="block font-body text-sm font-semibold mb-2" htmlFor="label">Label</label>
-            <input id="label" name="label" value={label} onChange={(event) => setLabel(event.target.value)} className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
-          </div>
-          <div>
-            <label className="block font-body text-sm font-semibold mb-2" htmlFor="altText">Alt text</label>
-            <input id="altText" name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} className="w-full rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-border)' }} />
-          </div>
-        </div>
+
         <div>
-          <label className="block font-body text-sm font-semibold mb-2" htmlFor="file">File</label>
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-            <Camera className="h-3.5 w-3.5" />
-            <span>Media</span>
-          </div>
+          <span className="block font-body text-sm font-semibold text-slate-800">
+            Image <span className="text-red-600" aria-hidden="true">*</span>
+          </span>
+          <p id="image-upload-help" className="mt-1 font-body text-xs text-slate-500">
+            JPG, PNG, WebP, GIF, or AVIF. Maximum size: 10&nbsp;MB.
+          </p>
           <input
-            id="file"
-            name="file"
+            ref={fileInputRef}
+            id="image-upload-file"
+            name="image"
             type="file"
-            required
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null
-              setSelectedFile(file)
-              if (file && !label.trim()) {
-                setLabel(file.name.replace(/\.[^./\\]+$/, '').replace(/[_-]+/g, ' '))
-              }
-            }}
-            className="w-full rounded-xl border px-4 py-3 text-sm"
-            style={{ borderColor: 'var(--color-border)' }}
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            tabIndex={-1}
+            aria-label="Choose image to upload"
+            aria-required="true"
+            aria-describedby="image-upload-help"
+            onChange={(event) => selectImage(event.target.files?.[0] ?? null)}
+            className="sr-only"
+            suppressHydrationWarning
           />
-          {selectedPreviewUrl ? (
-            <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={selectedPreviewUrl} alt="Selected upload preview" className="max-h-72 max-w-full rounded-lg object-contain" />
-            </div>
+
+          {!selectedFile ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="admin-interactive mt-3 flex min-h-44 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition-colors hover:border-emerald-600 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+            >
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
+                <ImagePlus className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <span className="mt-3 font-body text-sm font-semibold text-slate-900">Choose Image</span>
+              <span className="mt-1 font-body text-xs text-slate-500">Select an image from this device</span>
+            </button>
           ) : null}
         </div>
+
+        {selectedFile && selectedPreviewUrl ? (
+          <section
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+            aria-labelledby="selected-image-heading"
+          >
+            <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
+              <figure className="flex min-h-72 items-center justify-center bg-slate-950 p-3 sm:p-5">
+                {/* Blob URLs cannot be optimized by next/image. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedPreviewUrl}
+                  alt={altText || label || 'Selected image preview'}
+                  width={1200}
+                  height={800}
+                  onLoad={(event) => {
+                    setImageDimensions({
+                      width: event.currentTarget.naturalWidth,
+                      height: event.currentTarget.naturalHeight,
+                    })
+                  }}
+                  className="max-h-[28rem] w-full rounded-xl object-contain"
+                />
+              </figure>
+
+              <div className="min-w-0 space-y-5 p-5 sm:p-6">
+                <div>
+                  <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                    Ready to Upload
+                  </p>
+                  <h3 id="selected-image-heading" className="mt-1 truncate font-heading text-xl font-bold text-slate-900">
+                    {selectedFile.name}
+                  </h3>
+                  <p className="mt-2 font-body text-xs text-slate-500">
+                    {formatBytes(selectedFile.size)}
+                    {imageDimensions ? ` · ${imageDimensions.width} × ${imageDimensions.height} px` : ''}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-title">
+                    Image Title <span className="text-red-600" aria-hidden="true">*</span>
+                  </label>
+                  <input
+                    id="image-title"
+                    name="title"
+                    value={label}
+                    required
+                    maxLength={120}
+                    autoComplete="off"
+                    aria-describedby="image-title-help"
+                    onChange={(event) => setLabel(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                  />
+                  <p id="image-title-help" className="mt-1.5 font-body text-xs text-slate-500">
+                    Filled automatically from the file name. Edit it to make the image easy to find.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-alt-text">
+                    Alt Text <span className="font-normal text-slate-500">(optional)</span>
+                  </label>
+                  <input
+                    id="image-alt-text"
+                    name="altText"
+                    value={altText}
+                    maxLength={200}
+                    autoComplete="off"
+                    aria-describedby="image-alt-help"
+                    onChange={(event) => setAltText(event.target.value)}
+                    placeholder="Example: Dr. Didi speaking at a women’s health outreach…"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                  />
+                  <p id="image-alt-help" className="mt-1.5 font-body text-xs text-slate-500">
+                    Describe meaningful content. Leave blank only when the image is decorative.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900 disabled:opacity-60"
+                  >
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                    Replace Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetSelectedImage}
+                    disabled={isUploading}
+                    className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-50 px-4 py-2 font-body text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <UploadProgress
           active={isUploading}
-          label="Uploading asset"
+          label="Uploading image"
           detail={uploadDetail}
           value={uploadProgress}
         />
-        <div className="flex items-center gap-4">
-          <button type="submit" disabled={isUploading} className="admin-interactive rounded-full px-6 py-3 font-body font-semibold" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
-            {isUploading ? 'Uploading...' : 'Upload Asset'}
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={isUploading}
+            className="admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+          >
+            {isUploading ? 'Uploading…' : 'Upload Image'}
           </button>
+          <p className="font-body text-xs text-slate-500">2 required inputs · 1 optional input</p>
         </div>
         {status ? <div aria-live="polite"><AdminInlineStatus tone={statusTone} message={status} /></div> : null}
       </form>
@@ -331,7 +465,14 @@ function AssetPreview({ asset }: { asset: MediaAssetRecord }) {
     return (
       <span className="relative inline-flex h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={asset.url} alt={asset.altText || asset.label} className="h-full w-full object-cover" />
+        <img
+          src={asset.url}
+          alt={asset.altText || asset.label}
+          width={48}
+          height={48}
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
       </span>
     )
   }

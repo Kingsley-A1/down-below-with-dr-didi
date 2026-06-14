@@ -34,7 +34,7 @@ export default async function AdminMediaPage() {
       <AdminPageHeader
         eyebrow="Operations"
         title="Media Library"
-        description="Manage approved media assets used across site settings, team profiles, gallery records, and podcast publishing."
+        description="Upload images in one guided step, then manage approved media used across the platform."
       />
       {loadWarning ? (
         <AdminDataLoadAlert

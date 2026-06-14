@@ -13,6 +13,18 @@ type UploadAdminMediaOptions = {
   onProgress?: (progress: number) => void
 }
 
+const DIRECT_UPLOAD_TIMEOUT_MS = 120_000
+
+export function deriveMediaLabel(fileName: string): string {
+  const normalized = fileName
+    .replace(/\.[^./\\]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return normalized || 'Untitled image'
+}
+
 function parseUploadResponse<T>(raw: string): T & { error?: string } {
   if (!raw.trim()) {
     return {} as T & { error?: string }
@@ -46,6 +58,7 @@ function uploadFileToSignedUrl(file: File, uploadUrl: string, options: UploadAdm
 
     request.open('PUT', uploadUrl)
     request.responseType = 'text'
+    request.timeout = DIRECT_UPLOAD_TIMEOUT_MS
     request.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
 
     request.upload.onprogress = (event) => {
@@ -60,6 +73,14 @@ function uploadFileToSignedUrl(file: File, uploadUrl: string, options: UploadAdm
       reject(
         new Error(
           `Upload failed for ${file.name}. The browser could not reach storage. Confirm Cloudflare R2 CORS allows PUT from this admin domain with the Content-Type header.`
+        )
+      )
+    }
+
+    request.ontimeout = () => {
+      reject(
+        new Error(
+          `Upload timed out for ${file.name}. Check Cloudflare R2 CORS and network access, then try again.`
         )
       )
     }
@@ -86,6 +107,8 @@ export async function uploadAdminMediaAsset(
   options: UploadAdminMediaOptions = {}
 ) {
   const normalizedMimeType = file.type || 'application/octet-stream'
+  const normalizedLabel = label.trim() || deriveMediaLabel(file.name)
+  const normalizedAltText = altText.trim()
   const presign = await requestJson<{
     uploadUrl: string
     storageKey: string
@@ -96,20 +119,20 @@ export async function uploadAdminMediaAsset(
     fileName: file.name,
     mimeType: normalizedMimeType,
     sizeBytes: file.size,
-    label,
-    altText,
+    label: normalizedLabel,
+    altText: normalizedAltText,
   })
 
   await uploadFileToSignedUrl(file, presign.uploadUrl, options)
 
   const complete = await requestJson<{ asset: UploadedAsset }>('/api/admin/media/complete', {
-    label,
+    label: normalizedLabel,
     storageKey: presign.storageKey,
     bucket: presign.bucket,
     url: presign.url,
     mimeType: normalizedMimeType,
     sizeBytes: file.size,
-    altText,
+    altText: normalizedAltText,
   })
 
   return complete.asset

@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Mic2,
   Newspaper,
-  Plus,
   Settings,
   Shield,
   Upload,
@@ -26,15 +25,8 @@ import {
   X,
 } from 'lucide-react'
 import AdminSignOutButton from '@/components/admin/AdminSignOutButton'
-import AdminUploadModal from '@/components/admin/AdminUploadModal'
 import { isTopLevelAdmin, type AdminRole } from '@/lib/admin/rbac'
 import { siteConfig } from '@/lib/site-config'
-
-// Media upload is temporarily hidden from the admin UI while the R2 pipeline
-// (CSP connect-src, presign checksum, and bucket CORS) is finished and verified
-// in production. Flip to `true` to restore every upload entry point — the modal
-// and handlers are left intact. Tracking: ARCHITECURE.MD §9 / §10.
-const ADMIN_UPLOAD_ENABLED = false
 
 type NavLinkItem = {
   href: string
@@ -96,13 +88,11 @@ function isActivePath(pathname: string, href: string) {
 function AdminNav({
   pathname,
   onNavigate,
-  onUpload,
   role,
   showSignOut = true,
 }: {
   pathname: string
   onNavigate?: () => void
-  onUpload: () => void
   role: AdminRole
   showSignOut?: boolean
 }) {
@@ -157,16 +147,14 @@ function AdminNav({
       ))}
 
       <div className="border-t border-slate-200 pt-4">
-        {ADMIN_UPLOAD_ENABLED ? (
-          <button
-            type="button"
-            onClick={onUpload}
-            className="admin-interactive mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Upload Asset</span>
-          </button>
-        ) : null}
+        <Link
+          href="/admin/media"
+          onClick={onNavigate}
+          className="admin-interactive mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2.5 font-body text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+        >
+          <Upload className="h-4 w-4" aria-hidden="true" />
+          <span>Upload Image</span>
+        </Link>
 
         <Link
           href="/"
@@ -196,7 +184,6 @@ export default function AdminShell({
 }) {
   const pathname = usePathname() || '/admin'
   const [navOpen, setNavOpen] = useState(false)
-  const [uploadOpen, setUploadOpen] = useState(false)
   const navPanelRef = useRef<HTMLElement | null>(null)
   const navCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const lastFocusedElementRef = useRef<HTMLElement | null>(null)
@@ -294,26 +281,20 @@ export default function AdminShell({
             <div className="hidden text-right sm:block">
               <p className="font-body text-[11px] uppercase tracking-[0.18em] text-slate-400">{role.replace('_', ' ')}</p>
             </div>
-            {ADMIN_UPLOAD_ENABLED ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setUploadOpen(true)}
-                  className="admin-interactive hidden items-center gap-2 rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white lg:inline-flex"
-                >
-                  <Upload className="h-4 w-4" />
-                  Upload
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUploadOpen(true)}
-                  className="admin-interactive inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white lg:hidden"
-                  aria-label="Upload media"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              </>
-            ) : null}
+            <Link
+              href="/admin/media"
+              className="admin-interactive hidden items-center gap-2 rounded-full bg-slate-900 px-4 py-2 font-body text-sm font-semibold text-white transition-colors hover:bg-slate-800 lg:inline-flex"
+            >
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              Upload Image
+            </Link>
+            <Link
+              href="/admin/media"
+              className="admin-interactive inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white transition-colors hover:bg-slate-800 lg:hidden"
+              aria-label="Upload image"
+            >
+              <Upload className="h-5 w-5" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </header>
@@ -367,7 +348,7 @@ export default function AdminShell({
               <p className="truncate font-body text-sm font-semibold text-slate-800">{email}</p>
               <p className="mt-1 font-body text-[11px] uppercase tracking-[0.18em] text-slate-500">{role.replace('_', ' ')}</p>
             </div>
-            <AdminNav pathname={pathname} role={role} onNavigate={() => setNavOpen(false)} onUpload={() => setUploadOpen(true)} />
+            <AdminNav pathname={pathname} role={role} onNavigate={() => setNavOpen(false)} />
           </aside>
         </div>
       ) : null}
@@ -375,8 +356,6 @@ export default function AdminShell({
       <div className="max-w-container mx-auto px-4 py-6 md:px-6 lg:py-8">
         <div className="min-w-0">{children}</div>
       </div>
-
-      <AdminUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
     </div>
   )
 }

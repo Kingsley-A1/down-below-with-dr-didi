@@ -226,20 +226,24 @@ Migration source of truth:
 
 ### 9.1 UX Layer
 
-Primary modal component:
-- `src/components/admin/AdminUploadModal.tsx`
+Canonical upload surface:
+- `src/app/admin/media/page.tsx`
+- `src/components/admin/MediaLibrary.tsx`
 
-The modal now captures:
-- File
-- Label
-- Alt text
-- Media kind intent (image/audio/video/document/other)
-- Destination intent (media library, settings, team, gallery, podcast)
+The image workflow captures:
+- Image file (required)
+- Image title (required, derived from the file name and editable)
+- Alt text (optional)
+
+Selecting an image renders an in-form preview card with file size, dimensions,
+replace, and remove actions. Admin shell upload actions link to this page so
+there is one upload workflow instead of a competing global modal.
 
 ### 9.2 Client Upload Adapter
 
 - `src/components/admin/media-upload.ts`
-- Uses `FormData` and posts to `/api/admin/media`
+- Requests a signed R2 URL, uploads directly from the browser, then completes
+  the metadata record through the admin API.
 
 ### 9.3 Server Pipeline
 
@@ -249,24 +253,12 @@ The modal now captures:
 4. Persist `MediaAsset` metadata in DB
 5. Return asset payload to UI
 
-### 9.4 Current Status — Upload UI temporarily disabled
+### 9.4 Current Status
 
-The upload UI is hidden in `AdminShell.tsx` via `ADMIN_UPLOAD_ENABLED = false`
-so the site can ship without exposing a not-yet-working feature. The actual
-client flow is presign + direct browser PUT to R2 (`media-upload.ts` →
+The production upload path is presign + direct browser PUT to R2 (`media-upload.ts` →
 `POST /api/admin/media/presign` → `PUT` to the signed R2 URL →
-`POST /api/admin/media/complete`), not a single `FormData` post.
-
-Remaining work before re-enabling (flip the flag to `true`):
-
-1. **Deploy the CSP fix** — `connect-src` now allows `*.r2.cloudflarestorage.com`
-   / `*.r2.dev` (`next.config.ts`); takes effect on redeploy.
-2. **Deploy the presign checksum fix** — the R2 S3 client uses
-   `requestChecksumCalculation: 'WHEN_REQUIRED'` (`src/lib/storage/r2.ts`) so the
-   SDK does not bake an empty-body `x-amz-checksum-crc32` into the signed URL.
-3. **Configure R2 bucket CORS** (Cloudflare dashboard, not code): allow `PUT`
-   from the admin origin(s) with the `Content-Type` header.
-4. Re-test presign → PUT → complete end-to-end, then set `ADMIN_UPLOAD_ENABLED = true`.
+`POST /api/admin/media/complete`). CSP permits the R2 endpoints and the R2
+client disables unnecessary request checksums for signed uploads.
 
 ---
 
@@ -280,14 +272,14 @@ Responsibilities:
 - Route-aware navigation state
 - Mobile overlay navigation
 - Desktop collapsible sidebar
-- Upload trigger actions (desktop `Upload`, mobile `+`, nav `Upload Asset`) — **temporarily hidden**, see note below
-- Centralized mount for `AdminUploadModal`
+- Desktop, mobile, and nav upload links to the canonical media page
 
 Recent UX behavior:
 - Header no longer displays admin email
 - Sign-out removed from header and available in nav panel
 - Hamburger/menu icon has transparent background styling
-- **Media upload UI is temporarily disabled** behind the `ADMIN_UPLOAD_ENABLED` flag in `AdminShell.tsx` (currently `false`). All three upload triggers — the desktop `Upload` button, the mobile `+` button, and the nav-panel `Upload Asset` button — are hidden from view while the R2 upload pipeline is finished and verified in production. `AdminUploadModal` and its state/handlers remain mounted and intact; re-enable by flipping the flag to `true`. Remaining pipeline work is tracked in §9.4.
+- Upload actions use navigation links so every entry point lands on the same
+  guided image workflow.
 
 ---
 
