@@ -147,16 +147,16 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
         status: 'live',
         highlights: ['Search and filters', 'Safety controls on activation', 'Integrated audit trail'],
       },
-      {
-        id: 'operations',
-        title: 'Operations Signals',
-        href: '/admin',
-        description: 'Track core support volume and admin access footprint in one operational view.',
-        metricLabel: 'Contact submissions',
-        metricValue: summary.contactSubmissions,
-        status: summary.databaseReady ? 'live' : 'attention',
-        highlights: ['Contact traffic visibility', 'Admin activity checks', 'Readiness posture reference'],
-      },
+      // {
+      //   id: 'operations',
+      //   title: 'Operations Signals',
+      //   href: '/admin',
+      //   description: 'Track core support volume and admin access footprint in one operational view.',
+      //   metricLabel: 'Contact submissions',
+      //   metricValue: summary.contactSubmissions,
+      //   status: summary.databaseReady ? 'live' : 'attention',
+      //   highlights: ['Contact traffic visibility', 'Admin activity checks', 'Readiness posture reference'],
+      // },
     ],
     [summary]
   )
@@ -275,27 +275,37 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
 
   return (
     <>
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 admin-fade-in">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 admin-fade-in">
         {cards.map((card) => (
           <button
             key={card.id}
             type="button"
             onClick={() => setActiveCardId(card.id)}
-            className="admin-interactive group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(2,12,27,0.10)] sm:p-5"
+            className="admin-interactive group relative flex aspect-square min-h-[11rem] flex-col justify-between overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-3.5 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(2,12,27,0.10)] sm:min-h-[12rem] sm:p-4"
           >
-            <div className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full bg-linear-to-br from-slate-100 to-transparent" />
-            <p className="font-body text-xs uppercase tracking-[0.2em] text-slate-400">{card.metricLabel}</p>
-            <p className="mt-1 font-heading text-3xl font-bold text-slate-900 sm:text-4xl">{card.metricValue}</p>
-            <h2 className="mt-3 font-heading text-lg font-bold text-slate-900 sm:mt-4 sm:text-xl">{card.title}</h2>
-            <p className="mt-1.5 font-body text-xs text-slate-600 sm:mt-2 sm:text-sm">{card.description}</p>
-            <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 font-body text-[11px] font-semibold uppercase tracking-[0.14em] ${
-              card.status === 'live' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-700'
-            }`}>
-              {card.status}
-            </span>
-            <p className="mt-3 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 group-hover:text-slate-900 sm:mt-4 sm:text-xs">
-              Open details
-            </p>
+            <div className="pointer-events-none absolute -right-10 -top-8 h-24 w-24 rounded-full bg-linear-to-br from-slate-100 to-transparent" />
+
+            <div>
+              <p className="font-body text-[10px] uppercase tracking-[0.18em] text-slate-400 sm:text-[11px]">{card.metricLabel}</p>
+              <p className="mt-1 font-heading text-[1.8rem] leading-none font-bold text-slate-900 sm:text-[2.1rem]">{card.metricValue}</p>
+              <h2 className="mt-3 line-clamp-2 font-heading text-[0.98rem] font-bold leading-5 text-slate-900 sm:text-[1.05rem]">
+                {card.title}
+              </h2>
+              <p className="mt-1.5 line-clamp-2 font-body text-[11px] leading-4 text-slate-600 sm:text-xs">
+                {card.description}
+              </p>
+            </div>
+
+            <div className="flex items-end justify-between gap-2">
+              <span className={`inline-flex rounded-full px-2 py-1 font-body text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                card.status === 'live' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {card.status}
+              </span>
+              <p className="font-body text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 group-hover:text-slate-900 sm:text-[11px]">
+                Open
+              </p>
+            </div>
           </button>
         ))}
       </section>
