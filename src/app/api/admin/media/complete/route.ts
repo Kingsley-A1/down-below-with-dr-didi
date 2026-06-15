@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createMediaAssetRecord } from '@/lib/admin/repository'
+import { revalidatePath } from 'next/cache'
+import { createMediaAssetWithGalleryRecord } from '@/lib/admin/repository'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { inferMediaKind, validateMediaFileMetadata } from '@/lib/admin/media-policy'
+import { validationError as zodValidationError } from '@/lib/api/errors'
+import { galleryMediaUploadSchema } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -24,6 +27,7 @@ export async function POST(request: NextRequest) {
       mimeType?: string
       sizeBytes?: number
       altText?: string
+      gallery?: unknown
     }
 
     const label = String(body.label || '').trim()
@@ -38,12 +42,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Upload completion metadata is incomplete.' }, { status: 400 })
     }
 
-    const validationError = validateMediaFileMetadata({ mimeType, sizeBytes, label, altText })
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 })
+    const mediaValidationError = validateMediaFileMetadata({ mimeType, sizeBytes, label, altText })
+    if (mediaValidationError) {
+      return NextResponse.json({ error: mediaValidationError }, { status: 400 })
     }
 
-    const asset = await createMediaAssetRecord({
+    const parsedGallery = body.gallery === undefined
+      ? null
+      : galleryMediaUploadSchema.safeParse(body.gallery)
+
+    if (parsedGallery && !parsedGallery.success) {
+      return zodValidationError(parsedGallery.error)
+    }
+
+    const result = await createMediaAssetWithGalleryRecord({
       label,
       storageKey,
       bucket,
@@ -54,9 +66,20 @@ export async function POST(request: NextRequest) {
       altText,
       actorEmail: session.email,
       actorRole: session.role,
+      gallery: parsedGallery?.success
+        ? {
+            ...parsedGallery.data,
+            imageUrl: url,
+          }
+        : undefined,
     })
 
-    return NextResponse.json({ success: true, asset }, { status: 201 })
+    if (result.gallery) {
+      revalidatePath('/gallery')
+      revalidatePath('/')
+    }
+
+    return NextResponse.json({ success: true, ...result }, { status: 201 })
   } catch (error) {
     return mapApiError(error, 'Failed to complete media upload', { request, identity: { email: session.email, role: session.role } })
   }

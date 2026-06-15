@@ -2749,6 +2749,129 @@ export async function createGalleryImage(
   return mapGalleryImage(record)
 }
 
+export async function createMediaAssetWithGalleryRecord(input: {
+  label: string
+  storageKey: string
+  bucket: string
+  url: string
+  mimeType: string
+  sizeBytes: number
+  kind: MediaAssetRecord['kind']
+  altText?: string
+  actorEmail: string
+  actorRole: AdminRole
+  gallery?: {
+    slug: string
+    title: string
+    description: string
+    caption?: string
+    mediaType?: GalleryMediaType
+    featured?: boolean
+    imageUrl: string
+    imageAlt: string
+    category: GalleryImageCategory
+    eventName?: string
+    location?: string
+    capturedAt?: string
+    sortOrder?: number
+    status?: 'draft' | 'published' | 'archived'
+  }
+}): Promise<{ asset: MediaAssetDbRecord; gallery: GalleryImageRecord | null }> {
+  if (!hasDatabaseConfig()) {
+    throw appErrors.databaseUnavailable()
+  }
+
+  const actorEmail = input.actorEmail.trim().toLowerCase()
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const actor = await tx.adminUser.upsert({
+        where: { email: actorEmail },
+        update: { role: input.actorRole, isActive: true },
+        create: { email: actorEmail, role: input.actorRole },
+      })
+      const asset = await tx.mediaAsset.create({
+        data: {
+          label: input.label,
+          storageKey: input.storageKey,
+          bucket: input.bucket,
+          url: input.url,
+          mimeType: input.mimeType,
+          sizeBytes: input.sizeBytes,
+          kind: input.kind,
+          altText: input.altText || null,
+          createdById: actor.id,
+        },
+      })
+      const gallery = input.gallery
+        ? await tx.galleryImage.create({
+            data: {
+              slug: input.gallery.slug.trim(),
+              title: input.gallery.title.trim(),
+              description: input.gallery.description.trim(),
+              caption: input.gallery.caption?.trim() || null,
+              mediaType: input.gallery.mediaType ?? 'image',
+              featured: input.gallery.featured ?? false,
+              imageUrl: input.gallery.imageUrl.trim(),
+              imageAlt: input.gallery.imageAlt.trim(),
+              category: input.gallery.category,
+              eventName: input.gallery.eventName?.trim() || null,
+              location: input.gallery.location?.trim() || null,
+              capturedAt: input.gallery.capturedAt ? new Date(input.gallery.capturedAt) : null,
+              sortOrder: input.gallery.sortOrder ?? 0,
+              status: input.gallery.status ?? 'published',
+            },
+          })
+        : null
+
+      await tx.auditLog.create({
+        data: {
+          action: 'media_asset.created',
+          entityType: 'media_asset',
+          entityId: asset.id,
+          actorEmail,
+          actorRole: input.actorRole,
+          actorId: actor.id,
+          summary: `Uploaded media asset ${input.label}`,
+          metadata: {
+            storageKey: input.storageKey,
+            bucket: input.bucket,
+            mimeType: input.mimeType,
+          },
+        },
+      })
+
+      if (gallery) {
+        await tx.auditLog.create({
+          data: {
+            action: 'gallery_image.created',
+            entityType: 'gallery_image',
+            entityId: gallery.id,
+            actorEmail,
+            actorRole: input.actorRole,
+            actorId: actor.id,
+            summary: `Created gallery media "${gallery.title}"`,
+            metadata: {
+              slug: gallery.slug,
+              category: gallery.category,
+              mediaType: gallery.mediaType,
+              featured: gallery.featured,
+              mediaAssetId: asset.id,
+            },
+          },
+        })
+      }
+
+      return { asset, gallery }
+    },
+    { maxWait: 15_000, timeout: 30_000 }
+  )
+
+  return {
+    asset: result.asset as MediaAssetDbRecord,
+    gallery: result.gallery ? mapGalleryImage(result.gallery as GalleryImageDbRecord) : null,
+  }
+}
+
 export async function updateGalleryImage(
   id: string,
   input: Partial<{

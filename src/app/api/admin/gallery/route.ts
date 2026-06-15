@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getAllGalleryImages, createGalleryImage } from '@/lib/admin/repository'
 import { galleryImageSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
@@ -53,6 +54,9 @@ export async function POST(request: NextRequest) {
       },
       { email: session.email, role: session.role }
     )
+
+    revalidatePath('/gallery')
+    revalidatePath('/')
 
     return NextResponse.json({ success: true, image }, { status: 201 })
   } catch (error) {

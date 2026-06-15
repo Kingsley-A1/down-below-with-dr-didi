@@ -231,11 +231,14 @@ export const galleryImageSchema = z.object({
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
 })
 
+export const galleryMediaUploadSchema = galleryImageSchema.omit({ imageUrl: true })
+
 export const galleryImageUpdateSchema = galleryImageSchema.partial().extend({
   id: z.string().min(1, 'Gallery image id is required'),
 })
 
 export type GalleryImageFormData = z.infer<typeof galleryImageSchema>
+export type GalleryMediaUploadData = z.infer<typeof galleryMediaUploadSchema>
 export type GalleryImageUpdateData = z.infer<typeof galleryImageUpdateSchema>
 
 // ─────────────────────────────────────────────

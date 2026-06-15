@@ -237,9 +237,37 @@ export default function GalleryImagesBoard({
         const upload = await uploadAdminMediaAsset(
           mediaFile,
           `${form.title || 'Gallery media'} upload`,
-          form.imageAlt || form.title
+          form.imageAlt || form.title,
+          {
+            gallery: !editId
+              ? {
+                  slug: form.slug,
+                  title: form.title,
+                  description: form.description,
+                  caption: form.caption,
+                  mediaType: form.mediaType,
+                  featured: form.featured,
+                  imageAlt: form.imageAlt,
+                  category: form.category,
+                  eventName: form.eventName,
+                  location: form.location,
+                  capturedAt: form.capturedAt ? new Date(form.capturedAt).toISOString() : '',
+                  sortOrder: form.sortOrder,
+                  status: form.status,
+                }
+              : undefined,
+          }
         )
         nextImageUrl = upload.url
+
+        if (!editId && upload.gallery) {
+          setUploadingImage(false)
+          setBusy(false)
+          setMsg('Gallery media added.')
+          await refresh()
+          cancelForm()
+          return
+        }
       } catch (error) {
         setBusy(false)
         setUploadingImage(false)

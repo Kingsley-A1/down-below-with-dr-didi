@@ -1,4 +1,5 @@
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
+import type { GalleryMediaUploadData } from '@/lib/validations'
 
 export type UploadedAsset = {
   id: string
@@ -15,6 +16,7 @@ export type UploadedAsset = {
 
 type UploadAdminMediaOptions = {
   onProgress?: (progress: number) => void
+  gallery?: GalleryMediaUploadData
 }
 
 const DIRECT_UPLOAD_TIMEOUT_MS = 120_000
@@ -27,6 +29,47 @@ export function deriveMediaLabel(fileName: string): string {
     .trim()
 
   return normalized || 'Untitled image'
+}
+
+function gallerySlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function buildDefaultGalleryUpload(
+  fileName: string,
+  label: string,
+  altText: string,
+  mediaType: 'image' | 'video',
+  uniqueToken = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+): GalleryMediaUploadData {
+  const rawTitle = label.trim() || deriveMediaLabel(fileName)
+  const title = (rawTitle.length >= 5 ? rawTitle : `${mediaType === 'video' ? 'Video' : 'Image'} ${rawTitle}`).slice(0, 160)
+  const rawImageAlt = altText.trim()
+  const imageAlt = (rawImageAlt.length >= 5 ? rawImageAlt : title).slice(0, 200)
+  const baseSlug = gallerySlug(title).slice(0, 80) || `gallery-${mediaType}`
+  const token = uniqueToken.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) || Date.now().toString(36)
+
+  return {
+    slug: `${baseSlug}-${token}`.slice(0, 100),
+    title,
+    description: `Gallery highlight from DownBelow Family Health Initiative showing ${title.toLowerCase()} as part of our public education, care, and outreach work.`,
+    caption: title,
+    mediaType,
+    featured: false,
+    imageAlt,
+    category: 'outreach',
+    eventName: '',
+    location: '',
+    capturedAt: '',
+    sortOrder: 0,
+    status: 'published',
+  }
 }
 
 function parseUploadResponse<T>(raw: string): T & { error?: string } {
@@ -125,11 +168,15 @@ export async function uploadAdminMediaAsset(
     sizeBytes: file.size,
     label: normalizedLabel,
     altText: normalizedAltText,
+    gallery: options.gallery,
   })
 
   await uploadFileToSignedUrl(file, presign.uploadUrl, options)
 
-  const complete = await requestJson<{ asset: UploadedAsset }>('/api/admin/media/complete', {
+  const complete = await requestJson<{
+    asset: UploadedAsset
+    gallery: { id: string; slug: string } | null
+  }>('/api/admin/media/complete', {
     label: normalizedLabel,
     storageKey: presign.storageKey,
     bucket: presign.bucket,
@@ -137,7 +184,15 @@ export async function uploadAdminMediaAsset(
     mimeType: normalizedMimeType,
     sizeBytes: file.size,
     altText: normalizedAltText,
+    gallery: options.gallery,
   })
 
-  return complete.asset
+  if (options.gallery && !complete.gallery) {
+    throw new Error('Media uploaded, but the gallery publication was not created.')
+  }
+
+  return {
+    ...complete.asset,
+    gallery: complete.gallery,
+  }
 }

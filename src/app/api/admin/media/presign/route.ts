@@ -5,6 +5,8 @@ import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/
 import { inferMediaKind, validateMediaFileMetadata } from '@/lib/admin/media-policy'
 import { env } from '@/lib/env'
 import { buildAssetStorageKey, buildPublicAssetUrl, getR2Client } from '@/lib/storage/r2'
+import { validationError as zodValidationError } from '@/lib/api/errors'
+import { galleryMediaUploadSchema } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
   const session = await requireAdminSession(request)
@@ -25,6 +27,7 @@ export async function POST(request: NextRequest) {
       sizeBytes?: number
       label?: string
       altText?: string
+      gallery?: unknown
     } | null
 
     const fileName = String(body?.fileName || '').trim()
@@ -37,9 +40,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File name is required.' }, { status: 400 })
     }
 
-    const validationError = validateMediaFileMetadata({ mimeType, sizeBytes, label, altText })
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 })
+    const mediaValidationError = validateMediaFileMetadata({ mimeType, sizeBytes, label, altText })
+    if (mediaValidationError) {
+      return NextResponse.json({ error: mediaValidationError }, { status: 400 })
+    }
+
+    if (body?.gallery !== undefined) {
+      const parsedGallery = galleryMediaUploadSchema.safeParse(body.gallery)
+      if (!parsedGallery.success) {
+        return zodValidationError(parsedGallery.error)
+      }
     }
 
     const storageKey = buildAssetStorageKey(fileName)

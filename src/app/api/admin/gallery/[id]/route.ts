@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { updateGalleryImage, deleteGalleryImage } from '@/lib/admin/repository'
 import { galleryImageSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
@@ -43,6 +44,9 @@ export async function PUT(
       { email: session.email, role: session.role }
     )
 
+    revalidatePath('/gallery')
+    revalidatePath('/')
+
     return NextResponse.json({ success: true, image })
   } catch (error) {
     return mapApiError(error, 'Failed to update gallery image', { request, identity: { email: session.email, role: session.role } })
@@ -68,6 +72,8 @@ export async function DELETE(
 
   try {
     await deleteGalleryImage(id, { email: session.email, role: session.role })
+    revalidatePath('/gallery')
+    revalidatePath('/')
     return NextResponse.json({ success: true })
   } catch (error) {
     return mapApiError(error, 'Failed to delete gallery image', { request, identity: { email: session.email, role: session.role } })

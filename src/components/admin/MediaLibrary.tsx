@@ -6,7 +6,11 @@ import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
-import { deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import {
+  buildDefaultGalleryUpload,
+  deriveMediaLabel,
+  uploadAdminMediaAsset,
+} from '@/components/admin/media-upload'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
@@ -125,9 +129,21 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
         throw new Error('Choose a file before uploading.')
       }
 
-      const uploadedAsset = await uploadAdminMediaAsset(selectedFile, label.trim() || selectedFile.name, altText.trim(), {
-        onProgress: setUploadProgress,
-      })
+      const normalizedLabel = label.trim() || selectedFile.name
+      const uploadedAsset = await uploadAdminMediaAsset(
+        selectedFile,
+        normalizedLabel,
+        altText.trim(),
+        {
+          onProgress: setUploadProgress,
+          gallery: buildDefaultGalleryUpload(
+            selectedFile.name,
+            normalizedLabel,
+            altText.trim(),
+            mediaType
+          ),
+        }
+      )
 
       setAssets((current) => [
         {
@@ -146,7 +162,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
       ])
       setUploadDetail('Refreshing media library')
       await refreshAssets()
-      setStatus(`${mediaType === 'video' ? 'Video' : 'Image'} uploaded successfully.`)
+      setStatus(`${mediaType === 'video' ? 'Video' : 'Image'} uploaded and published to the gallery.`)
       resetSelectedMedia()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Upload failed. Check your connection and try again.')
