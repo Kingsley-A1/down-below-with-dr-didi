@@ -25,12 +25,6 @@ const nextConfig: NextConfig = {
   // from 404ing after the auth surface cleanup.
   async redirects() {
     return [
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'www.down-below.com' }],
-        destination: 'https://down-below.com/:path*',
-        permanent: true,
-      },
       { source: '/admin/recovery', destination: '/admin/forgot-password', permanent: true },
     ]
   },
