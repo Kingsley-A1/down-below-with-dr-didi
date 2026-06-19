@@ -5,6 +5,7 @@ import { GraduationCap, Users } from 'lucide-react'
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'The Amazing Hands Behind the Flame',
@@ -70,7 +71,7 @@ export default async function TeamPage() {
       {/* Page Hero */}
       <section
         className="pt-32 pb-20 relative overflow-hidden"
-        style={{ backgroundColor: 'var(--color-primary)' }}
+        style={{ background: publicHeroGradient('team') }}
       >
         <div
           className="absolute right-0 top-0 text-[200px] leading-none select-none pointer-events-none"

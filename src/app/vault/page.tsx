@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth/session'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl } from '@/lib/site-config'
 import { isVaultSubmissionsEnabled } from '@/lib/env'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'The V-Vault — Ask Anonymously',
@@ -24,7 +25,7 @@ export default async function VaultPage() {
 
   return (
     <>
-      <section className="pt-28 pb-10 text-center text-white sm:pt-32 sm:pb-14" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-28 pb-10 text-center text-white sm:pt-32 sm:pb-14" style={{ background: publicHeroGradient('vault') }}>
         <div
           className="mx-auto"
           style={{ width: 'min(calc(100vw - 2.5rem), 56rem)' }}

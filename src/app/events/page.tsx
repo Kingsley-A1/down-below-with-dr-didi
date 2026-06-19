@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowRight, CalendarDays, Heart, MapPin, MessageCircle, Radio, Sparkles } from 'lucide-react'
 import { getPublishedEvents, type PublicEventRecord } from '@/lib/events/repository'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'Events',
@@ -95,7 +96,7 @@ export default async function EventsPage() {
 
   return (
     <>
-      <section className="pt-32 pb-16 text-white" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-32 pb-16 text-white" style={{ background: publicHeroGradient('events') }}>
         <div className="max-w-container mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium" style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.75)' }}>
             <Sparkles className="h-4 w-4" />

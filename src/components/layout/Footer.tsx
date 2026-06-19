@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, MapPin, Phone } from 'lucide-react'
+import { ArrowUpRight, Mail, MapPin } from 'lucide-react'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -35,8 +35,22 @@ function TiktokIcon({ className }: { className?: string }) {
   )
 }
 
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M12 2a9.8 9.8 0 0 0-8.4 14.8L2 22l5.4-1.4A10 10 0 1 0 12 2Zm0 17.9a8 8 0 0 1-4.1-1.1l-.3-.2-3.2.8.9-3.1-.2-.3A8 8 0 1 1 12 19.9Zm4.4-5.9c-.2-.1-1.3-.6-1.5-.7-.2-.1-.4-.1-.5.1l-.7.9c-.1.1-.3.2-.5.1a6.6 6.6 0 0 1-1.9-1.2 7.3 7.3 0 0 1-1.4-1.8c-.1-.2 0-.3.1-.5l.4-.4.3-.4c.1-.1.1-.3 0-.4l-.7-1.7c-.1-.2-.3-.2-.5-.2h-.4c-.1 0-.4 0-.6.2-.2.2-.8.8-.8 1.9 0 1.1.8 2.2.9 2.3.1.2 1.6 2.6 4 3.6 2.4 1 2.4.7 2.9.7.5 0 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2-.1-.1-.3-.2-.5-.3Z" />
+    </svg>
+  )
+}
+
+function readableWhatsappLabel(whatsappUrl: string) {
+  const matchedDigits = whatsappUrl.replace(/[^\d+]/g, '')
+  return matchedDigits || 'Open WhatsApp'
+}
+
 export default async function Footer() {
   const siteSettings = await getPublicSiteSettings()
+  const currentYear = new Date().getFullYear()
 
   const socialLinks = [
     {
@@ -61,27 +75,66 @@ export default async function Footer() {
     },
   ]
 
+  const quickLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/about', label: 'About DownBelow' },
+    { href: '/events', label: 'Events' },
+    { href: '/library', label: 'Health Library' },
+    { href: '/podcast', label: 'Podcast' },
+    { href: '/outreach', label: 'Community Outreach' },
+    { href: '/vault', label: 'The V-Vault' },
+    { href: '/gallery', label: 'Gallery' },
+    { href: '/team', label: 'Our Team' },
+    { href: '/contact', label: 'Contact & Booking' },
+    { href: '/privacy', label: 'Privacy Policy' },
+    { href: '/terms', label: 'Terms of Use' },
+  ]
+
   return (
-    <footer style={{ backgroundColor: 'var(--color-primary)', color: 'rgba(255,255,255,0.96)' }}>
-      <div className="max-w-container mx-auto px-6 py-14">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.2fr_1fr_1fr]">
-          <div className="space-y-5">
+    <footer
+      className="relative overflow-hidden"
+      style={{
+        background:
+          'linear-gradient(180deg, rgba(7,67,56,1) 0%, rgba(7,58,49,1) 54%, rgba(5,45,38,1) 100%)',
+        color: 'rgba(255,255,255,0.96)',
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-[0.18]" aria-hidden="true">
+        <div
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,230,120,0.95), transparent)' }}
+        />
+        <div
+          className="absolute -top-28 right-0 h-64 w-64 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.22), transparent 68%)' }}
+        />
+        <div
+          className="absolute -bottom-20 left-0 h-56 w-56 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(201,255,231,0.18), transparent 70%)' }}
+        />
+      </div>
+
+      <div className="max-w-container relative mx-auto px-6 py-14 sm:py-16">
+        <div className="grid grid-cols-1 gap-10 border-b border-white/12 pb-10 lg:grid-cols-[1.2fr_0.9fr_1fr] lg:gap-12">
+          <div className="space-y-6">
             <Link href="/" className="inline-flex items-center gap-3">
               <Image
                 src="/logo.jpg"
                 alt={siteSettings.siteName}
-                width={52}
-                height={52}
-                className="rounded-full object-cover"
+                width={56}
+                height={56}
+                className="rounded-full border border-white/15 object-cover shadow-[0_10px_30px_rgba(0,0,0,0.18)]"
               />
-              <div>
-                <div className="font-heading font-bold text-lg">DownBelow Family</div>
-                <div className="font-body text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>with Dr. Didi</div>
+              <div className="min-w-0">
+                <div className="font-heading text-lg font-bold text-white">DownBelow Family</div>
+                <div className="font-body text-sm text-white/72">with Dr. Didi</div>
               </div>
             </Link>
-            <p className="max-w-md font-body text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.86)' }}>
+
+            <p className="max-w-xl font-body text-sm leading-7 text-white/82">
               {siteSettings.footerBlurb}
             </p>
+
             <div className="flex flex-wrap items-center gap-2.5">
               {socialLinks.map(({ Icon, label, href }) => (
                 <a
@@ -90,7 +143,7 @@ export default async function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/10 transition-colors hover:bg-white/20"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/18 bg-white/8 text-white/88 transition-colors hover:bg-white/16 hover:text-white"
                 >
                   <Icon className="h-5 w-5" />
                 </a>
@@ -99,25 +152,13 @@ export default async function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 font-heading text-lg font-semibold">Quick Links</h3>
-            <ul className="grid grid-cols-2 gap-x-5 gap-y-2 sm:grid-cols-1">
-              {[
-                { href: '/', label: 'Home' },
-                { href: '/about', label: 'About DownBelow' },
-                { href: '/events', label: 'Events' },
-                { href: '/library', label: 'Health Library' },
-                { href: '/podcast', label: 'Podcast' },
-                { href: '/outreach', label: 'Community Outreach' },
-                { href: '/vault', label: 'The V-Vault' },
-                { href: '/contact', label: 'Contact & Booking' },
-                { href: '/gallery', label: 'Gallery' },
-                { href: '/team', label: 'Our Team' },
-              ].map(({ href, label }) => (
+            <h3 className="mb-4 font-heading text-lg font-semibold text-white">Explore</h3>
+            <ul className="grid grid-cols-1 gap-y-2.5 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-1">
+              {quickLinks.map(({ href, label }) => (
                 <li key={href}>
                   <Link
                     href={href}
-                    className="font-body text-sm transition-colors hover:text-white"
-                    style={{ color: 'rgba(255,255,255,0.9)' }}
+                    className="font-body text-sm text-white/82 transition-colors hover:text-white"
                   >
                     {label}
                   </Link>
@@ -126,57 +167,87 @@ export default async function Footer() {
             </ul>
           </div>
 
-          <div>
-            <h3 className="mb-4 font-heading text-lg font-semibold">Get in Touch</h3>
-            <div className="space-y-3 font-body text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
-              <p className="flex items-start gap-2">
-                <MapPin size={15} className="mt-0.5 shrink-0" />
-                <span>Calabar, Cross River State, Nigeria</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <Mail size={15} className="mt-0.5 shrink-0" />
-                <span>{siteSettings.contactEmail}</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <Phone size={15} className="mt-0.5 shrink-0" />
-                <span>{siteSettings.primaryWhatsapp}</span>
-              </p>
+          <div className="space-y-6">
+            <div>
+              <h3 className="mb-4 font-heading text-lg font-semibold text-white">Get in Touch</h3>
+              <div className="space-y-4 font-body text-sm text-white/84">
+                <p className="flex items-start gap-3">
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
+                  <span>Calabar, Cross River State, Nigeria</span>
+                </p>
+                <a
+                  href={`mailto:${siteSettings.contactEmail}`}
+                  className="flex items-start gap-3 transition-colors hover:text-white"
+                >
+                  <Mail size={16} className="mt-0.5 shrink-0 text-[var(--color-accent)]" />
+                  <span>{siteSettings.contactEmail}</span>
+                </a>
+                <a
+                  href={siteSettings.primaryWhatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 transition-colors hover:text-white"
+                >
+                  <WhatsAppIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#7dffbe]" />
+                  <span>{readableWhatsappLabel(siteSettings.primaryWhatsapp)}</span>
+                </a>
+              </div>
             </div>
-            <Link
-              href="/contact"
-              className="mt-6 inline-block rounded-full px-6 py-3 font-body text-sm font-semibold transition-colors"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
-            >
-              Book a Consultation
-            </Link>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/contact"
+                className="inline-flex items-center rounded-full px-5 py-3 font-body text-sm font-semibold transition-transform hover:-translate-y-0.5"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-primary)' }}
+              >
+                Book a Consultation
+              </Link>
+              <a
+                href={siteSettings.primaryWhatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/8 px-5 py-3 font-body text-sm font-semibold text-white transition-colors hover:bg-white/14"
+              >
+                <WhatsAppIcon className="h-4 w-4" />
+                <span>Chat on WhatsApp</span>
+              </a>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="border-t px-6 py-5" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>
-        <div className="max-w-container mx-auto flex flex-col items-center justify-between gap-3 text-center font-body text-xs sm:flex-row sm:text-left" style={{ color: 'rgba(255,255,255,0.72)' }}>
-          <p>© 2026 {siteSettings.siteName}. All rights reserved.</p>
-          <p>Content on this site is for educational purposes only and does not substitute professional medical advice.</p>
-          <div className="flex items-center gap-3">
-            <Link href="/privacy" className="font-semibold underline-offset-4 hover:underline" style={{ color: 'rgba(255,255,255,0.9)' }}>
-              Privacy
-            </Link>
-            <Link href="/terms" className="font-semibold underline-offset-4 hover:underline" style={{ color: 'rgba(255,255,255,0.9)' }}>
-              Terms
-            </Link>
+        <div className="flex flex-col gap-6 pt-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="font-body text-xs leading-6 text-white/62">
+              © {currentYear} {siteSettings.siteName}. Content on this site is for educational purposes only and does not substitute professional medical advice.
+            </p>
           </div>
-          <p>
-            Designed &amp; Developed by{' '}
-            <a
-              href="https://bespoketech.com.ng"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold"
-              style={{ color: 'var(--color-accent)' }}
-            >
-              Bespoke Tech
-            </a>
-          </p>
+
+          <a
+            href="https://bespoketech.com.ng"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex max-w-fit items-center gap-3 rounded-full border border-white/14 bg-white/[0.06] px-3.5 py-2.5 text-white/78 transition-colors hover:bg-white/[0.1] hover:text-white"
+            aria-label="Designed and developed by Bespoke Technologies"
+          >
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+              <Image
+                src="/partener/bespoke-technologies.png"
+                alt="Bespoke Technologies"
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
+              />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-body text-[10px] font-semibold uppercase tracking-[0.22em] text-white/48">
+                Design Partner
+              </span>
+              <span className="block font-heading text-sm font-semibold text-white">
+                Bespoke Technologies
+              </span>
+            </span>
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-white/54 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white/82" />
+          </a>
         </div>
       </div>
     </footer>

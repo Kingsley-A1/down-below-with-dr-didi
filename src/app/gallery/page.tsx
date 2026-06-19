@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getPublishedGalleryImages, type PublicGalleryImage, type GalleryImageCategory } from '@/lib/admin/repository'
+import { ImageIcon, Video } from 'lucide-react'
+import { getPublishedGalleryImages, type PublicGalleryImage, type GalleryImageCategory, type GalleryMediaType } from '@/lib/admin/repository'
 import ImageViewModal from '@/components/content/ImageViewModal'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'Gallery',
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
   },
 }
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -24,16 +26,42 @@ const CATEGORIES: { value: GalleryImageCategory | 'all'; label: string }[] = [
   { value: 'facility', label: 'Facility' },
 ]
 
+const MEDIA_TABS: { value: GalleryMediaType; label: string }[] = [
+  { value: 'image', label: 'Photos' },
+  { value: 'video', label: 'Videos' },
+]
+
+const EMPTY_STATE_COPY: Record<GalleryMediaType, {
+  title: string
+  message: string
+  icon: typeof ImageIcon
+}> = {
+  image: {
+    title: 'No photos published yet',
+    message: 'Published photos will appear here after the team adds image uploads from outreach, care, teaching, or team moments.',
+    icon: ImageIcon,
+  },
+  video: {
+    title: 'No videos published yet',
+    message: 'Published videos will appear here after the team adds video uploads from events, education sessions, or outreach work.',
+    icon: Video,
+  },
+}
+
 interface Props {
-  searchParams: Promise<{ category?: string; image?: string }>
+  searchParams: Promise<{ category?: string; image?: string; type?: string }>
 }
 
 export default async function GalleryPage({ searchParams }: Props) {
-  const { category: rawCategory, image: imageSlug } = await searchParams
+  const { category: rawCategory, image: imageSlug, type: rawType } = await searchParams
   const validCategories: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
+  const validTypes: GalleryMediaType[] = ['image', 'video']
   const category = validCategories.includes(rawCategory as GalleryImageCategory)
     ? (rawCategory as GalleryImageCategory)
     : undefined
+  const activeType: GalleryMediaType = validTypes.includes(rawType as GalleryMediaType)
+    ? (rawType as GalleryMediaType)
+    : 'image'
 
   let allImages: PublicGalleryImage[]
 
@@ -43,18 +71,43 @@ export default async function GalleryPage({ searchParams }: Props) {
     allImages = []
   }
 
-  const images = category ? allImages.filter((image) => image.category === category) : allImages
+  const images = allImages.filter((image) => {
+    if (image.mediaType !== activeType) {
+      return false
+    }
+
+    return category ? image.category === category : true
+  })
 
   const activeCategory = rawCategory && validCategories.includes(rawCategory as GalleryImageCategory)
     ? rawCategory
     : 'all'
+  const emptyState = EMPTY_STATE_COPY[activeType]
+  const EmptyIcon = emptyState.icon
+
+  function galleryHref(next: { category?: GalleryImageCategory | 'all'; type?: GalleryMediaType }) {
+    const params = new URLSearchParams()
+    const nextType = next.type ?? activeType
+    const nextCategory = next.category ?? activeCategory
+
+    if (nextType !== 'image') {
+      params.set('type', nextType)
+    }
+
+    if (nextCategory !== 'all') {
+      params.set('category', nextCategory)
+    }
+
+    const query = params.toString()
+    return query ? `/gallery?${query}` : '/gallery'
+  }
 
   return (
     <>
       {/* Page Hero */}
       <section
         className="pt-32 pb-20 relative overflow-hidden"
-        style={{ backgroundColor: 'var(--color-primary)' }}
+        style={{ background: publicHeroGradient('gallery') }}
       >
         <div
           className="absolute right-0 top-0 text-[200px] leading-none select-none pointer-events-none"
@@ -91,14 +144,33 @@ export default async function GalleryPage({ searchParams }: Props) {
           style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' }}
         >
           <div className="max-w-container mx-auto px-6">
-            <div className="scroll-fade-x flex items-center gap-1 overflow-x-auto py-3 no-scrollbar">
-              {CATEGORIES.map(({ value, label }) => {
-                const isActive = value === activeCategory
-                const href = value === 'all' ? '/gallery' : `/gallery?category=${value}`
+            <div className="flex gap-2 border-b py-3" style={{ borderColor: 'var(--color-border)' }}>
+              {MEDIA_TABS.map(({ value, label }) => {
+                const isActive = value === activeType
                 return (
                   <Link
                     key={value}
-                    href={href}
+                    href={galleryHref({ type: value })}
+                    scroll
+                    className="font-body text-sm font-semibold px-4 py-2 rounded-full whitespace-nowrap transition-colors"
+                    style={{
+                      backgroundColor: isActive ? 'var(--color-primary)' : 'var(--color-primary-muted)',
+                      color: isActive ? '#ffffff' : 'var(--color-primary)',
+                    }}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {label}
+                  </Link>
+                )
+              })}
+            </div>
+            <div className="scroll-fade-x flex items-center gap-1 overflow-x-auto py-3 no-scrollbar">
+              {CATEGORIES.map(({ value, label }) => {
+                const isActive = value === activeCategory
+                return (
+                  <Link
+                    key={value}
+                    href={galleryHref({ category: value })}
                     scroll
                     className="font-body text-sm font-medium px-4 py-1.5 rounded-full whitespace-nowrap transition-colors"
                     style={{
@@ -117,9 +189,17 @@ export default async function GalleryPage({ searchParams }: Props) {
         {/* Media Grid */}
         <div className="max-w-container mx-auto px-6 py-14">
           {images.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="font-body text-base" style={{ color: 'var(--color-text-muted)' }}>
-                No {category ?? ''} gallery media yet. Check back soon.
+            <div className="mx-auto max-w-xl rounded-2xl border bg-white px-6 py-14 text-center shadow-sm" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}>
+                <EmptyIcon className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
+                {emptyState.title}
+              </h2>
+              <p className="mx-auto mt-3 max-w-md font-body text-sm leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+                {activeCategory === 'all'
+                  ? emptyState.message
+                  : `No ${emptyState.title.toLowerCase().replace('no ', '').replace(' published yet', '')} are published in ${activeCategory} yet. Try another category or check back after the next update.`}
               </p>
             </div>
           ) : (

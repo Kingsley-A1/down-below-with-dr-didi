@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/utils'
 import MedicalDisclaimer from '@/components/content/MedicalDisclaimer'
 import { canonicalUrl } from '@/lib/site-config'
 import { getPublishedLibraryArticles } from '@/lib/library/repository'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'Health Library',
@@ -76,7 +77,7 @@ export default async function LibraryPage({ searchParams }: Props) {
   return (
     <>
       {/* Header */}
-      <section className="pt-32 pb-16" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-32 pb-16" style={{ background: publicHeroGradient('library') }}>
         <div className="max-w-container mx-auto px-6">
           <div className="text-center mb-10">
             <div

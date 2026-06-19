@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Users, Heart, Shield, ChevronRight, PlayCircle } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarDays, ChevronRight, Headphones, Heart, MapPin, Music, Radio, Shield, Users, PlayCircle } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl, siteConfig } from '@/lib/site-config'
 import { getPublicVaultPreviewItems } from '@/lib/vault/public-preview'
 import { getPublishedLibraryArticles } from '@/lib/library/repository'
-import { getPublishedGalleryImages } from '@/lib/admin/repository'
+import { getPublishedGalleryImages, getPublishedPodcastEpisodes } from '@/lib/admin/repository'
+import { getPublishedEvents } from '@/lib/events/repository'
+import { galleryItems as outreachFallbackItems } from '@/data/outreach'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 const categoryLabels: Record<string, string> = {
   menstrual: 'Menstrual Health',
@@ -31,6 +34,10 @@ function topicLabel(topic: string) {
   return categoryLabels[topic] ?? topic
 }
 
+function newestTimestamp(value: string | null | undefined) {
+  return value ? new Date(value).getTime() : 0
+}
+
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -45,13 +52,38 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const siteSettings = await getPublicSiteSettings()
-  const vaultPreviewItems = await getPublicVaultPreviewItems(4)
-  const articles = await getPublishedLibraryArticles()
-  const galleryMedia = await getPublishedGalleryImages()
+  const [
+    siteSettings,
+    vaultPreviewItems,
+    articlesResult,
+    galleryMediaResult,
+    podcastEpisodesResult,
+    outreachEventsResult,
+  ] = await Promise.all([
+    getPublicSiteSettings(),
+    getPublicVaultPreviewItems(4),
+    getPublishedLibraryArticles().catch(() => []),
+    getPublishedGalleryImages().catch(() => []),
+    getPublishedPodcastEpisodes().catch(() => []),
+    getPublishedEvents().catch(() => []),
+  ])
+  const articles = articlesResult
+  const galleryMedia = galleryMediaResult
+  const podcastEpisodes = [...podcastEpisodesResult]
+    .sort((a, b) => newestTimestamp(b.publishedAt) - newestTimestamp(a.publishedAt))
+    .slice(0, 3)
+  const outreachEvents = [...outreachEventsResult]
+    .sort((a, b) => {
+      const bTime = newestTimestamp(b.scheduledAt) || newestTimestamp(b.publishedAt) || newestTimestamp(b.createdAt)
+      const aTime = newestTimestamp(a.scheduledAt) || newestTimestamp(a.publishedAt) || newestTimestamp(a.createdAt)
+      return bTime - aTime
+    })
+    .slice(0, 3)
+  const outreachFallback = outreachEvents.length === 0 ? outreachFallbackItems.slice(0, 3) : []
   const latestArticles = [...articles]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 3)
+  const podcastFallbackResources = podcastEpisodes.length === 0 ? latestArticles.slice(0, 3) : []
   const featuredMedia = galleryMedia.slice(0, 3)
 
   const heroImageSrc = siteSettings.heroImageUrl || '/events/June-2026-Banner.jpg'
@@ -69,8 +101,7 @@ export default async function HomePage() {
       <section
         className="relative min-h-[88vh] lg:min-h-screen flex items-center overflow-hidden"
         style={{
-          background:
-            'linear-gradient(140deg, #0b4e41 0%, #0f5b4b 44%, #0a4338 100%)',
+          background: publicHeroGradient('home'),
         }}
       >
         {/* subtle noise texture */}
@@ -328,35 +359,216 @@ export default async function HomePage() {
             ))}
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Link
-              href="/podcast"
-              className="group rounded-2xl border p-6 transition-all hover:-translate-y-0.5"
-              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-primary-muted)' }}
-            >
-              <BookOpen className="mb-4 h-7 w-7" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
-              <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Podcast</h3>
-              <p className="mt-2 font-body text-sm leading-relaxed text-gray-600">
-                Listen to clear conversations on family, sexuality, fertility, faith, and healing.
-              </p>
-              <span className="mt-4 inline-flex items-center gap-1 font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
-                Go to Podcast <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </span>
-            </Link>
-            <Link
-              href="/outreach"
-              className="group rounded-2xl border p-6 transition-all hover:-translate-y-0.5"
-              style={{ borderColor: 'var(--color-border)', backgroundColor: '#fffbea' }}
-            >
-              <Users className="mb-4 h-7 w-7" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
-              <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Outreach</h3>
-              <p className="mt-2 font-body text-sm leading-relaxed text-gray-600">
-                Follow public programs, teaching moments, and practical community support.
-              </p>
-              <span className="mt-4 inline-flex items-center gap-1 font-body text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
-                See Outreach <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </span>
-            </Link>
+          <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="rounded-2xl border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}>
+                    <Headphones className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Recent Podcast</h3>
+                    <p className="font-body text-xs text-gray-500">Latest audio teachings and conversations</p>
+                  </div>
+                </div>
+                <Link href="/podcast" className="shrink-0 rounded-full px-4 py-2 font-body text-xs font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}>
+                  See more
+                </Link>
+              </div>
+
+              {podcastEpisodes.length > 0 ? (
+                <div className="space-y-3">
+                  {podcastEpisodes.map((episode) => (
+                    <Link
+                      key={episode.id}
+                      href={`/podcast/${episode.slug}`}
+                      className="group grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-colors hover:bg-emerald-50/60"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-100">
+                        {episode.coverImage ? (
+                          <Image
+                            src={episode.coverImage}
+                            alt={episode.title}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center" style={{ color: 'var(--color-primary)' }}>
+                            <Music className="h-6 w-6" aria-hidden="true" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="line-clamp-1 font-heading text-base font-bold text-slate-900 group-hover:text-emerald-800">
+                          {episode.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 font-body text-xs leading-relaxed text-gray-600">
+                          {episode.summary}
+                        </p>
+                        <p className="mt-2 font-body text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                          {episode.publishedAt ? formatDate(episode.publishedAt) : 'Listen now'}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : podcastFallbackResources.length > 0 ? (
+                <div className="space-y-3">
+                  {podcastFallbackResources.map((article) => (
+                    <Link
+                      key={article.slug}
+                      href={`/library/${article.slug}`}
+                      className="group grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-colors hover:bg-emerald-50/60"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-100">
+                        <Image
+                          src={article.coverImage}
+                          alt={article.title}
+                          fill
+                          className="object-cover"
+                          sizes="64px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="line-clamp-1 font-heading text-base font-bold text-slate-900 group-hover:text-emerald-800">
+                          {article.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 font-body text-xs leading-relaxed text-gray-600">
+                          {article.excerpt}
+                        </p>
+                        <p className="mt-2 font-body text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                          Available health resource
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed px-5 py-8 text-center" style={{ borderColor: 'var(--color-border)' }}>
+                  <Music className="mx-auto mb-3 h-8 w-8" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
+                  <p className="font-heading text-lg font-bold" style={{ color: 'var(--color-primary)' }}>Podcast episodes are coming soon</p>
+                  <p className="mx-auto mt-1 max-w-sm font-body text-sm text-gray-600">
+                    New published episodes will appear here after the first audio release goes live.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50" style={{ color: 'var(--color-primary)' }}>
+                    <Users className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>Recent Outreach</h3>
+                    <p className="font-body text-xs text-gray-500">Latest programs, events, and field updates</p>
+                  </div>
+                </div>
+                <Link href="/events" className="shrink-0 rounded-full px-4 py-2 font-body text-xs font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}>
+                  See more
+                </Link>
+              </div>
+
+              {outreachEvents.length > 0 ? (
+                <div className="space-y-3">
+                  {outreachEvents.map((event) => (
+                    <Link
+                      key={event.id}
+                      href={`/events/${event.slug}`}
+                      className="group grid grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-colors hover:bg-amber-50/70"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <div className="relative h-[4.5rem] w-20 overflow-hidden rounded-lg bg-slate-100">
+                        {event.coverImageUrl ? (
+                          <Image
+                            src={event.coverImageUrl}
+                            alt={event.coverImageAlt || event.title}
+                            fill
+                            className="object-cover"
+                            sizes="80px"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-slate-900 text-white">
+                            <Radio className="h-6 w-6 opacity-80" aria-hidden="true" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="line-clamp-1 font-heading text-base font-bold text-slate-900 group-hover:text-emerald-800">
+                          {event.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 font-body text-xs leading-relaxed text-gray-600">
+                          {event.summary}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                            {event.scheduledAt ? formatDate(event.scheduledAt) : 'Date pending'}
+                          </span>
+                          {event.location ? (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                              {event.location}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : outreachFallback.length > 0 ? (
+                <div className="space-y-3">
+                  {outreachFallback.map((item) => (
+                    <Link
+                      key={item.id}
+                      href="/outreach"
+                      className="group grid grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-colors hover:bg-amber-50/70"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      <div className="relative h-[4.5rem] w-20 overflow-hidden rounded-lg bg-slate-100">
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="line-clamp-1 font-heading text-base font-bold text-slate-900 group-hover:text-emerald-800">
+                          {item.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 font-body text-xs leading-relaxed text-gray-600">
+                          {item.description}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                            {item.date}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                            {item.location}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed px-5 py-8 text-center" style={{ borderColor: 'var(--color-border)' }}>
+                  <Users className="mx-auto mb-3 h-8 w-8" style={{ color: 'var(--color-primary)' }} aria-hidden="true" />
+                  <p className="font-heading text-lg font-bold" style={{ color: 'var(--color-primary)' }}>Outreach updates are coming soon</p>
+                  <p className="mx-auto mt-1 max-w-sm font-body text-sm text-gray-600">
+                    Published outreach programs and event updates will appear here once the team pushes them live.
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
         </div>
       </section>

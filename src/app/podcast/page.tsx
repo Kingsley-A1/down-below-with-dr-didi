@@ -5,6 +5,7 @@ import { Calendar, Download, Headphones, Music, PlayCircle } from 'lucide-react'
 import { getPublishedPodcastEpisodes, type PublicPodcastEpisode } from '@/lib/admin/repository'
 import { formatDate } from '@/lib/utils'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'Podcast',
@@ -35,7 +36,7 @@ export default async function PodcastPage() {
 
   return (
     <>
-      <section className="pt-32 pb-16 text-white" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-32 pb-16 text-white" style={{ background: publicHeroGradient('podcast') }}>
         <div className="max-w-container mx-auto px-6">
           <div className="max-w-2xl">
             <div

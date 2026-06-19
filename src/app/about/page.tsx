@@ -4,6 +4,7 @@ import { Award, CheckCircle, GraduationCap, Sparkles, Target, Users } from 'luci
 import { getPublishedTeamMembers, type PublicTeamMember } from '@/lib/admin/repository'
 import { team as staticTeam } from '@/data/team'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ export default async function AboutPage() {
   return (
     <>
       {/* Mission & Vision */}
-      <section className="pt-32 pb-24 relative overflow-hidden" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-32 pb-24 relative overflow-hidden" style={{ background: publicHeroGradient('about') }}>
         <div className="max-w-container mx-auto px-6 text-white text-center">
           <div
             className="inline-block text-sm font-body px-4 py-1.5 rounded-full mb-6"

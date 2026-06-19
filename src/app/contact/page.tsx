@@ -3,6 +3,7 @@ import { Camera, Clock, Globe, Mail, MapPin, MessageCircle, Play, Timer } from '
 import ContactForm from '@/components/contact/ContactForm'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 import { canonicalUrl } from '@/lib/site-config'
+import { publicHeroGradient } from '@/lib/public-hero'
 
 export const metadata: Metadata = {
   title: 'Contact & Booking',
@@ -26,7 +27,7 @@ export default async function ContactPage() {
 
   return (
     <>
-      <section className="pt-32 pb-16 text-white text-center" style={{ backgroundColor: 'var(--color-primary)' }}>
+      <section className="pt-32 pb-16 text-white text-center" style={{ background: publicHeroGradient('contact') }}>
         <div className="max-w-container mx-auto px-6">
           <div
             className="inline-block text-sm font-body px-4 py-1.5 rounded-full mb-6"
