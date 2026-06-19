@@ -10,14 +10,14 @@ import SiteAlertTicker from '@/components/layout/SiteAlertTicker'
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/events', label: 'Events' },
+  { href: '/team', label: 'Team' },
   { href: '/library', label: 'Library' },
   { href: '/outreach', label: 'Outreach' },
+  { href: '/gallery', label: 'Gallery' },
+  { href: '/events', label: 'Events' },
   { href: '/podcast', label: 'Podcast' },
   { href: '/vault', label: 'V-Vault' },
   { href: '/review', label: 'Reviews' },
-  { href: '/team', label: 'Team' },
-  { href: '/gallery', label: 'Gallery' },
   { href: '/about', label: 'About' },
 ]
 
