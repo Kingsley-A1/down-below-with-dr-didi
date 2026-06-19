@@ -26,6 +26,52 @@ const LAYER_LABEL: Record<RouteHealth['layer'], string> = {
   api_route: 'API routes',
 }
 
+const HEALTH_SCORE_CLASSNAME: Record<HealthStatus, string> = {
+  operational: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  degraded: 'border-amber-200 bg-amber-50 text-amber-800',
+  blocked: 'border-rose-200 bg-rose-50 text-rose-800',
+}
+
+function scoreStatus(status: HealthStatus) {
+  if (status === 'operational') {
+    return 1
+  }
+
+  if (status === 'degraded') {
+    return 0.55
+  }
+
+  return 0
+}
+
+function averageHealthScore(statuses: HealthStatus[]) {
+  if (statuses.length === 0) {
+    return 1
+  }
+
+  return statuses.reduce((total, status) => total + scoreStatus(status), 0) / statuses.length
+}
+
+function calculateHealthPercentage(snapshot: Awaited<ReturnType<typeof getAdminHealthSnapshot>>) {
+  const dependencyScore = averageHealthScore(snapshot.dependencies.map((dependency) => dependency.status))
+  const routeScore = averageHealthScore(snapshot.routes.map((route) => route.status))
+  const tableScore = averageHealthScore(snapshot.tables.map((table) => table.status))
+
+  return Math.round(((dependencyScore * 0.4) + (routeScore * 0.35) + (tableScore * 0.25)) * 100)
+}
+
+function statusFromPercentage(percentage: number): HealthStatus {
+  if (percentage >= 90) {
+    return 'operational'
+  }
+
+  if (percentage >= 60) {
+    return 'degraded'
+  }
+
+  return 'blocked'
+}
+
 function StatusBadge({ status }: { status: HealthStatus }) {
   const Icon = STATUS_ICON[status]
   return (
@@ -33,6 +79,52 @@ function StatusBadge({ status }: { status: HealthStatus }) {
       <Icon className="h-3.5 w-3.5" />
       {status}
     </span>
+  )
+}
+
+function HealthScoreCard({
+  percentage,
+  status,
+  blockedRoutes,
+  degradedRoutes,
+}: {
+  percentage: number
+  status: HealthStatus
+  blockedRoutes: number
+  degradedRoutes: number
+}) {
+  return (
+    <section className={`rounded-2xl border p-5 shadow-sm ${HEALTH_SCORE_CLASSNAME[status]}`}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] opacity-75">Platform health score</p>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <p className="font-heading text-5xl font-bold leading-none text-slate-950">{percentage}%</p>
+            <StatusBadge status={status} />
+          </div>
+          <p className="mt-3 max-w-2xl font-body text-sm leading-relaxed text-slate-700">
+            Weighted from core dependencies, route readiness, and database model probes. Degraded public fallbacks count as partial availability, while blocked admin or API dependencies reduce the score sharply.
+          </p>
+        </div>
+
+        <div className="min-w-0 rounded-xl border border-white/70 bg-white/70 p-4 text-slate-800 shadow-sm lg:min-w-72">
+          <div className="flex items-center justify-between gap-4 font-body text-sm">
+            <span className="font-semibold">Blocked routes</span>
+            <span className="font-heading text-2xl font-bold">{blockedRoutes}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-4 font-body text-sm">
+            <span className="font-semibold">Degraded routes</span>
+            <span className="font-heading text-2xl font-bold">{degradedRoutes}</span>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-500"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -127,6 +219,8 @@ export default async function AdminHealthPage() {
   const blockedRoutes = snapshot.routes.filter((route) => route.status === 'blocked').length
   const degradedRoutes = snapshot.routes.filter((route) => route.status === 'degraded').length
   const routeStatus: HealthStatus = blockedRoutes > 0 ? 'blocked' : degradedRoutes > 0 ? 'degraded' : 'operational'
+  const healthPercentage = calculateHealthPercentage(snapshot)
+  const healthStatus = statusFromPercentage(healthPercentage)
 
   return (
     <AdminContentContainer>
@@ -151,6 +245,13 @@ export default async function AdminHealthPage() {
           </Link>
         </div>
       </section>
+
+      <HealthScoreCard
+        percentage={healthPercentage}
+        status={healthStatus}
+        blockedRoutes={blockedRoutes}
+        degradedRoutes={degradedRoutes}
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard

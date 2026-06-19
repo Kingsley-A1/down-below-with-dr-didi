@@ -7,6 +7,7 @@ import FooterVisibility from '@/components/layout/FooterVisibility'
 import WelcomeIntro from '@/components/layout/WelcomeIntro'
 import InstallPrompt from '@/components/layout/InstallPrompt'
 import ScrollToTopOnNavigation from '@/components/layout/ScrollToTopOnNavigation'
+import PageLoadingLine from '@/components/layout/PageLoadingLine'
 import StructuredData from '@/components/seo/StructuredData'
 import { canonicalUrl, seoKeywords, siteConfig } from '@/lib/site-config'
 
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-NG">
       <body className="font-body">
         <StructuredData />
+        <PageLoadingLine />
         <Suspense fallback={null}>
           <ScrollToTopOnNavigation />
         </Suspense>
