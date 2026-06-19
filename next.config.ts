@@ -6,7 +6,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://downbelowwithdrdidi.com https://www.downbelowwithdrdidi.com https://down-below-with-dr-didi.vercel.app https://*.r2.dev https://*.r2.cloudflarestorage.com",
+  "img-src 'self' data: blob: https://downbelowwithdrdidi.com https://www.downbelowwithdrdidi.com https://down-below-with-dr-didi.vercel.app https://*.r2.dev https://*.r2.cloudflarestorage.com https://vercel.live",
   "font-src 'self' data:",
   // R2 endpoints must be allowed here too: browser uploads PUT the file
   // directly to the presigned R2 URL via XHR, which connect-src governs.
@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
   // from 404ing after the auth surface cleanup.
   async redirects() {
     return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.down-below.com' }],
+        destination: 'https://down-below.com/:path*',
+        permanent: true,
+      },
       { source: '/admin/recovery', destination: '/admin/forgot-password', permanent: true },
     ]
   },

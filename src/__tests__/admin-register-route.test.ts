@@ -31,7 +31,7 @@ jest.mock('@/lib/admin/repository', () => ({
 }))
 
 function createAdminRegisterRequest(body: Record<string, unknown>) {
-  return new NextRequest('https://www.down-below.com/api/admin/register', {
+  return new NextRequest('https://down-below.com/api/admin/register', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',

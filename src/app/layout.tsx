@@ -10,24 +10,55 @@ import ScrollToTopOnNavigation from '@/components/layout/ScrollToTopOnNavigation
 import StructuredData from '@/components/seo/StructuredData'
 import { canonicalUrl, seoKeywords, siteConfig } from '@/lib/site-config'
 
+const defaultSeoTitle = `${siteConfig.shortName} | Family, Women's and Reproductive Health in Nigeria`
+const defaultSeoDescription =
+  "DownBelow Family Health Initiatives with Dr. Didi provides trusted guidance on family health, women's health, reproductive health, fertility, sexuality, and community outreach in Nigeria."
+const rootSeoKeywords = Array.from(
+  new Set([
+    ...seoKeywords,
+    'family health Nigeria',
+    "women's health Nigeria",
+    'reproductive health Nigeria',
+    'sexual health education Nigeria',
+    'fertility education Nigeria',
+    'community health outreach Calabar',
+    'family life education Nigeria',
+    'Christian family health ministry Nigeria',
+    'Dr Didi family health',
+  ]),
+)
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
   applicationName: siteConfig.name,
   title: {
-    default: `${siteConfig.name} | Family, Sexuality, and Health`,
+    default: defaultSeoTitle,
     template: `%s | ${siteConfig.name}`,
   },
-  description: siteConfig.description,
+  description: defaultSeoDescription,
   manifest: '/manifest.webmanifest',
-  keywords: seoKeywords,
+  keywords: rootSeoKeywords,
   authors: [{ name: siteConfig.founderName }],
   creator: siteConfig.name,
   publisher: siteConfig.name,
   category: 'Health',
+  referrer: 'origin-when-cross-origin',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   alternates: {
+    canonical: canonicalUrl('/'),
     languages: {
       'en-NG': '/',
     },
+  },
+  verification: {
+    google:
+      process.env.GOOGLE_SITE_VERIFICATION ||
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+      undefined,
   },
   robots: {
     index: true,
@@ -41,8 +72,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: `${siteConfig.name} | Family, Sexuality, and Health`,
-    description: siteConfig.description,
+    title: defaultSeoTitle,
+    description: defaultSeoDescription,
     url: canonicalUrl('/'),
     type: 'website',
     locale: 'en_NG',
@@ -58,8 +89,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} | Family, Sexuality, and Health`,
-    description: siteConfig.description,
+    title: defaultSeoTitle,
+    description: defaultSeoDescription,
     images: ['/logo.jpg'],
   },
   icons: {
@@ -75,7 +106,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en-NG">
       <body className="font-body">
         <StructuredData />
         <Suspense fallback={null}>
