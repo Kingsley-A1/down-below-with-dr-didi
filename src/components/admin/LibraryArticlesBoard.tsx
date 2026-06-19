@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { BookOpen, Camera, ExternalLink, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
@@ -448,10 +449,16 @@ export default function LibraryArticlesBoard({ initialArticles }: { initialArtic
                 />
               </Field>
               {coverPreviewUrl ? (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={coverPreviewUrl} alt={form.title || 'Article cover preview'} className="max-h-72 w-full rounded-xl object-contain" />
-                </div>
+                <AdminUploadPreview
+                  title={form.title || 'Article title'}
+                  eyebrow="Public article preview"
+                  description={form.excerpt || 'Summary appears here.'}
+                  mediaUrl={coverPreviewUrl}
+                  mediaType="image"
+                  altText={form.title}
+                  meta={[categoryLabel(form.category), form.status]}
+                  publicHref="/library"
+                />
               ) : null}
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Public Preview</p>

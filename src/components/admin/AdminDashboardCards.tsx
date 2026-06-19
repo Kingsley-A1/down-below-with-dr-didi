@@ -275,20 +275,20 @@ export default function AdminDashboardCards({ summary }: { summary: AdminDashboa
 
   return (
     <>
-      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 admin-fade-in">
+      <section className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 admin-fade-in">
         {cards.map((card) => (
           <button
             key={card.id}
             type="button"
             onClick={() => setActiveCardId(card.id)}
-            className="admin-interactive group relative flex aspect-square min-h-[11rem] flex-col justify-between overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-3.5 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(2,12,27,0.10)] sm:min-h-[12rem] sm:p-4"
+            className="admin-interactive group relative flex min-h-[10rem] flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-[0_4px_14px_rgba(2,12,27,0.06)] transition-[transform,border-color,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(2,12,27,0.10)] min-[420px]:aspect-square min-[420px]:min-h-[11rem] sm:min-h-[12rem]"
           >
             <div className="pointer-events-none absolute -right-10 -top-8 h-24 w-24 rounded-full bg-linear-to-br from-slate-100 to-transparent" />
 
             <div>
               <p className="font-body text-[10px] uppercase tracking-[0.18em] text-slate-400 sm:text-[11px]">{card.metricLabel}</p>
               <p className="mt-1 font-heading text-[1.8rem] leading-none font-bold text-slate-900 sm:text-[2.1rem]">{card.metricValue}</p>
-              <h2 className="mt-3 line-clamp-2 font-heading text-[0.98rem] font-bold leading-5 text-slate-900 sm:text-[1.05rem]">
+              <h2 className="mt-3 line-clamp-2 font-heading text-base font-bold leading-5 text-slate-900 sm:text-[1.05rem]">
                 {card.title}
               </h2>
               <p className="mt-1.5 line-clamp-2 font-body text-[11px] leading-4 text-slate-600 sm:text-xs">

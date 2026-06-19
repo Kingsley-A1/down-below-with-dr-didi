@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Camera, ImageOff, Video } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { GalleryImageRecord, GalleryImageCategory, GalleryMediaType } from '@/lib/admin/repository'
 import { deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -462,14 +463,17 @@ export default function GalleryImagesBoard({
                 className="input-field"
               />
               {previewUrl ? (
-                <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  {form.mediaType === 'video' ? (
-                    <video src={previewUrl} controls preload="metadata" className="max-h-72 max-w-full rounded-lg object-contain" />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previewUrl} alt={form.imageAlt || form.title || 'Gallery preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
-                  )}
-                </div>
+                <AdminUploadPreview
+                  title={form.title || 'Gallery media'}
+                  eyebrow="Public gallery preview"
+                  description={form.description || autoGalleryDescription(form.title)}
+                  mediaUrl={previewUrl}
+                  mediaType={form.mediaType}
+                  altText={form.imageAlt || form.title}
+                  meta={[form.category, form.status]}
+                  publicHref="/gallery"
+                  className="mt-3"
+                />
               ) : null}
               <p className="font-body text-xs text-gray-400 mt-1">
                 {mediaFile

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Camera } from 'lucide-react'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import { siteSettingsSchema, type SiteSettingsFormData } from '@/lib/validations'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
@@ -160,10 +161,16 @@ export default function SiteSettingsForm({ initialValues }: { initialValues: Sit
           style={{ borderColor: 'var(--color-border)' }}
         />
         {heroPreviewUrl ? (
-          <div className="mt-3 block max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroPreviewUrl} alt={currentHeroImageAlt || currentHeroHeadline || 'Hero image preview'} className="max-h-72 max-w-full rounded-md object-contain" />
-          </div>
+          <AdminUploadPreview
+            title={currentHeroHeadline || 'Homepage hero'}
+            eyebrow="Public home hero preview"
+            description="This image will appear in the public homepage hero after settings are saved."
+            mediaUrl={heroPreviewUrl}
+            mediaType="image"
+            altText={currentHeroImageAlt || currentHeroHeadline}
+            publicHref="/"
+            className="mt-3"
+          />
         ) : null}
         <p className="mt-2 font-body text-xs text-gray-500">
           {heroImageFile

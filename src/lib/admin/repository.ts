@@ -2211,7 +2211,13 @@ export type GalleryImageRecord = PublicGalleryImage & {
   updatedAt: string
 }
 
-const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+type GalleryImageSchemaCapabilities = {
+  mediaType: boolean
+  featured: boolean
+}
+
+const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
+const VIDEO_FILE_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.m4v'])
 const GALLERY_ASSET_EXCLUDE_NAMES = new Set([
   'founder-led-health-mobilization.jpg',
 ])
@@ -2226,6 +2232,62 @@ const GALLERY_ASSET_PATH_ALIASES = new Map<string, string>([
 
 let localAssetFileSetCache: Set<string> | null = null
 let localAssetFileNameMapCache: Map<string, string> | null = null
+let galleryImageSchemaCapabilitiesPromise: Promise<GalleryImageSchemaCapabilities> | null = null
+
+async function getGalleryImageSchemaCapabilities(): Promise<GalleryImageSchemaCapabilities> {
+  if (galleryImageSchemaCapabilitiesPromise) {
+    return galleryImageSchemaCapabilitiesPromise
+  }
+
+  galleryImageSchemaCapabilitiesPromise = prisma.$queryRaw<Array<{ column_name: string }>>`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'GalleryImage'
+      AND column_name IN ('mediaType', 'featured')
+  `
+    .then((rows) => {
+      const columns = new Set(rows.map((row) => row.column_name))
+      return {
+        mediaType: columns.has('mediaType'),
+        featured: columns.has('featured'),
+      }
+    })
+    .catch(() => ({ mediaType: true, featured: true }))
+
+  return galleryImageSchemaCapabilitiesPromise
+}
+
+function galleryImageSelect(capabilities: GalleryImageSchemaCapabilities) {
+  return {
+    id: true,
+    slug: true,
+    title: true,
+    description: true,
+    caption: true,
+    ...(capabilities.mediaType ? { mediaType: true } : {}),
+    ...(capabilities.featured ? { featured: true } : {}),
+    imageUrl: true,
+    imageAlt: true,
+    category: true,
+    eventName: true,
+    location: true,
+    capturedAt: true,
+    sortOrder: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+  }
+}
+
+function inferGalleryMediaType(imageUrl: string, explicit?: string | null): GalleryMediaType {
+  if (explicit === 'video' || explicit === 'image') {
+    return explicit
+  }
+
+  const pathName = imageUrl.split(/[?#]/, 1)[0] || imageUrl
+  return VIDEO_FILE_EXTENSIONS.has(path.extname(pathName).toLowerCase()) ? 'video' : 'image'
+}
 
 async function getLocalAssetFileNameMap(): Promise<Map<string, string>> {
   if (localAssetFileNameMapCache) {
@@ -2388,8 +2450,8 @@ type GalleryImageDbRecord = {
   title: string
   description: string
   caption: string | null
-  mediaType: string
-  featured: boolean
+  mediaType?: string | null
+  featured?: boolean | null
   imageUrl: string
   imageAlt: string
   category: string
@@ -2403,15 +2465,17 @@ type GalleryImageDbRecord = {
 }
 
 function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
+  const imageUrl = normalizePublicImageUrl(r.imageUrl)
+
   return {
     id: r.id,
     slug: r.slug,
     title: r.title,
     description: r.description,
     caption: r.caption,
-    mediaType: (r.mediaType || 'image') as GalleryMediaType,
-    featured: Boolean(r.featured),
-    imageUrl: normalizePublicImageUrl(r.imageUrl),
+    mediaType: inferGalleryMediaType(imageUrl, r.mediaType),
+    featured: Boolean(r.featured ?? false),
+    imageUrl,
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
     eventName: r.eventName,
@@ -2421,6 +2485,82 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
     status: r.status as GalleryImageRecord['status'],
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
+  }
+}
+
+function galleryCreateData(
+  input: {
+    slug: string
+    title: string
+    description: string
+    caption?: string | null
+    mediaType?: GalleryMediaType
+    featured?: boolean
+    imageUrl: string
+    imageAlt: string
+    category: GalleryImageCategory
+    eventName?: string | null
+    location?: string | null
+    capturedAt?: string | null
+    sortOrder?: number
+    status?: 'draft' | 'published' | 'archived'
+  },
+  capabilities: GalleryImageSchemaCapabilities
+) {
+  return {
+    slug: input.slug.trim(),
+    title: input.title.trim(),
+    description: input.description.trim(),
+    caption: input.caption?.trim() || null,
+    ...(capabilities.mediaType ? { mediaType: input.mediaType ?? inferGalleryMediaType(input.imageUrl) } : {}),
+    ...(capabilities.featured ? { featured: input.featured ?? false } : {}),
+    imageUrl: input.imageUrl.trim(),
+    imageAlt: input.imageAlt.trim(),
+    category: input.category,
+    eventName: input.eventName?.trim() || null,
+    location: input.location?.trim() || null,
+    capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
+    sortOrder: input.sortOrder ?? 0,
+    status: input.status ?? 'published',
+  }
+}
+
+function galleryUpdateData(
+  input: Partial<{
+    slug: string
+    title: string
+    description: string
+    caption: string | null
+    mediaType: GalleryMediaType
+    featured: boolean
+    imageUrl: string
+    imageAlt: string
+    category: GalleryImageCategory
+    eventName: string | null
+    location: string | null
+    capturedAt: string | null
+    sortOrder: number
+    status: 'draft' | 'published' | 'archived'
+  }>,
+  capabilities: GalleryImageSchemaCapabilities
+) {
+  return {
+    ...(input.slug !== undefined && { slug: input.slug.trim() }),
+    ...(input.title !== undefined && { title: input.title.trim() }),
+    ...(input.description !== undefined && { description: input.description.trim() }),
+    ...(input.caption !== undefined && { caption: input.caption?.trim() || null }),
+    ...(capabilities.mediaType && input.mediaType !== undefined && { mediaType: input.mediaType }),
+    ...(capabilities.featured && input.featured !== undefined && { featured: input.featured }),
+    ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl.trim() }),
+    ...(input.imageAlt !== undefined && { imageAlt: input.imageAlt.trim() }),
+    ...(input.category !== undefined && { category: input.category }),
+    ...(input.eventName !== undefined && { eventName: input.eventName?.trim() || null }),
+    ...(input.location !== undefined && { location: input.location?.trim() || null }),
+    ...(input.capturedAt !== undefined && {
+      capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
+    }),
+    ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+    ...(input.status !== undefined && { status: input.status }),
   }
 }
 
@@ -2460,6 +2600,7 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
     return
   }
 
+  const capabilities = await getGalleryImageSchemaCapabilities()
   const assetFileSet = await getLocalAssetFileSet()
   const slugs = fallback.map((item) => item.slug)
   const existingRecords = await prisma.galleryImage.findMany({
@@ -2521,43 +2662,51 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
 
   for (const item of missingRecords) {
     await prisma.galleryImage.create({
-      data: {
-        slug: item.slug,
-        title: item.title,
-        description: item.description,
-        caption: item.caption,
-        mediaType: item.mediaType,
-        featured: item.featured,
-        imageUrl: item.imageUrl,
-        imageAlt: item.imageAlt,
-        category: item.category,
-        eventName: item.eventName,
-        location: item.location,
-        capturedAt: item.capturedAt ? new Date(item.capturedAt) : null,
-        sortOrder: item.sortOrder,
-        status: 'published',
-      },
+      data: galleryCreateData(
+        {
+          slug: item.slug,
+          title: item.title,
+          description: item.description,
+          caption: item.caption,
+          mediaType: item.mediaType,
+          featured: item.featured,
+          imageUrl: item.imageUrl,
+          imageAlt: item.imageAlt,
+          category: item.category,
+          eventName: item.eventName,
+          location: item.location,
+          capturedAt: item.capturedAt,
+          sortOrder: item.sortOrder,
+          status: 'published',
+        },
+        capabilities
+      ),
+      select: galleryImageSelect(capabilities),
     })
   }
 
   for (const item of staleSeedRecords) {
     await prisma.galleryImage.update({
       where: { slug: item.slug },
-      data: {
-        title: item.title,
-        description: item.description,
-        caption: item.caption,
-        mediaType: item.mediaType,
-        featured: item.featured,
-        imageUrl: item.imageUrl,
-        imageAlt: item.imageAlt,
-        category: item.category,
-        eventName: item.eventName,
-        location: item.location,
-        capturedAt: item.capturedAt ? new Date(item.capturedAt) : null,
-        sortOrder: item.sortOrder,
-        status: 'published',
-      },
+      data: galleryUpdateData(
+        {
+          title: item.title,
+          description: item.description,
+          caption: item.caption,
+          mediaType: item.mediaType,
+          featured: item.featured,
+          imageUrl: item.imageUrl,
+          imageAlt: item.imageAlt,
+          category: item.category,
+          eventName: item.eventName,
+          location: item.location,
+          capturedAt: item.capturedAt,
+          sortOrder: item.sortOrder,
+          status: 'published',
+        },
+        capabilities
+      ),
+      select: galleryImageSelect(capabilities),
     })
   }
 }
@@ -2572,32 +2721,42 @@ export async function getPublishedGalleryImages(
   }
 
   try {
+    const capabilities = await getGalleryImageSchemaCapabilities()
     const records = await prisma.galleryImage.findMany({
       where: {
         status: 'published',
         ...(category ? { category } : {}),
       },
-      orderBy: [{ featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [
+        ...(capabilities.featured ? [{ featured: 'desc' as const }] : []),
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' },
+      ],
+      select: galleryImageSelect(capabilities),
     })
 
     const normalizedRecords = await Promise.all(
-      records.map(async (record: GalleryImageDbRecord) => ({
-        id: record.id,
-        slug: record.slug,
-        title: record.title,
-        description: record.description,
-        caption: record.caption,
-        mediaType: (record.mediaType || 'image') as GalleryMediaType,
-        featured: Boolean(record.featured),
-        imageUrl: normalizePublicImageUrl(record.imageUrl),
-        imageAlt: record.imageAlt,
-        category: record.category as GalleryImageCategory,
-        eventName: record.eventName,
-        location: record.location,
-        capturedAt: record.capturedAt ? record.capturedAt.toISOString() : null,
-        sortOrder: record.sortOrder,
-        renderable: await hasRenderableLocalAsset(normalizePublicImageUrl(record.imageUrl)),
-      }))
+      records.map(async (record: GalleryImageDbRecord) => {
+        const imageUrl = normalizePublicImageUrl(record.imageUrl)
+
+        return {
+          id: record.id,
+          slug: record.slug,
+          title: record.title,
+          description: record.description,
+          caption: record.caption,
+          mediaType: inferGalleryMediaType(imageUrl, record.mediaType),
+          featured: Boolean(record.featured ?? false),
+          imageUrl,
+          imageAlt: record.imageAlt,
+          category: record.category as GalleryImageCategory,
+          eventName: record.eventName,
+          location: record.location,
+          capturedAt: record.capturedAt ? record.capturedAt.toISOString() : null,
+          sortOrder: record.sortOrder,
+          renderable: await hasRenderableLocalAsset(imageUrl),
+        }
+      })
     )
 
     const safeRecords = normalizedRecords
@@ -2639,8 +2798,10 @@ export async function getGalleryImageBySlug(
   }
 
   try {
+    const capabilities = await getGalleryImageSchemaCapabilities()
     const r = await prisma.galleryImage.findUnique({
       where: { slug },
+      select: galleryImageSelect(capabilities),
     })
 
     if (!r) {
@@ -2662,8 +2823,8 @@ export async function getGalleryImageBySlug(
       title: r.title,
       description: r.description,
       caption: r.caption,
-      mediaType: (r.mediaType || 'image') as GalleryMediaType,
-      featured: Boolean(r.featured),
+      mediaType: inferGalleryMediaType(normalizedImageUrl, r.mediaType),
+      featured: Boolean(r.featured ?? false),
       imageUrl: normalizedImageUrl,
       imageAlt: r.imageAlt,
       category: r.category as GalleryImageCategory,
@@ -2687,11 +2848,17 @@ export async function getAllGalleryImages(): Promise<GalleryImageRecord[]> {
 
   await ensureFallbackGalleryRecords()
 
+  const capabilities = await getGalleryImageSchemaCapabilities()
   const records = await prisma.galleryImage.findMany({
-    orderBy: [{ featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' }],
+    orderBy: [
+      ...(capabilities.featured ? [{ featured: 'desc' as const }] : []),
+      { sortOrder: 'asc' },
+      { createdAt: 'desc' },
+    ],
+    select: galleryImageSelect(capabilities),
   })
 
-  return records.map(mapGalleryImage).sort(compareGalleryRecords)
+  return records.map((record: GalleryImageDbRecord) => mapGalleryImage(record)).sort(compareGalleryRecords)
 }
 
 export async function createGalleryImage(
@@ -2717,24 +2884,12 @@ export async function createGalleryImage(
     throw appErrors.databaseUnavailable()
   }
 
+  const capabilities = await getGalleryImageSchemaCapabilities()
   const record = await prisma.galleryImage.create({
-    data: {
-      slug: input.slug.trim(),
-      title: input.title.trim(),
-      description: input.description.trim(),
-      caption: input.caption?.trim() || null,
-      mediaType: input.mediaType ?? 'image',
-      featured: input.featured ?? false,
-      imageUrl: input.imageUrl.trim(),
-      imageAlt: input.imageAlt.trim(),
-      category: input.category,
-      eventName: input.eventName?.trim() || null,
-      location: input.location?.trim() || null,
-      capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
-      sortOrder: input.sortOrder ?? 0,
-      status: input.status ?? 'published',
-    },
+    data: galleryCreateData(input, capabilities),
+    select: galleryImageSelect(capabilities),
   })
+  const gallery = mapGalleryImage(record as GalleryImageDbRecord)
 
   await writeAuditLog({
     action: 'gallery_image.created',
@@ -2742,11 +2897,11 @@ export async function createGalleryImage(
     entityId: record.id,
     actorEmail: actor.email,
     actorRole: actor.role,
-    summary: `Created gallery media "${record.title}"`,
-    metadata: { slug: record.slug, category: record.category, mediaType: record.mediaType, featured: record.featured },
+    summary: `Created gallery media "${gallery.title}"`,
+    metadata: { slug: gallery.slug, category: gallery.category, mediaType: gallery.mediaType, featured: gallery.featured },
   })
 
-  return mapGalleryImage(record)
+  return gallery
 }
 
 export async function createMediaAssetWithGalleryRecord(input: {
@@ -2782,6 +2937,7 @@ export async function createMediaAssetWithGalleryRecord(input: {
   }
 
   const actorEmail = input.actorEmail.trim().toLowerCase()
+  const capabilities = await getGalleryImageSchemaCapabilities()
   const result = await prisma.$transaction(
     async (tx) => {
       const actor = await tx.adminUser.upsert({
@@ -2804,22 +2960,8 @@ export async function createMediaAssetWithGalleryRecord(input: {
       })
       const gallery = input.gallery
         ? await tx.galleryImage.create({
-            data: {
-              slug: input.gallery.slug.trim(),
-              title: input.gallery.title.trim(),
-              description: input.gallery.description.trim(),
-              caption: input.gallery.caption?.trim() || null,
-              mediaType: input.gallery.mediaType ?? 'image',
-              featured: input.gallery.featured ?? false,
-              imageUrl: input.gallery.imageUrl.trim(),
-              imageAlt: input.gallery.imageAlt.trim(),
-              category: input.gallery.category,
-              eventName: input.gallery.eventName?.trim() || null,
-              location: input.gallery.location?.trim() || null,
-              capturedAt: input.gallery.capturedAt ? new Date(input.gallery.capturedAt) : null,
-              sortOrder: input.gallery.sortOrder ?? 0,
-              status: input.gallery.status ?? 'published',
-            },
+            data: galleryCreateData(input.gallery, capabilities),
+            select: galleryImageSelect(capabilities),
           })
         : null
 
@@ -2841,6 +2983,7 @@ export async function createMediaAssetWithGalleryRecord(input: {
       })
 
       if (gallery) {
+        const galleryRecord = mapGalleryImage(gallery as GalleryImageDbRecord)
         await tx.auditLog.create({
           data: {
             action: 'gallery_image.created',
@@ -2849,12 +2992,12 @@ export async function createMediaAssetWithGalleryRecord(input: {
             actorEmail,
             actorRole: input.actorRole,
             actorId: actor.id,
-            summary: `Created gallery media "${gallery.title}"`,
+            summary: `Created gallery media "${galleryRecord.title}"`,
             metadata: {
-              slug: gallery.slug,
-              category: gallery.category,
-              mediaType: gallery.mediaType,
-              featured: gallery.featured,
+              slug: galleryRecord.slug,
+              category: galleryRecord.category,
+              mediaType: galleryRecord.mediaType,
+              featured: galleryRecord.featured,
               mediaAssetId: asset.id,
             },
           },
@@ -2896,27 +3039,13 @@ export async function updateGalleryImage(
     throw appErrors.databaseUnavailable()
   }
 
+  const capabilities = await getGalleryImageSchemaCapabilities()
   const record = await prisma.galleryImage.update({
     where: { id },
-    data: {
-      ...(input.slug !== undefined && { slug: input.slug.trim() }),
-      ...(input.title !== undefined && { title: input.title.trim() }),
-      ...(input.description !== undefined && { description: input.description.trim() }),
-      ...(input.caption !== undefined && { caption: input.caption?.trim() || null }),
-      ...(input.mediaType !== undefined && { mediaType: input.mediaType }),
-      ...(input.featured !== undefined && { featured: input.featured }),
-      ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl.trim() }),
-      ...(input.imageAlt !== undefined && { imageAlt: input.imageAlt.trim() }),
-      ...(input.category !== undefined && { category: input.category }),
-      ...(input.eventName !== undefined && { eventName: input.eventName?.trim() || null }),
-      ...(input.location !== undefined && { location: input.location?.trim() || null }),
-      ...(input.capturedAt !== undefined && {
-        capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
-      }),
-      ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
-      ...(input.status !== undefined && { status: input.status }),
-    },
+    data: galleryUpdateData(input, capabilities),
+    select: galleryImageSelect(capabilities),
   })
+  const gallery = mapGalleryImage(record as GalleryImageDbRecord)
 
   await writeAuditLog({
     action: 'gallery_image.updated',
@@ -2924,11 +3053,11 @@ export async function updateGalleryImage(
     entityId: record.id,
     actorEmail: actor.email,
     actorRole: actor.role,
-    summary: `Updated gallery media "${record.title}"`,
-    metadata: { slug: record.slug, changedFields: Object.keys(input) },
+    summary: `Updated gallery media "${gallery.title}"`,
+    metadata: { slug: gallery.slug, changedFields: Object.keys(input) },
   })
 
-  return mapGalleryImage(record)
+  return gallery
 }
 
 export async function deleteGalleryImage(
@@ -2939,7 +3068,11 @@ export async function deleteGalleryImage(
     throw appErrors.databaseUnavailable()
   }
 
-  const record = await prisma.galleryImage.delete({ where: { id } })
+  const capabilities = await getGalleryImageSchemaCapabilities()
+  const record = await prisma.galleryImage.delete({
+    where: { id },
+    select: galleryImageSelect(capabilities),
+  })
 
   await writeAuditLog({
     action: 'gallery_image.deleted',

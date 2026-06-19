@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, MessageSquare } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
@@ -477,13 +478,16 @@ export default function EventsBoard({
           </div>
 
           {previewUrl ? (
-            <div className="rounded-xl border p-3">
-              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700"><Camera className="h-4 w-4" /> Cover preview</p>
-              <div className="inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewUrl} alt="Event cover preview" className="max-h-72 max-w-full rounded-lg object-contain" />
-              </div>
-            </div>
+            <AdminUploadPreview
+              title={form.title || 'Event'}
+              eyebrow="Public event preview"
+              description={form.summary || 'Event summary will appear here.'}
+              mediaUrl={previewUrl}
+              mediaType="image"
+              altText={form.coverImageAlt || form.title}
+              meta={[form.location, form.status]}
+              publicHref="/events"
+            />
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-3">

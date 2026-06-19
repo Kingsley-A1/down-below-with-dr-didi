@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Camera } from 'lucide-react'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { TeamMemberRecord } from '@/lib/admin/repository'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
@@ -361,10 +362,17 @@ export default function TeamMembersBoard({
                 className="input-field"
               />
               {previewUrl ? (
-                <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={previewUrl} alt={form.imageAlt || form.name || 'Team member preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
-                </div>
+                <AdminUploadPreview
+                  title={form.name || 'Team member'}
+                  eyebrow="Public team preview"
+                  description={form.bio || 'Team member bio will appear here.'}
+                  mediaUrl={previewUrl}
+                  mediaType="image"
+                  altText={form.imageAlt || form.name}
+                  meta={[form.role, form.tier, form.status]}
+                  publicHref="/team"
+                  className="mt-3"
+                />
               ) : null}
               <p className="font-body text-xs text-gray-400 mt-1">
                 {imageFile

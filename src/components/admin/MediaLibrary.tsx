@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { File, ImageIcon, ImagePlus, RefreshCw, Trash2, Video } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import {
@@ -298,32 +299,35 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
             aria-labelledby="selected-image-heading"
           >
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
-              <figure className="flex min-h-72 items-center justify-center bg-slate-950 p-3 sm:p-5">
-                {/* Blob URLs cannot be optimized by next/image. */}
-                {mediaType === 'video' ? (
-                  <video
-                    src={selectedPreviewUrl}
-                    controls
-                    preload="metadata"
-                    className="max-h-[28rem] w-full rounded-xl object-contain"
-                  />
-                ) : (
+              <div className="bg-slate-950 p-3 sm:p-5">
+                {mediaType === 'image' ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={selectedPreviewUrl}
-                    alt={altText || label || 'Selected image preview'}
-                    width={1200}
-                    height={800}
+                    alt=""
+                    width={1}
+                    height={1}
                     onLoad={(event) => {
                       setImageDimensions({
                         width: event.currentTarget.naturalWidth,
                         height: event.currentTarget.naturalHeight,
                       })
                     }}
-                    className="max-h-[28rem] w-full rounded-xl object-contain"
+                    className="hidden"
                   />
-                )}
-              </figure>
+                ) : null}
+                <AdminUploadPreview
+                  title={label || selectedFile.name}
+                  eyebrow="Public gallery preview"
+                  description={`This ${mediaType} will be published to the public gallery after upload.`}
+                  mediaUrl={selectedPreviewUrl}
+                  mediaType={mediaType}
+                  altText={altText || label || selectedFile.name}
+                  meta={[mediaType, formatBytes(selectedFile.size)]}
+                  publicHref="/gallery"
+                  className="h-full bg-white"
+                />
+              </div>
 
               <div className="min-w-0 space-y-5 p-5 sm:p-6">
                 <div>

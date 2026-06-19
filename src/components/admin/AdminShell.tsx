@@ -27,6 +27,7 @@ import {
 import AdminSignOutButton from '@/components/admin/AdminSignOutButton'
 import { isTopLevelAdmin, type AdminRole } from '@/lib/admin/rbac'
 import { siteConfig } from '@/lib/site-config'
+import { PUBLIC_PLATFORM_PAGES } from '@/lib/public-pages'
 
 type NavLinkItem = {
   href: string
@@ -63,6 +64,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/admin/vault', label: 'V-Vault Moderation', icon: Shield },
       { href: '/admin/alerts', label: 'Site Alerts', icon: Bell },
       { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
+      { href: '/admin/preview', label: 'Public Preview', icon: ArrowUpRight },
       { href: '/admin/admin-users', label: 'Admin Accounts', icon: Crown },
       { href: '/admin/health', label: 'Platform Health', icon: Activity },
     ],
@@ -96,6 +98,26 @@ function AdminNav({
   role: AdminRole
   showSignOut?: boolean
 }) {
+  const [platformMenuOpen, setPlatformMenuOpen] = useState(false)
+  const platformMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!platformMenuOpen) {
+      return
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (platformMenuRef.current?.contains(event.target as Node)) {
+        return
+      }
+
+      setPlatformMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [platformMenuOpen])
+
   return (
     <nav className="space-y-5" aria-label="Admin navigation">
       {NAV_SECTIONS.map((section) => (
@@ -156,14 +178,40 @@ function AdminNav({
           <span>Upload Image</span>
         </Link>
 
-        <Link
-          href="/"
-          onClick={onNavigate}
-          className="admin-interactive flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
-        >
-          <span>View Main Platform</span>
-          <ArrowUpRight className="h-4 w-4" />
-        </Link>
+        <div ref={platformMenuRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setPlatformMenuOpen((open) => !open)}
+            className="admin-interactive flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900"
+            aria-expanded={platformMenuOpen}
+            aria-haspopup="menu"
+          >
+            <span>View Public Platform</span>
+            <ArrowUpRight className="h-4 w-4" />
+          </button>
+
+          {platformMenuOpen ? (
+            <div className="absolute bottom-full left-0 z-10 mb-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu">
+              {PUBLIC_PLATFORM_PAGES.map((page) => (
+                <a
+                  key={page.href}
+                  href={page.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    setPlatformMenuOpen(false)
+                    onNavigate?.()
+                  }}
+                  className="flex items-center justify-between gap-2 px-3 py-2 font-body text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  role="menuitem"
+                >
+                  <span>{page.label}{page.href === '/' ? ' (default)' : ''}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         {showSignOut ? (
           <AdminSignOutButton className="admin-interactive mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-center font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900" />
@@ -239,10 +287,20 @@ export default function AdminShell({
       }
     }
 
+    const onPointerDown = (event: PointerEvent) => {
+      if (navPanelRef.current?.contains(event.target as Node)) {
+        return
+      }
+
+      setNavOpen(false)
+    }
+
     document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('pointerdown', onPointerDown)
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('pointerdown', onPointerDown)
       document.body.style.overflow = previousBodyOverflow
       document.documentElement.style.overflow = previousHtmlOverflow
       lastFocusedElementRef.current?.focus()
@@ -273,7 +331,7 @@ export default function AdminShell({
             />
             <div className="min-w-0">
               <p className="truncate font-heading text-xl font-bold text-slate-900 md:text-2xl">Admin Console</p>
-              <p className="truncate font-body text-xs text-slate-500 md:text-sm">Global content and operations control</p>
+              <p className="truncate font-body text-xs text-slate-500 md:text-sm">DownBelow content and operations control</p>
             </div>
           </div>
 

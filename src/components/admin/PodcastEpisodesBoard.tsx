@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Camera, Download, Music, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { PodcastEpisodeRecord } from '@/lib/admin/repository'
+import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import UploadProgress from '@/components/admin/UploadProgress'
 import { clearAdminDraft, readAdminDraft, writeAdminDraft } from '@/components/admin/adminDraft'
 import { uploadAdminMediaAsset } from '@/components/admin/media-upload'
@@ -98,6 +99,13 @@ export default function PodcastEpisodesBoard({
 
     return form.coverImage || ''
   }, [coverFile, form.coverImage])
+  const audioPreviewUrl = useMemo(() => {
+    if (audioFile) {
+      return URL.createObjectURL(audioFile)
+    }
+
+    return form.audioUrl || ''
+  }, [audioFile, form.audioUrl])
 
   useEffect(() => {
     return () => {
@@ -106,6 +114,14 @@ export default function PodcastEpisodesBoard({
       }
     }
   }, [coverFile, coverPreviewUrl])
+
+  useEffect(() => {
+    return () => {
+      if (audioFile && audioPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(audioPreviewUrl)
+      }
+    }
+  }, [audioFile, audioPreviewUrl])
 
   useEffect(() => {
     if (!showForm) {
@@ -409,6 +425,18 @@ export default function PodcastEpisodesBoard({
             </Field>
             <Field label="Upload audio" error={fieldErrors.audioUrl}>
               <input type="file" accept="audio/*" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="input-field" />
+              {audioPreviewUrl ? (
+                <AdminUploadPreview
+                  title={form.title || 'Podcast audio'}
+                  eyebrow="Public audio preview"
+                  description={form.summary || 'Audio preview before publishing.'}
+                  mediaUrl={audioPreviewUrl}
+                  mediaType="audio"
+                  meta={[audioFile?.type || form.audioType || null, form.status]}
+                  publicHref="/podcast"
+                  className="mt-3"
+                />
+              ) : null}
               <p className="font-body text-xs text-gray-400">
                 {audioFile
                   ? `Selected: ${audioFile.name}`
@@ -424,10 +452,17 @@ export default function PodcastEpisodesBoard({
               </div>
               <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="input-field" />
               {coverPreviewUrl ? (
-                <div className="mt-3 inline-flex max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={coverPreviewUrl} alt={form.title || 'Podcast cover preview'} className="max-h-72 max-w-full rounded-lg object-contain" />
-                </div>
+                <AdminUploadPreview
+                  title={form.title || 'Podcast episode'}
+                  eyebrow="Public podcast preview"
+                  description={form.summary || 'Podcast summary will appear here.'}
+                  mediaUrl={coverPreviewUrl}
+                  mediaType="image"
+                  altText={form.title}
+                  meta={[form.guestName ? `Guest: ${form.guestName}` : null, form.status]}
+                  publicHref="/podcast"
+                  className="mt-3"
+                />
               ) : null}
               <p className="font-body text-xs text-gray-400">
                 {coverFile
