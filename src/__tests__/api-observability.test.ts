@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals'
 import { NextRequest } from 'next/server'
-import { parseApiError } from '@/lib/api/client-error'
+import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 import { resolveRequestId } from '@/lib/api/observability'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 
@@ -42,6 +42,23 @@ describe('API observability helpers', () => {
     expect(parsed.message).toContain('Media storage is not configured.')
     expect(parsed.message).toContain('Check Cloudflare R2 settings.')
     expect(parsed.message).toContain('Reference ID: req_123')
+  })
+
+  it('falls back cleanly when a response body is html instead of json', async () => {
+    const response = new Response(
+      '<!DOCTYPE html><html lang="en"><head><title>Error</title></head><body>Something went wrong.</body></html>',
+      {
+        status: 500,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      }
+    )
+
+    const data = await readJsonResponse(response)
+    const parsed = parseApiError(data, 'Unable to sign in.')
+
+    expect(parsed.message).toBe('Unable to sign in.')
+    expect(parsed.message).not.toContain('<!DOCTYPE')
+    expect(parsed.message).not.toContain('<html')
   })
 
   it('does not render request-ID failures as success statuses', () => {

@@ -137,6 +137,20 @@ function getString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined
 }
 
+function looksLikeHtml(value: string): boolean {
+  const trimmed = value.trim().toLowerCase()
+
+  return (
+    trimmed.startsWith('<!doctype html') ||
+    trimmed.startsWith('<html') ||
+    trimmed.startsWith('<head') ||
+    trimmed.startsWith('<body') ||
+    trimmed.includes('<html') ||
+    trimmed.includes('<head') ||
+    trimmed.includes('<body')
+  )
+}
+
 function withOperatorContext(message: string, action?: string, requestId?: string): string {
   const details = [
     action,
@@ -199,6 +213,10 @@ export async function readJsonResponse<T = unknown>(response: Response): Promise
   try {
     return JSON.parse(text) as T
   } catch {
+    if (looksLikeHtml(text)) {
+      return { error: '' } as T
+    }
+
     return { error: text.slice(0, 240) } as T
   }
 }

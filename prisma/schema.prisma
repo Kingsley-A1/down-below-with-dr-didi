@@ -372,17 +372,12 @@ model GalleryImage {
   slug        String            @unique
   title       String
   description String
-  caption     String?
   mediaType   GalleryMediaType  @default(image)
   featured    Boolean           @default(false)
   imageUrl    String
   imageAlt    String
   category    GalleryCategory
-  eventName   String?
-  location    String?
-  capturedAt  DateTime?
   status      PublicationStatus @default(published)
-  sortOrder   Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 }
