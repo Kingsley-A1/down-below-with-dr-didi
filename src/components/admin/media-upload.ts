@@ -20,6 +20,26 @@ type UploadAdminMediaOptions = {
 }
 
 const DIRECT_UPLOAD_TIMEOUT_MS = 120_000
+export const MAX_GALLERY_BATCH_FILES = 50
+export const MAX_GALLERY_BATCH_TOTAL_BYTES = 200 * 1024 * 1024
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+
+export type GalleryUploadFileLike = Pick<File, 'name' | 'size' | 'type'>
+
+type GalleryFileSelectionValid = {
+  ok: true
+  mediaType: 'image' | 'video'
+  totalSizeBytes: number
+  isBatch: boolean
+}
+
+type GalleryFileSelectionInvalid = {
+  ok: false
+  error: string
+}
+
+export type GalleryFileSelectionResult = GalleryFileSelectionValid | GalleryFileSelectionInvalid
 
 export function deriveMediaLabel(fileName: string): string {
   const normalized = fileName
@@ -64,6 +84,94 @@ export function buildDefaultGalleryUpload(
     imageAlt,
     category: 'outreach',
     status: 'published',
+  }
+}
+
+export function buildGalleryUploadForFile(input: {
+  fileName: string
+  mediaType: 'image' | 'video'
+  category: GalleryMediaUploadData['category']
+  featured?: boolean
+  altText?: string
+  label?: string
+  status?: GalleryMediaUploadData['status']
+  uniqueToken?: string
+}): GalleryMediaUploadData {
+  const title = input.label?.trim() || deriveMediaLabel(input.fileName)
+  const altText = input.altText?.trim() || title
+  const base = buildDefaultGalleryUpload(
+    input.fileName,
+    title,
+    altText,
+    input.mediaType,
+    input.uniqueToken
+  )
+
+  return {
+    ...base,
+    category: input.category,
+    featured: input.featured ?? false,
+    status: input.status ?? 'published',
+  }
+}
+
+export function validateGalleryFileSelection(files: GalleryUploadFileLike[]): GalleryFileSelectionResult {
+  if (files.length === 0) {
+    return { ok: false, error: 'Choose at least one image or video.' }
+  }
+
+  if (files.length > MAX_GALLERY_BATCH_FILES) {
+    return {
+      ok: false,
+      error: `Choose no more than ${MAX_GALLERY_BATCH_FILES} images at once.`,
+    }
+  }
+
+  const totalSizeBytes = files.reduce((sum, file) => sum + file.size, 0)
+  const isBatch = files.length > 1
+
+  if (isBatch && totalSizeBytes > MAX_GALLERY_BATCH_TOTAL_BYTES) {
+    return {
+      ok: false,
+      error: `Selected images are larger than ${Math.floor(MAX_GALLERY_BATCH_TOTAL_BYTES / (1024 * 1024))} MB in total.`,
+    }
+  }
+
+  let mediaType: 'image' | 'video' | null = null
+
+  for (const file of files) {
+    const nextMediaType = file.type.startsWith('video/')
+      ? 'video'
+      : file.type.startsWith('image/')
+        ? 'image'
+        : null
+
+    if (!nextMediaType) {
+      return { ok: false, error: 'Choose an image or video file.' }
+    }
+
+    if (isBatch && nextMediaType !== 'image') {
+      return { ok: false, error: 'Batch upload currently supports images only. Upload videos one at a time.' }
+    }
+
+    const maxBytes = nextMediaType === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+    if (file.size > maxBytes) {
+      return {
+        ok: false,
+        error: nextMediaType === 'video'
+          ? 'This video is larger than 200 MB.'
+          : 'One of the selected images is larger than 10 MB.',
+      }
+    }
+
+    mediaType = mediaType ?? nextMediaType
+  }
+
+  return {
+    ok: true,
+    mediaType: mediaType ?? 'image',
+    totalSizeBytes,
+    isBatch,
   }
 }
 

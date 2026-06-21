@@ -97,6 +97,30 @@ describe('media upload completion', () => {
     expect(mockRevalidatePath).toHaveBeenCalledWith('/')
   })
 
+  it('still creates a gallery publication when upload metadata is provided without an explicit status', async () => {
+    const { POST } = await import('@/app/api/admin/media/complete/route')
+    const response = await POST(
+      createRequest({
+        ...basePayload,
+        gallery: {
+          ...galleryPayload,
+          status: undefined,
+        },
+      })
+    )
+
+    expect(response.status).toBe(201)
+    expect(mockCreateMediaAssetWithGalleryRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gallery: expect.objectContaining({
+          slug: galleryPayload.slug,
+          imageUrl: basePayload.url,
+        }),
+      })
+    )
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/gallery')
+  })
+
   it('rejects invalid gallery metadata before creating database records', async () => {
     const { POST } = await import('@/app/api/admin/media/complete/route')
     const response = await POST(

@@ -6,16 +6,22 @@ import { ImageOff, Upload } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
+import UploadProgress from '@/components/admin/UploadProgress'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { GalleryImageRecord, GalleryImageCategory, GalleryMediaType } from '@/lib/admin/repository'
-import { deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
+import {
+  buildGalleryUploadForFile,
+  deriveMediaLabel,
+  MAX_GALLERY_BATCH_FILES,
+  MAX_GALLERY_BATCH_TOTAL_BYTES,
+  uploadAdminMediaAsset,
+  validateGalleryFileSelection,
+} from '@/components/admin/media-upload'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
 
 type Status = 'draft' | 'published' | 'archived'
 
 const CATEGORIES: GalleryImageCategory[] = ['outreach', 'event', 'team', 'community', 'facility']
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-const MAX_VIDEO_BYTES = 200 * 1024 * 1024
 const ACCEPTED_MEDIA = 'image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm'
 
 const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }> = {
@@ -64,6 +70,16 @@ function autoGalleryDescription(title: string) {
   return `Gallery highlight from DownBelow Family Health Initiative showing ${cleanTitle.toLowerCase()} as part of our public education, care, and outreach work.`
 }
 
+function summarizeUploadFailures(failures: Array<{ file: File; message: string }>) {
+  const names = failures.slice(0, 3).map(({ file }) => file.name)
+
+  if (failures.length <= 3) {
+    return names.join(', ')
+  }
+
+  return `${names.join(', ')} and ${failures.length - 3} more`
+}
+
 export default function GalleryImagesBoard({
   initialImages,
   hideHeader = false,
@@ -78,28 +94,58 @@ export default function GalleryImagesBoard({
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
-  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [openingEditId, setOpeningEditId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [uploadProgress, setUploadProgress] = useState<{
+    completed: number
+    total: number
+    fileName: string
+    percent: number
+  } | null>(null)
   const formRef = useRef<HTMLDivElement | null>(null)
+  const singleMediaFile = mediaFiles.length === 1 ? mediaFiles[0] : null
+  const isBatchUpload = !editId && mediaFiles.length > 1
+  const batchTotalSize = useMemo(
+    () => mediaFiles.reduce((sum, file) => sum + file.size, 0),
+    [mediaFiles]
+  )
+  const batchPreviewItems = useMemo(
+    () => (
+      isBatchUpload
+        ? mediaFiles.map((file) => ({
+            file,
+            title: deriveMediaLabel(file.name),
+            url: URL.createObjectURL(file),
+          }))
+        : []
+    ),
+    [isBatchUpload, mediaFiles]
+  )
   const previewUrl = useMemo(() => {
-    if (mediaFile) {
-      return URL.createObjectURL(mediaFile)
+    if (singleMediaFile) {
+      return URL.createObjectURL(singleMediaFile)
     }
 
     return form.imageUrl || ''
-  }, [form.imageUrl, mediaFile])
+  }, [form.imageUrl, singleMediaFile])
 
   useEffect(() => {
     return () => {
-      if (mediaFile && previewUrl.startsWith('blob:')) {
+      if (singleMediaFile && previewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(previewUrl)
       }
     }
-  }, [mediaFile, previewUrl])
+  }, [previewUrl, singleMediaFile])
+
+  useEffect(() => {
+    return () => {
+      batchPreviewItems.forEach((item) => URL.revokeObjectURL(item.url))
+    }
+  }, [batchPreviewItems])
 
   useEffect(() => {
     if (!showForm) {
@@ -127,10 +173,11 @@ export default function GalleryImagesBoard({
   function startCreate() {
     setEditId(null)
     setForm(EMPTY_FORM)
-    setMediaFile(null)
+    setMediaFiles([])
     setShowForm(true)
     setFieldErrors({})
     setMsg('')
+    setUploadProgress(null)
   }
 
   function startEdit(img: GalleryImageRecord) {
@@ -147,55 +194,148 @@ export default function GalleryImagesBoard({
       category: img.category as GalleryImageCategory,
       status: img.status as Status,
     })
-    setMediaFile(null)
+    setMediaFiles([])
     setShowForm(true)
     setFieldErrors({})
     setMsg('')
+    setUploadProgress(null)
   }
 
   function cancelForm() {
     setShowForm(false)
     setEditId(null)
     setForm(EMPTY_FORM)
-    setMediaFile(null)
+    setMediaFiles([])
     setFieldErrors({})
+    setUploadProgress(null)
   }
 
   function set(field: keyof FormState, value: string | number | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  function selectMediaFile(file: File | null) {
-    if (!file) {
+  function selectMediaFiles(nextFiles: FileList | null) {
+    const files = Array.from(nextFiles ?? [])
+
+    if (files.length === 0) {
       return
     }
 
-    const nextType: GalleryMediaType = file.type.startsWith('video/') ? 'video' : 'image'
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      setMsg('Choose an image or video file.')
+    if (editId && files.length > 1) {
+      setMsg('Replace one image or video at a time.')
       return
     }
 
-    const maxBytes = nextType === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
-    if (file.size > maxBytes) {
-      setMsg(nextType === 'video' ? 'This video is larger than 200 MB.' : 'This image is larger than 10 MB.')
+    const validation = validateGalleryFileSelection(files)
+    if (!validation.ok) {
+      setMsg(validation.error)
       return
     }
 
-    const title = deriveMediaLabel(file.name)
-    setMediaFile(file)
-    setForm((prev) => {
-      const nextTitle = prev.title || title
-      return {
-        ...prev,
-        mediaType: nextType,
-        title: nextTitle,
-        slug: prev.slug || `${slugify(nextTitle).slice(0, 86)}-${Date.now().toString(36)}`,
-        imageAlt: prev.imageAlt || nextTitle,
-        description: prev.description || autoGalleryDescription(nextTitle),
-      }
-    })
+    const firstFile = files[0]
+    const title = deriveMediaLabel(firstFile.name)
+    setMediaFiles(files)
+    setForm((prev) => (
+      validation.isBatch
+        ? {
+            ...prev,
+            mediaType: 'image',
+            title: '',
+            slug: '',
+            imageAlt: '',
+            description: '',
+          }
+        : {
+            ...prev,
+            mediaType: validation.mediaType,
+            title: prev.title || title,
+            slug: prev.slug || `${slugify(title).slice(0, 86)}-${Date.now().toString(36)}`,
+            imageAlt: prev.imageAlt || title,
+            description: prev.description || autoGalleryDescription(title),
+          }
+    ))
     setMsg('')
+  }
+
+  async function handleBatchUpload(files: File[]) {
+    setUploadingImage(true)
+
+    const uploaded: File[] = []
+    const failed: Array<{ file: File; message: string }> = []
+    let featuredAssigned = false
+    const tokenBase = Date.now().toString(36)
+
+    try {
+      for (const [index, file] of files.entries()) {
+        setUploadProgress({
+          completed: uploaded.length,
+          total: files.length,
+          fileName: file.name,
+          percent: 0,
+        })
+
+        try {
+          const title = deriveMediaLabel(file.name)
+          await uploadAdminMediaAsset(file, title, title, {
+            onProgress: (percent) => {
+              setUploadProgress({
+                completed: uploaded.length,
+                total: files.length,
+                fileName: file.name,
+                percent,
+              })
+            },
+            gallery: buildGalleryUploadForFile({
+              fileName: file.name,
+              label: title,
+              altText: title,
+              mediaType: 'image',
+              category: form.category,
+              featured: form.featured && !featuredAssigned,
+              status: 'published',
+              uniqueToken: `${tokenBase}${index.toString(36)}`,
+            }),
+          })
+
+          uploaded.push(file)
+          if (form.featured && !featuredAssigned) {
+            featuredAssigned = true
+          }
+        } catch (error) {
+          failed.push({
+            file,
+            message: error instanceof Error ? error.message : 'Upload failed',
+          })
+        }
+      }
+
+      setBusy(false)
+      setUploadingImage(false)
+      setUploadProgress(null)
+
+      if (uploaded.length > 0) {
+        await refresh()
+      }
+
+      if (failed.length === 0) {
+        setMsg(`Uploaded ${uploaded.length} image${uploaded.length === 1 ? '' : 's'} to the public gallery.`)
+        cancelForm()
+        return
+      }
+
+      setMediaFiles(failed.map((item) => item.file))
+      const failedNames = summarizeUploadFailures(failed)
+      setMsg(
+        uploaded.length > 0
+          ? `Uploaded ${uploaded.length} of ${files.length} images. Retry failed files: ${failedNames}.`
+          : `Batch upload failed. Retry these files: ${failedNames}.`
+      )
+    } catch (error) {
+      setBusy(false)
+      setUploadingImage(false)
+      setUploadProgress(null)
+      setMsg(error instanceof Error ? error.message : 'Batch upload failed')
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -204,23 +344,42 @@ export default function GalleryImagesBoard({
     setMsg('')
     setFieldErrors({})
 
-    if (!editId && !mediaFile) {
+    if (!editId && mediaFiles.length === 0) {
       setBusy(false)
       setMsg('Media upload is required for new gallery records.')
       return
     }
 
+    if (!editId && isBatchUpload) {
+      await handleBatchUpload(mediaFiles)
+      return
+    }
+
     let nextImageUrl = form.imageUrl
 
-    if (mediaFile) {
+    if (singleMediaFile) {
       setUploadingImage(true)
+      setUploadProgress({
+        completed: 0,
+        total: 1,
+        fileName: singleMediaFile.name,
+        percent: 0,
+      })
 
       try {
         const upload = await uploadAdminMediaAsset(
-          mediaFile,
+          singleMediaFile,
           `${form.title || 'Gallery media'} upload`,
           form.imageAlt || form.title,
           {
+            onProgress: (percent) => {
+              setUploadProgress({
+                completed: 0,
+                total: 1,
+                fileName: singleMediaFile.name,
+                percent,
+              })
+            },
             gallery: !editId
               ? {
                   slug: form.slug,
@@ -240,6 +399,7 @@ export default function GalleryImagesBoard({
         if (!editId && upload.gallery) {
           setUploadingImage(false)
           setBusy(false)
+          setUploadProgress(null)
           setMsg('Gallery media added.')
           await refresh()
           cancelForm()
@@ -248,11 +408,13 @@ export default function GalleryImagesBoard({
       } catch (error) {
         setBusy(false)
         setUploadingImage(false)
+        setUploadProgress(null)
         setMsg(error instanceof Error ? error.message : 'Media upload failed')
         return
       }
 
       setUploadingImage(false)
+      setUploadProgress(null)
     }
 
     if (!nextImageUrl) {
@@ -360,17 +522,46 @@ export default function GalleryImagesBoard({
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center transition-colors hover:border-emerald-700 hover:bg-emerald-50/40 focus-within:ring-2 focus-within:ring-emerald-700 focus-within:ring-offset-2">
                 <Upload className="h-6 w-6 text-emerald-800" aria-hidden="true" />
                 <span className="font-body text-sm font-semibold text-slate-800">
-                  {mediaFile ? 'Choose a different file' : editId ? 'Replace current file' : 'Choose image or video'}
+                  {mediaFiles.length > 0 ? 'Choose different file(s)' : editId ? 'Replace current file' : 'Choose image or video'}
                 </span>
-                <span className="font-body text-xs text-slate-500">Images up to 10 MB. Videos up to 200 MB.</span>
+                <span className="font-body text-xs text-slate-500">
+                  Single image: 10 MB. Single video: 200 MB. Batch: up to {MAX_GALLERY_BATCH_FILES} images, {Math.floor(MAX_GALLERY_BATCH_TOTAL_BYTES / (1024 * 1024))} MB total.
+                </span>
                 <input
                   type="file"
                   accept={ACCEPTED_MEDIA}
-                  onChange={(e) => selectMediaFile(e.target.files?.[0] ?? null)}
+                  multiple={!editId}
+                  onChange={(e) => selectMediaFiles(e.target.files)}
                   className="sr-only"
                 />
               </label>
-              {previewUrl ? (
+              {isBatchUpload ? (
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="font-body text-sm font-semibold text-slate-900">
+                      {mediaFiles.length} images selected, {formatBytes(batchTotalSize)} total
+                    </p>
+                    <p className="mt-1 font-body text-sm leading-relaxed text-slate-600">
+                      Each image will use its file name as the public name, get an automatic description, publish to the public gallery, and use the gallery section selected below. If featured is enabled, only the first successful image will be featured.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {batchPreviewItems.map((item) => (
+                      <article key={`${item.file.name}-${item.file.size}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                        <div className="relative aspect-[4/3] bg-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.url} alt={item.title} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="space-y-1.5 p-3">
+                          <p className="line-clamp-2 font-body text-sm font-semibold text-slate-900">{item.title}</p>
+                          <p className="font-body text-xs text-slate-500">{item.file.name}</p>
+                          <p className="font-body text-xs font-medium text-slate-600">{formatBytes(item.file.size)}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : previewUrl ? (
                 <AdminUploadPreview
                   title={form.title || 'Gallery media'}
                   eyebrow="Public gallery preview"
@@ -383,30 +574,47 @@ export default function GalleryImagesBoard({
                   className="mt-3"
                 />
               ) : null}
-              {mediaFile ? <p className="mt-1 font-body text-xs text-slate-500">{mediaFile.name}, {formatBytes(mediaFile.size)}</p> : null}
+              {!isBatchUpload && singleMediaFile ? (
+                <p className="mt-1 font-body text-xs text-slate-500">{singleMediaFile.name}, {formatBytes(singleMediaFile.size)}</p>
+              ) : null}
+              <UploadProgress
+                active={uploadingImage && Boolean(uploadProgress)}
+                label={
+                  uploadProgress
+                    ? `Uploading ${uploadProgress.completed + 1} of ${uploadProgress.total} ${uploadProgress.total === 1 ? 'item' : 'items'}`
+                    : 'Uploading media'
+                }
+                detail={uploadProgress?.fileName}
+                value={uploadProgress?.percent}
+                className="mt-3"
+              />
               {fieldErrors.imageUrl ? <span className="block font-body text-xs text-red-600">{fieldErrors.imageUrl}</span> : null}
             </div>
-            <Field label="Name *" error={fieldErrors.title}>
-              <input
-                value={form.title}
-                onChange={(e) => setForm((current) => ({ ...current, title: e.target.value, imageAlt: e.target.value }))}
-                required
-                minLength={5}
-                maxLength={160}
-                className="input-field"
-              />
-            </Field>
-            <Field label="Description *" error={fieldErrors.description}>
-              <textarea
-                value={form.description}
-                onChange={(e) => set('description', e.target.value)}
-                required
-                minLength={10}
-                maxLength={800}
-                rows={4}
-                className="input-field"
-              />
-            </Field>
+            {!isBatchUpload ? (
+              <>
+                <Field label="Name *" error={fieldErrors.title}>
+                  <input
+                    value={form.title}
+                    onChange={(e) => setForm((current) => ({ ...current, title: e.target.value, imageAlt: e.target.value }))}
+                    required
+                    minLength={5}
+                    maxLength={160}
+                    className="input-field"
+                  />
+                </Field>
+                <Field label="Description *" error={fieldErrors.description}>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => set('description', e.target.value)}
+                    required
+                    minLength={10}
+                    maxLength={800}
+                    rows={4}
+                    className="input-field"
+                  />
+                </Field>
+              </>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Gallery section *" error={fieldErrors.category}>
                 <select value={form.category} onChange={(e) => set('category', e.target.value)} className="input-field">
@@ -420,7 +628,9 @@ export default function GalleryImagesBoard({
                   onChange={(e) => set('featured', e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-emerald-700"
                 />
-                <span className="font-body text-sm font-medium text-slate-700">Feature this item first</span>
+                <span className="font-body text-sm font-medium text-slate-700">
+                  {isBatchUpload ? 'Feature the first successful image' : 'Feature this item first'}
+                </span>
               </label>
             </div>
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -433,7 +643,17 @@ export default function GalleryImagesBoard({
                 className="font-body text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
-                {uploadingImage ? 'Uploading media...' : busy ? 'Saving...' : editId ? 'Update Media' : 'Publish Media'}
+                {uploadingImage && uploadProgress
+                  ? `Uploading ${uploadProgress.completed + 1}/${uploadProgress.total}`
+                  : uploadingImage
+                    ? 'Uploading media...'
+                    : busy
+                      ? 'Saving...'
+                      : editId
+                        ? 'Update Media'
+                        : isBatchUpload
+                          ? `Publish ${mediaFiles.length} Images`
+                          : 'Publish Media'}
               </button>
             </div>
           </form>
