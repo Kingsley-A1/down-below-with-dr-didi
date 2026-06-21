@@ -2193,16 +2193,11 @@ export type PublicGalleryImage = {
   slug: string
   title: string
   description: string
-  caption: string | null
   mediaType: GalleryMediaType
   featured: boolean
   imageUrl: string
   imageAlt: string
   category: GalleryImageCategory
-  eventName: string | null
-  location: string | null
-  capturedAt: string | null
-  sortOrder: number
 }
 
 export type GalleryImageRecord = PublicGalleryImage & {
@@ -2264,16 +2259,11 @@ function galleryImageSelect(capabilities: GalleryImageSchemaCapabilities) {
     slug: true,
     title: true,
     description: true,
-    caption: true,
     ...(capabilities.mediaType ? { mediaType: true } : {}),
     ...(capabilities.featured ? { featured: true } : {}),
     imageUrl: true,
     imageAlt: true,
     category: true,
-    eventName: true,
-    location: true,
-    capturedAt: true,
-    sortOrder: true,
     status: true,
     createdAt: true,
     updatedAt: true,
@@ -2369,21 +2359,16 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
       const fileName = item.imageUrl.split('/').pop()?.toLowerCase()
       return Boolean(fileName && assetFileSet.has(fileName))
     })
-    .map((item, index) => ({
+    .map((item) => ({
       id: `seed-${item.slug}`,
       slug: item.slug,
       title: item.title,
       description: item.description,
-      caption: item.caption || null,
       mediaType: 'image' as GalleryMediaType,
       featured: false,
       imageUrl: normalizePublicImageUrl(item.imageUrl),
       imageAlt: item.imageAlt,
       category: item.category as GalleryImageCategory,
-      eventName: item.eventName || null,
-      location: item.location || null,
-      capturedAt: null,
-      sortOrder: index,
     }))
 
   const seededFileNames = new Set(
@@ -2398,7 +2383,7 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
     .filter(([fileName]) => !GALLERY_ASSET_EXCLUDE_NAMES.has(fileName))
     .filter(([fileName]) => !seededFileNames.has(fileName))
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([fileName, originalFileName], index) => {
+    .map(([fileName, originalFileName]) => {
       const title = galleryTitleFromFileName(originalFileName)
       const imageCategory = inferFallbackGalleryCategory(fileName)
 
@@ -2407,16 +2392,11 @@ async function getFallbackGalleryImages(category?: GalleryImageCategory): Promis
         slug: gallerySlugFromFileName(originalFileName),
         title,
         description: `Gallery highlight from Down Below Family Health Initiative featuring ${title.toLowerCase()}.`,
-        caption: title,
         mediaType: 'image' as GalleryMediaType,
         featured: false,
         imageUrl: `/assets/${originalFileName}`,
         imageAlt: title,
         category: imageCategory,
-        eventName: null,
-        location: 'Cross River, Nigeria',
-        capturedAt: null,
-        sortOrder: seeded.length + index,
       }
     })
 
@@ -2449,16 +2429,11 @@ type GalleryImageDbRecord = {
   slug: string
   title: string
   description: string
-  caption: string | null
   mediaType?: string | null
   featured?: boolean | null
   imageUrl: string
   imageAlt: string
   category: string
-  eventName: string | null
-  location: string | null
-  capturedAt: Date | null
-  sortOrder: number
   status: string
   createdAt: Date
   updatedAt: Date
@@ -2472,16 +2447,11 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
     slug: r.slug,
     title: r.title,
     description: r.description,
-    caption: r.caption,
     mediaType: inferGalleryMediaType(imageUrl, r.mediaType),
     featured: Boolean(r.featured ?? false),
     imageUrl,
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
-    eventName: r.eventName,
-    location: r.location,
-    capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
-    sortOrder: r.sortOrder,
     status: r.status as GalleryImageRecord['status'],
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
@@ -2493,16 +2463,11 @@ function galleryCreateData(
     slug: string
     title: string
     description: string
-    caption?: string | null
     mediaType?: GalleryMediaType
     featured?: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
-    eventName?: string | null
-    location?: string | null
-    capturedAt?: string | null
-    sortOrder?: number
     status?: 'draft' | 'published' | 'archived'
   },
   capabilities: GalleryImageSchemaCapabilities
@@ -2511,16 +2476,11 @@ function galleryCreateData(
     slug: input.slug.trim(),
     title: input.title.trim(),
     description: input.description.trim(),
-    caption: input.caption?.trim() || null,
     ...(capabilities.mediaType ? { mediaType: input.mediaType ?? inferGalleryMediaType(input.imageUrl) } : {}),
     ...(capabilities.featured ? { featured: input.featured ?? false } : {}),
     imageUrl: input.imageUrl.trim(),
     imageAlt: input.imageAlt.trim(),
     category: input.category,
-    eventName: input.eventName?.trim() || null,
-    location: input.location?.trim() || null,
-    capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
-    sortOrder: input.sortOrder ?? 0,
     status: input.status ?? 'published',
   }
 }
@@ -2530,16 +2490,11 @@ function galleryUpdateData(
     slug: string
     title: string
     description: string
-    caption: string | null
     mediaType: GalleryMediaType
     featured: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
-    eventName: string | null
-    location: string | null
-    capturedAt: string | null
-    sortOrder: number
     status: 'draft' | 'published' | 'archived'
   }>,
   capabilities: GalleryImageSchemaCapabilities
@@ -2548,18 +2503,11 @@ function galleryUpdateData(
     ...(input.slug !== undefined && { slug: input.slug.trim() }),
     ...(input.title !== undefined && { title: input.title.trim() }),
     ...(input.description !== undefined && { description: input.description.trim() }),
-    ...(input.caption !== undefined && { caption: input.caption?.trim() || null }),
     ...(capabilities.mediaType && input.mediaType !== undefined && { mediaType: input.mediaType }),
     ...(capabilities.featured && input.featured !== undefined && { featured: input.featured }),
     ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl.trim() }),
     ...(input.imageAlt !== undefined && { imageAlt: input.imageAlt.trim() }),
     ...(input.category !== undefined && { category: input.category }),
-    ...(input.eventName !== undefined && { eventName: input.eventName?.trim() || null }),
-    ...(input.location !== undefined && { location: input.location?.trim() || null }),
-    ...(input.capturedAt !== undefined && {
-      capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
-    }),
-    ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
     ...(input.status !== undefined && { status: input.status }),
   }
 }
@@ -2573,16 +2521,12 @@ function fallbackToGalleryRecord(item: PublicGalleryImage): GalleryImageRecord {
   }
 }
 
-function compareGalleryRecords(a: PublicGalleryImage, b: PublicGalleryImage) {
+function compareGalleryRecords(a: GalleryImageRecord, b: GalleryImageRecord) {
   if (a.featured !== b.featured) {
     return a.featured ? -1 : 1
   }
 
-  if (a.sortOrder !== b.sortOrder) {
-    return a.sortOrder - b.sortOrder
-  }
-
-  return a.title.localeCompare(b.title)
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
 function getSlugFromAuditMetadata(metadata: unknown) {
@@ -2667,16 +2611,11 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
           slug: item.slug,
           title: item.title,
           description: item.description,
-          caption: item.caption,
           mediaType: item.mediaType,
           featured: item.featured,
           imageUrl: item.imageUrl,
           imageAlt: item.imageAlt,
           category: item.category,
-          eventName: item.eventName,
-          location: item.location,
-          capturedAt: item.capturedAt,
-          sortOrder: item.sortOrder,
           status: 'published',
         },
         capabilities
@@ -2692,16 +2631,11 @@ async function ensureFallbackGalleryRecords(): Promise<void> {
         {
           title: item.title,
           description: item.description,
-          caption: item.caption,
           mediaType: item.mediaType,
           featured: item.featured,
           imageUrl: item.imageUrl,
           imageAlt: item.imageAlt,
           category: item.category,
-          eventName: item.eventName,
-          location: item.location,
-          capturedAt: item.capturedAt,
-          sortOrder: item.sortOrder,
           status: 'published',
         },
         capabilities
@@ -2729,7 +2663,6 @@ export async function getPublishedGalleryImages(
       },
       orderBy: [
         ...(capabilities.featured ? [{ featured: 'desc' as const }] : []),
-        { sortOrder: 'asc' },
         { createdAt: 'desc' },
       ],
       select: galleryImageSelect(capabilities),
@@ -2744,16 +2677,11 @@ export async function getPublishedGalleryImages(
           slug: record.slug,
           title: record.title,
           description: record.description,
-          caption: record.caption,
           mediaType: inferGalleryMediaType(imageUrl, record.mediaType),
           featured: Boolean(record.featured ?? false),
           imageUrl,
           imageAlt: record.imageAlt,
           category: record.category as GalleryImageCategory,
-          eventName: record.eventName,
-          location: record.location,
-          capturedAt: record.capturedAt ? record.capturedAt.toISOString() : null,
-          sortOrder: record.sortOrder,
           renderable: await hasRenderableLocalAsset(imageUrl),
         }
       })
@@ -2766,16 +2694,11 @@ export async function getPublishedGalleryImages(
         slug: record.slug,
         title: record.title,
         description: record.description,
-        caption: record.caption,
         mediaType: record.mediaType,
         featured: record.featured,
         imageUrl: record.imageUrl,
         imageAlt: record.imageAlt,
         category: record.category,
-        eventName: record.eventName,
-        location: record.location,
-        capturedAt: record.capturedAt,
-        sortOrder: record.sortOrder,
       }))
 
     if (safeRecords.length === 0) {
@@ -2822,16 +2745,11 @@ export async function getGalleryImageBySlug(
       slug: r.slug,
       title: r.title,
       description: r.description,
-      caption: r.caption,
       mediaType: inferGalleryMediaType(normalizedImageUrl, r.mediaType),
       featured: Boolean(r.featured ?? false),
       imageUrl: normalizedImageUrl,
       imageAlt: r.imageAlt,
       category: r.category as GalleryImageCategory,
-      eventName: r.eventName,
-      location: r.location,
-      capturedAt: r.capturedAt ? r.capturedAt.toISOString() : null,
-      sortOrder: r.sortOrder,
     }
   } catch {
     return fallbackImage
@@ -2852,7 +2770,6 @@ export async function getAllGalleryImages(): Promise<GalleryImageRecord[]> {
   const records = await prisma.galleryImage.findMany({
     orderBy: [
       ...(capabilities.featured ? [{ featured: 'desc' as const }] : []),
-      { sortOrder: 'asc' },
       { createdAt: 'desc' },
     ],
     select: galleryImageSelect(capabilities),
@@ -2866,16 +2783,11 @@ export async function createGalleryImage(
     slug: string
     title: string
     description: string
-    caption?: string
     mediaType?: GalleryMediaType
     featured?: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
-    eventName?: string
-    location?: string
-    capturedAt?: string
-    sortOrder?: number
     status?: 'draft' | 'published' | 'archived'
   },
   actor: { email: string; role: AdminRole }
@@ -2919,16 +2831,11 @@ export async function createMediaAssetWithGalleryRecord(input: {
     slug: string
     title: string
     description: string
-    caption?: string
     mediaType?: GalleryMediaType
     featured?: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
-    eventName?: string
-    location?: string
-    capturedAt?: string
-    sortOrder?: number
     status?: 'draft' | 'published' | 'archived'
   }
 }): Promise<{ asset: MediaAssetDbRecord; gallery: GalleryImageRecord | null }> {
@@ -3021,16 +2928,11 @@ export async function updateGalleryImage(
     slug: string
     title: string
     description: string
-    caption: string | null
     mediaType: GalleryMediaType
     featured: boolean
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
-    eventName: string | null
-    location: string | null
-    capturedAt: string | null
-    sortOrder: number
     status: 'draft' | 'published' | 'archived'
   }>,
   actor: { email: string; role: AdminRole }

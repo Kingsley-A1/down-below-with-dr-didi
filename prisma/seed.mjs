@@ -269,13 +269,6 @@ function inferGalleryCategory(stem) {
   return 'event'
 }
 
-function inferEventName(category) {
-  if (category === 'outreach') return 'Community Outreach Programme'
-  if (category === 'community') return 'Community Engagement Activity'
-  if (category === 'facility') return 'Facility Support and Upgrade'
-  return 'Down Below Initiative Event'
-}
-
 function inferDescription(category, title) {
   if (category === 'outreach') {
     return `Documented outreach moment from Down Below Family Health Initiative, highlighting ${title.toLowerCase()} and practical field support.`
@@ -309,7 +302,7 @@ async function buildGalleryImages() {
     .filter((fileName) => !EXCLUDED_GALLERY_FILES.has(fileName.toLowerCase()))
     .sort((a, b) => a.localeCompare(b))
 
-  return galleryFiles.map((fileName, index) => {
+  return galleryFiles.map((fileName) => {
     const stem = normalizeStem(fileName)
     const title = formatTitleFromStem(stem)
     const category = inferGalleryCategory(stem)
@@ -318,13 +311,9 @@ async function buildGalleryImages() {
       slug: toSlug(stem),
       title,
       category,
-      eventName: inferEventName(category),
-      location: 'Cross River, Nigeria',
-      sortOrder: index,
       imageUrl: `/assets/${fileName}`,
       imageAlt: title,
       description: inferDescription(category, title),
-      caption: title,
       status: 'published',
     }
   })
@@ -510,13 +499,9 @@ async function seedGalleryImages() {
       update: {
         title: image.title,
         category: image.category,
-        eventName: image.eventName,
-        location: image.location,
-        sortOrder: image.sortOrder,
         imageUrl: image.imageUrl,
         imageAlt: image.imageAlt,
         description: image.description,
-        caption: image.caption,
         status: image.status,
       },
       create: image,

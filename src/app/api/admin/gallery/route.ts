@@ -41,17 +41,8 @@ export async function POST(request: NextRequest) {
       return validationError(parsed.error)
     }
 
-    const { caption, eventName, location, capturedAt, status, ...rest } = parsed.data
-
     const image = await createGalleryImage(
-      {
-        ...rest,
-        caption: caption || undefined,
-        eventName: eventName || undefined,
-        location: location || undefined,
-        capturedAt: capturedAt || undefined,
-        status,
-      },
+      parsed.data,
       { email: session.email, role: session.role }
     )
 

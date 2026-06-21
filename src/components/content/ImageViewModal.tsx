@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, X, MapPin, Calendar, Tag, PlayCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, PlayCircle } from 'lucide-react'
 import type { PublicGalleryImage, GalleryImageCategory } from '@/lib/admin/repository'
-import { formatDate } from '@/lib/utils'
 
 const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }> = {
   outreach: { bg: '#dcfce7', text: '#166534' },
@@ -312,29 +311,6 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                   <p className="font-body text-sm leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
                     {activeImage.description}
                   </p>
-
-                  {(activeImage.eventName || activeImage.location || activeImage.capturedAt) ? (
-                    <div className="space-y-2 pt-1">
-                      {activeImage.eventName ? (
-                        <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                          <Tag className="w-4 h-4 shrink-0" />
-                          <span className="font-body text-sm">{activeImage.eventName}</span>
-                        </div>
-                      ) : null}
-                      {activeImage.location ? (
-                        <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                          <MapPin className="w-4 h-4 shrink-0" />
-                          <span className="font-body text-sm">{activeImage.location}</span>
-                        </div>
-                      ) : null}
-                      {activeImage.capturedAt ? (
-                        <div className="flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                          <Calendar className="w-4 h-4 shrink-0" />
-                          <span className="font-body text-sm">{formatDate(activeImage.capturedAt)}</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
 
                   <p className="font-body text-xs text-gray-500">
                     Swipe left or right on mobile, or use arrow keys to browse.

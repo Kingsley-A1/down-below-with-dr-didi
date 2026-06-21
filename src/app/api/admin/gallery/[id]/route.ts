@@ -30,17 +30,9 @@ export async function PUT(
       return validationError(parsed.error)
     }
 
-    const { caption, eventName, location, capturedAt, ...rest } = parsed.data
-
     const image = await updateGalleryImage(
       id,
-      {
-        ...rest,
-        ...(caption !== undefined && { caption: caption || null }),
-        ...(eventName !== undefined && { eventName: eventName || null }),
-        ...(location !== undefined && { location: location || null }),
-        ...(capturedAt !== undefined && { capturedAt: capturedAt || null }),
-      },
+      parsed.data,
       { email: session.email, role: session.role }
     )
 

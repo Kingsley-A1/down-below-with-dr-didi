@@ -59,15 +59,10 @@ export function buildDefaultGalleryUpload(
     slug: `${baseSlug}-${token}`.slice(0, 100),
     title,
     description: `Gallery highlight from DownBelow Family Health Initiative showing ${title.toLowerCase()} as part of our public education, care, and outreach work.`,
-    caption: title,
     mediaType,
     featured: false,
     imageAlt,
     category: 'outreach',
-    eventName: '',
-    location: '',
-    capturedAt: '',
-    sortOrder: 0,
     status: 'published',
   }
 }

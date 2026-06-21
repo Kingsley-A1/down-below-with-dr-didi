@@ -216,18 +216,13 @@ export const galleryImageSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(160),
   description: z
     .string()
-    .min(20, 'Description must be at least 20 characters')
+    .min(10, 'Description must be at least 10 characters')
     .max(800, 'Description may not exceed 800 characters'),
-  caption: z.string().max(200).optional().or(z.literal('')),
   mediaType: z.enum(['image', 'video']).optional().default('image'),
   featured: z.boolean().optional().default(false),
   imageUrl: z.string().min(1, 'Media URL is required').max(500),
   imageAlt: z.string().min(5, 'Media label must be at least 5 characters').max(200),
   category: z.enum(['outreach', 'event', 'team', 'community', 'facility']),
-  eventName: z.string().max(160).optional().or(z.literal('')),
-  location: z.string().max(160).optional().or(z.literal('')),
-  capturedAt: z.string().datetime({ offset: true }).optional().or(z.literal('')),
-  sortOrder: z.number().int().min(0).optional().default(0),
   status: z.enum(['draft', 'published', 'archived']).optional().default('published'),
 })
 

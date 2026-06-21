@@ -49,15 +49,10 @@ const galleryPayload = {
   slug: 'community-outreach-upload',
   title: 'Community Outreach Upload',
   description: 'A community health outreach event hosted by DownBelow Family Health Initiative.',
-  caption: 'Community outreach',
   mediaType: 'image',
   featured: false,
   imageAlt: 'Community health outreach event',
   category: 'outreach',
-  eventName: '',
-  location: '',
-  capturedAt: '',
-  sortOrder: 0,
   status: 'published',
 }
 
@@ -114,5 +109,18 @@ describe('media upload completion', () => {
     expect(response.status).toBe(400)
     expect(mockCreateMediaAssetWithGalleryRecord).not.toHaveBeenCalled()
     expect(mockRevalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('requires at least ten description characters', async () => {
+    const { POST } = await import('@/app/api/admin/media/complete/route')
+    const response = await POST(
+      createRequest({
+        ...basePayload,
+        gallery: { ...galleryPayload, description: 'Too short' },
+      })
+    )
+
+    expect(response.status).toBe(400)
+    expect(mockCreateMediaAssetWithGalleryRecord).not.toHaveBeenCalled()
   })
 })

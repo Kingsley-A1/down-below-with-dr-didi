@@ -33,8 +33,8 @@ export default async function AdminGalleryPage() {
     <AdminContentContainer>
       <AdminPageHeader
         eyebrow="Content"
-        title="Gallery Images"
-        description="Curate outreach visuals with category tags, metadata, and publication states for the public gallery experience."
+        title="Gallery Media"
+        description="Upload an image or video, add its public name and description, then publish it to the gallery."
       />
       {loadWarning ? (
         <AdminDataLoadAlert
