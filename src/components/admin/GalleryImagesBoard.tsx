@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ImageOff, Upload } from 'lucide-react'
+import { ImageOff, RefreshCw, Trash2, Upload } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
@@ -271,6 +271,56 @@ export default function GalleryImagesBoard({
     setBatchMediaDetails((current) => current.map((details, itemIndex) => (
       itemIndex === index ? { ...details, [field]: value } : details
     )))
+  }
+
+  function handleRemoveSelectedFile(index: number) {
+    const nextFiles = mediaFiles.filter((_, itemIndex) => itemIndex !== index)
+    const nextDetails = batchMediaDetails.filter((_, itemIndex) => itemIndex !== index)
+
+    setMediaFiles(nextFiles)
+
+    if (nextFiles.length === 1 && nextDetails[0]) {
+      const remainingDetails = nextDetails[0]
+      setBatchMediaDetails([])
+      setForm((current) => ({
+        ...current,
+        title: remainingDetails.title,
+        description: remainingDetails.description,
+        imageAlt: remainingDetails.title,
+        slug: `${slugify(remainingDetails.title).slice(0, 86)}-${Date.now().toString(36)}`,
+      }))
+      return
+    }
+
+    setBatchMediaDetails(nextDetails)
+
+    if (nextFiles.length === 0 && !editId) {
+      setForm((current) => ({
+        ...current,
+        title: '',
+        description: '',
+        imageAlt: '',
+        slug: '',
+      }))
+    }
+  }
+
+  function handleReplaceBatchFile(index: number, selectedFiles: FileList | null) {
+    const replacement = selectedFiles?.[0]
+    if (!replacement) {
+      return
+    }
+
+    const nextFiles = mediaFiles.map((file, itemIndex) => itemIndex === index ? replacement : file)
+    const validation = validateGalleryFileSelection(nextFiles)
+
+    if (!validation.ok) {
+      setMsg(validation.error)
+      return
+    }
+
+    setMediaFiles(nextFiles)
+    setMsg('')
   }
 
   async function handleBatchUpload(files: File[]) {
@@ -573,6 +623,30 @@ export default function GalleryImagesBoard({
                         </div>
                         <div className="space-y-3 p-3">
                           <p className="truncate font-body text-xs text-slate-500" title={item.file.name}>{item.file.name}</p>
+                          <div className="flex gap-2">
+                            <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 font-body text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-within:ring-2 focus-within:ring-emerald-700 focus-within:ring-offset-1">
+                              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                              Replace
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                                onChange={(event) => {
+                                  handleReplaceBatchFile(index, event.target.files)
+                                  event.target.value = ''
+                                }}
+                                className="sr-only"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSelectedFile(index)}
+                              className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 font-body text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-1"
+                              aria-label={`Remove ${item.file.name}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              Remove
+                            </button>
+                          </div>
                           <label className="block space-y-1">
                             <span className="font-body text-xs font-semibold text-slate-700">Name *</span>
                             <input
@@ -618,7 +692,30 @@ export default function GalleryImagesBoard({
                 />
               ) : null}
               {!isBatchUpload && singleMediaFile ? (
-                <p className="mt-1 font-body text-xs text-slate-500">{singleMediaFile.name}, {formatBytes(singleMediaFile.size)}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p className="mr-auto font-body text-xs text-slate-500">{singleMediaFile.name}, {formatBytes(singleMediaFile.size)}</p>
+                  <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 font-body text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-within:ring-2 focus-within:ring-emerald-700 focus-within:ring-offset-1">
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    Replace
+                    <input
+                      type="file"
+                      accept={ACCEPTED_MEDIA}
+                      onChange={(event) => {
+                        selectMediaFiles(event.target.files)
+                        event.target.value = ''
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSelectedFile(0)}
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 font-body text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-1"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    Remove
+                  </button>
+                </div>
               ) : null}
               <UploadProgress
                 active={uploadingImage && Boolean(uploadProgress)}
