@@ -56,12 +56,15 @@ describe('buildDefaultGalleryUpload', () => {
         fileName: 'women-health-lecture.png',
         mediaType: 'image',
         category: 'event',
+        label: 'Women Health Lecture',
+        description: 'Community members attending a women health lecture.',
         featured: true,
         uniqueToken: 'batch-a',
       })
     ).toMatchObject({
       slug: 'women-health-lecture-batcha',
-      title: 'women health lecture',
+      title: 'Women Health Lecture',
+      description: 'Community members attending a women health lecture.',
       mediaType: 'image',
       category: 'event',
       featured: true,

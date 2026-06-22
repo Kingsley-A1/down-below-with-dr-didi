@@ -91,6 +91,7 @@ export function buildGalleryUploadForFile(input: {
   fileName: string
   mediaType: 'image' | 'video'
   category: GalleryMediaUploadData['category']
+  description?: string
   featured?: boolean
   altText?: string
   label?: string
@@ -109,6 +110,7 @@ export function buildGalleryUploadForFile(input: {
 
   return {
     ...base,
+    description: input.description?.trim() || base.description,
     category: input.category,
     featured: input.featured ?? false,
     status: input.status ?? 'published',

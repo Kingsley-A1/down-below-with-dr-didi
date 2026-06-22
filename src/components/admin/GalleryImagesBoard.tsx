@@ -11,7 +11,6 @@ import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import type { GalleryImageRecord, GalleryImageCategory, GalleryMediaType } from '@/lib/admin/repository'
 import {
   buildGalleryUploadForFile,
-  deriveMediaLabel,
   MAX_GALLERY_BATCH_FILES,
   MAX_GALLERY_BATCH_TOTAL_BYTES,
   uploadAdminMediaAsset,
@@ -45,6 +44,11 @@ const EMPTY_FORM = {
 }
 
 type FormState = typeof EMPTY_FORM
+
+interface BatchMediaDetails {
+  title: string
+  description: string
+}
 
 function slugify(value: string) {
   return value
@@ -95,6 +99,7 @@ export default function GalleryImagesBoard({
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
+  const [batchMediaDetails, setBatchMediaDetails] = useState<BatchMediaDetails[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [openingEditId, setOpeningEditId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -118,7 +123,6 @@ export default function GalleryImagesBoard({
       isBatchUpload
         ? mediaFiles.map((file) => ({
             file,
-            title: deriveMediaLabel(file.name),
             url: URL.createObjectURL(file),
           }))
         : []
@@ -174,6 +178,7 @@ export default function GalleryImagesBoard({
     setEditId(null)
     setForm(EMPTY_FORM)
     setMediaFiles([])
+    setBatchMediaDetails([])
     setShowForm(true)
     setFieldErrors({})
     setMsg('')
@@ -195,6 +200,7 @@ export default function GalleryImagesBoard({
       status: img.status as Status,
     })
     setMediaFiles([])
+    setBatchMediaDetails([])
     setShowForm(true)
     setFieldErrors({})
     setMsg('')
@@ -206,6 +212,7 @@ export default function GalleryImagesBoard({
     setEditId(null)
     setForm(EMPTY_FORM)
     setMediaFiles([])
+    setBatchMediaDetails([])
     setFieldErrors({})
     setUploadProgress(null)
   }
@@ -232,9 +239,12 @@ export default function GalleryImagesBoard({
       return
     }
 
-    const firstFile = files[0]
-    const title = deriveMediaLabel(firstFile.name)
     setMediaFiles(files)
+    setBatchMediaDetails(
+      validation.isBatch
+        ? files.map(() => ({ title: '', description: '' }))
+        : []
+    )
     setForm((prev) => (
       validation.isBatch
         ? {
@@ -248,25 +258,32 @@ export default function GalleryImagesBoard({
         : {
             ...prev,
             mediaType: validation.mediaType,
-            title: prev.title || title,
-            slug: prev.slug || `${slugify(title).slice(0, 86)}-${Date.now().toString(36)}`,
-            imageAlt: prev.imageAlt || title,
-            description: prev.description || autoGalleryDescription(title),
+            title: prev.title,
+            slug: prev.slug,
+            imageAlt: prev.imageAlt,
+            description: prev.description,
           }
     ))
     setMsg('')
+  }
+
+  function updateBatchMediaDetails(index: number, field: keyof BatchMediaDetails, value: string) {
+    setBatchMediaDetails((current) => current.map((details, itemIndex) => (
+      itemIndex === index ? { ...details, [field]: value } : details
+    )))
   }
 
   async function handleBatchUpload(files: File[]) {
     setUploadingImage(true)
 
     const uploaded: File[] = []
-    const failed: Array<{ file: File; message: string }> = []
+    const failed: Array<{ file: File; details: BatchMediaDetails; message: string }> = []
     let featuredAssigned = false
     const tokenBase = Date.now().toString(36)
 
     try {
       for (const [index, file] of files.entries()) {
+        const details = batchMediaDetails[index]
         setUploadProgress({
           completed: uploaded.length,
           total: files.length,
@@ -275,8 +292,7 @@ export default function GalleryImagesBoard({
         })
 
         try {
-          const title = deriveMediaLabel(file.name)
-          await uploadAdminMediaAsset(file, title, title, {
+          await uploadAdminMediaAsset(file, details.title, details.title, {
             onProgress: (percent) => {
               setUploadProgress({
                 completed: uploaded.length,
@@ -287,8 +303,9 @@ export default function GalleryImagesBoard({
             },
             gallery: buildGalleryUploadForFile({
               fileName: file.name,
-              label: title,
-              altText: title,
+              label: details.title,
+              altText: details.title,
+              description: details.description,
               mediaType: 'image',
               category: form.category,
               featured: form.featured && !featuredAssigned,
@@ -304,6 +321,7 @@ export default function GalleryImagesBoard({
         } catch (error) {
           failed.push({
             file,
+            details,
             message: error instanceof Error ? error.message : 'Upload failed',
           })
         }
@@ -324,6 +342,7 @@ export default function GalleryImagesBoard({
       }
 
       setMediaFiles(failed.map((item) => item.file))
+      setBatchMediaDetails(failed.map((item) => item.details))
       const failedNames = summarizeUploadFailures(failed)
       setMsg(
         uploaded.length > 0
@@ -542,19 +561,43 @@ export default function GalleryImagesBoard({
                       {mediaFiles.length} images selected, {formatBytes(batchTotalSize)} total
                     </p>
                     <p className="mt-1 font-body text-sm leading-relaxed text-slate-600">
-                      Each image will use its file name as the public name, get an automatic description, publish to the public gallery, and use the gallery section selected below. If featured is enabled, only the first successful image will be featured.
+                      Add a public name and description for each image. All images will publish to the public gallery and use the gallery section selected below. If featured is enabled, only the first successful image will be featured.
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {batchPreviewItems.map((item) => (
-                      <article key={`${item.file.name}-${item.file.size}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    {batchPreviewItems.map((item, index) => (
+                      <article key={`${item.file.name}-${item.file.size}-${index}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                         <div className="relative aspect-[4/3] bg-slate-100">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.url} alt={item.title} className="h-full w-full object-cover" />
+                          <img src={item.url} alt="Selected gallery upload preview" className="h-full w-full object-cover" />
                         </div>
-                        <div className="space-y-1.5 p-3">
-                          <p className="line-clamp-2 font-body text-sm font-semibold text-slate-900">{item.title}</p>
-                          <p className="font-body text-xs text-slate-500">{item.file.name}</p>
+                        <div className="space-y-3 p-3">
+                          <p className="truncate font-body text-xs text-slate-500" title={item.file.name}>{item.file.name}</p>
+                          <label className="block space-y-1">
+                            <span className="font-body text-xs font-semibold text-slate-700">Name *</span>
+                            <input
+                              value={batchMediaDetails[index]?.title ?? ''}
+                              onChange={(event) => updateBatchMediaDetails(index, 'title', event.target.value)}
+                              required
+                              minLength={5}
+                              maxLength={160}
+                              placeholder="Public image name"
+                              className="input-field"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="font-body text-xs font-semibold text-slate-700">Description *</span>
+                            <textarea
+                              value={batchMediaDetails[index]?.description ?? ''}
+                              onChange={(event) => updateBatchMediaDetails(index, 'description', event.target.value)}
+                              required
+                              minLength={10}
+                              maxLength={800}
+                              rows={3}
+                              placeholder="Describe what this image shows"
+                              className="input-field resize-y"
+                            />
+                          </label>
                           <p className="font-body text-xs font-medium text-slate-600">{formatBytes(item.file.size)}</p>
                         </div>
                       </article>
@@ -595,7 +638,15 @@ export default function GalleryImagesBoard({
                 <Field label="Name *" error={fieldErrors.title}>
                   <input
                     value={form.title}
-                    onChange={(e) => setForm((current) => ({ ...current, title: e.target.value, imageAlt: e.target.value }))}
+                    onChange={(e) => setForm((current) => ({
+                      ...current,
+                      title: e.target.value,
+                      imageAlt: e.target.value,
+                      slug: editId
+                        ? current.slug
+                        : `${slugify(e.target.value).slice(0, 86)}-${Date.now().toString(36)}`,
+                    }))}
+                    placeholder="Public media name"
                     required
                     minLength={5}
                     maxLength={160}
@@ -610,6 +661,7 @@ export default function GalleryImagesBoard({
                     minLength={10}
                     maxLength={800}
                     rows={4}
+                    placeholder="Describe what this image or video shows"
                     className="input-field"
                   />
                 </Field>
