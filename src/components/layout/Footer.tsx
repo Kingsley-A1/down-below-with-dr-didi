@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowUpRight, Mail, MapPin } from 'lucide-react'
+import { ArrowUpRight, Lock, Mail, MapPin } from 'lucide-react'
 import { getPublicSiteSettings } from '@/lib/site-settings'
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -216,10 +216,17 @@ export default async function Footer() {
         </div>
 
         <div className="flex flex-col gap-6 pt-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
+          <div className="max-w-2xl space-y-3">
             <p className="font-body text-xs leading-6 text-white/62">
               © {currentYear} {siteSettings.siteName}. Content on this site is for educational purposes only and does not substitute professional medical advice.
             </p>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 font-body text-xs text-white/52 transition-colors hover:text-white"
+            >
+              <Lock size={12} aria-hidden="true" />
+              <span>Admin Portal</span>
+            </Link>
           </div>
 
           <a

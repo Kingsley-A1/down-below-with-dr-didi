@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Lock, Menu, X } from 'lucide-react'
 import { siteConfig } from '@/lib/site-config'
 import SiteAlertTicker from '@/components/layout/SiteAlertTicker'
 
@@ -251,6 +251,14 @@ export default function NavbarClient({ initialAuthenticated, initialUser }: Navb
                 </Link>
               ))}
             </div>
+            <Link
+              href="/admin"
+              className="mt-4 inline-flex items-center gap-1.5 font-body text-xs text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline"
+              onClick={() => setMenuOpen(false)}
+            >
+              <Lock size={12} aria-hidden="true" />
+              <span>Admin Portal</span>
+            </Link>
           </div>
         </div>
       )}
