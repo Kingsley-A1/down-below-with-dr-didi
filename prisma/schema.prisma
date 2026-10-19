@@ -374,6 +374,7 @@ model GalleryImage {
   description String
   mediaType   GalleryMediaType  @default(image)
   featured    Boolean           @default(false)
+  eventYear   Int?
   imageUrl    String
   imageAlt    String
   category    GalleryCategory

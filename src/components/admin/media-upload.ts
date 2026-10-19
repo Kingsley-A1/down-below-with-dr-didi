@@ -93,6 +93,7 @@ export function buildGalleryUploadForFile(input: {
   category: GalleryMediaUploadData['category']
   description?: string
   featured?: boolean
+  eventYear?: number | null
   altText?: string
   label?: string
   status?: GalleryMediaUploadData['status']
@@ -113,6 +114,7 @@ export function buildGalleryUploadForFile(input: {
     description: input.description?.trim() || base.description,
     category: input.category,
     featured: input.featured ?? false,
+    eventYear: input.eventYear ?? null,
     status: input.status ?? 'published',
   }
 }

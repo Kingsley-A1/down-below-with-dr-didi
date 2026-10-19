@@ -17,6 +17,7 @@ import {
   validateGalleryFileSelection,
 } from '@/components/admin/media-upload'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
+import { getGalleryEventYearOptions } from '@/lib/gallery-years'
 
 type Status = 'draft' | 'published' | 'archived'
 
@@ -31,19 +32,25 @@ const CATEGORY_BADGE: Record<GalleryImageCategory, { bg: string; text: string }>
   facility:  { bg: '#ede9fe', text: '#7c3aed' },
 }
 
+function emptyForm(): FormState {
+  return { ...EMPTY_FORM, eventYear: getGalleryEventYearOptions()[0] }
+}
+
+type FormState = typeof EMPTY_FORM
+
 const EMPTY_FORM = {
   slug: '',
   title: '',
   description: '',
   mediaType: 'image' as GalleryMediaType,
   featured: false,
+  eventYear: null as number | null,
   imageUrl: '',
   imageAlt: '',
   category: 'outreach' as GalleryImageCategory,
   status: 'published' as Status,
 }
 
-type FormState = typeof EMPTY_FORM
 
 interface BatchMediaDetails {
   title: string
@@ -96,7 +103,7 @@ export default function GalleryImagesBoard({
   const [msg, setMsg] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [form, setForm] = useState<FormState>(emptyForm)
   const [filter, setFilter] = useState<GalleryImageCategory | 'all'>('all')
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [batchMediaDetails, setBatchMediaDetails] = useState<BatchMediaDetails[]>([])
@@ -176,7 +183,7 @@ export default function GalleryImagesBoard({
 
   function startCreate() {
     setEditId(null)
-    setForm(EMPTY_FORM)
+    setForm(emptyForm())
     setMediaFiles([])
     setBatchMediaDetails([])
     setShowForm(true)
@@ -194,6 +201,7 @@ export default function GalleryImagesBoard({
       description: img.description,
       mediaType: img.mediaType,
       featured: img.featured,
+      eventYear: img.eventYear ?? null,
       imageUrl: img.imageUrl,
       imageAlt: img.imageAlt,
       category: img.category as GalleryImageCategory,
@@ -210,7 +218,7 @@ export default function GalleryImagesBoard({
   function cancelForm() {
     setShowForm(false)
     setEditId(null)
-    setForm(EMPTY_FORM)
+    setForm(emptyForm())
     setMediaFiles([])
     setBatchMediaDetails([])
     setFieldErrors({})
@@ -359,6 +367,7 @@ export default function GalleryImagesBoard({
               mediaType: 'image',
               category: form.category,
               featured: form.featured && !featuredAssigned,
+              eventYear: form.eventYear,
               status: 'published',
               uniqueToken: `${tokenBase}${index.toString(36)}`,
             }),
@@ -456,6 +465,7 @@ export default function GalleryImagesBoard({
                   description: form.description,
                   mediaType: form.mediaType,
                   featured: form.featured,
+                  eventYear: form.eventYear,
                   imageAlt: form.imageAlt,
                   category: form.category,
                   status: form.status,
@@ -770,6 +780,19 @@ export default function GalleryImagesBoard({
                   {CATEGORIES.map((category) => <option key={category} value={category}>{category.charAt(0).toUpperCase() + category.slice(1)}</option>)}
                 </select>
               </Field>
+              <Field label="Year of event *" error={fieldErrors.eventYear}>
+                <select
+                  value={form.eventYear ?? ''}
+                  onChange={(e) => setForm((current) => ({ ...current, eventYear: e.target.value ? Number(e.target.value) : null }))}
+                  required
+                  className="input-field"
+                >
+                  {form.eventYear === null ? <option value="">Select year</option> : null}
+                  {Array.from(new Set([...getGalleryEventYearOptions(), ...(form.eventYear ? [form.eventYear] : [])]))
+                    .sort((a, b) => b - a)
+                    .map((year) => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </Field>
               <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
                 <input
                   type="checkbox"
@@ -853,6 +876,7 @@ export default function GalleryImagesBoard({
                     <StatusBadge status={img.status as Status} />
                   </div>
                   <p className="font-body text-sm font-semibold line-clamp-2" style={{ color: 'var(--color-text)' }}>{img.title}</p>
+                  {img.eventYear ? <p className="font-body text-xs text-gray-500">{img.eventYear}</p> : null}
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={() => startEdit(img)}

@@ -209,12 +209,19 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                       'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.24) 70%, transparent 100%)',
                   }}
                 >
-                  <span
-                    className="inline-block text-xs font-body font-semibold px-2 py-0.5 rounded-full mb-1.5"
-                    style={{ backgroundColor: badge.bg, color: badge.text }}
-                  >
-                    {image.category.charAt(0).toUpperCase() + image.category.slice(1)}
-                  </span>
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className="inline-block text-xs font-body font-semibold px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: badge.bg, color: badge.text }}
+                    >
+                      {image.category.charAt(0).toUpperCase() + image.category.slice(1)}
+                    </span>
+                    {image.eventYear ? (
+                      <span className="inline-block rounded-full bg-white/90 px-2 py-0.5 font-body text-xs font-semibold text-slate-800">
+                        {image.eventYear}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="font-body font-semibold text-sm text-white line-clamp-2">{image.title}</p>
                 </div>
               </div>
@@ -303,6 +310,12 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
                       {activePosition} / {images.length}
                     </span>
                   </div>
+
+                  {activeImage.eventYear ? (
+                    <p className="font-body text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Event year: {activeImage.eventYear}
+                    </p>
+                  ) : null}
 
                   <h2 className="font-heading font-bold text-2xl" style={{ color: 'var(--color-text)' }}>
                     {activeImage.title}

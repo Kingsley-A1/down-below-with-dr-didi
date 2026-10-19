@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { updateGalleryImage, deleteGalleryImage } from '@/lib/admin/repository'
+import {
+  deleteGalleryImage,
+  deleteMediaAssetRecord,
+  findMediaAssetIdByUrl,
+  getMediaAssetDeletePreview,
+  updateGalleryImage,
+} from '@/lib/admin/repository'
+import { deleteAssetFromR2 } from '@/lib/storage/r2'
 import { galleryImageSchema } from '@/lib/validations'
 import { mapApiError, requireAdminRole, requireAdminSession } from '@/lib/admin/api-guard'
 import { validationError } from '@/lib/api/errors'
@@ -63,10 +70,28 @@ export async function DELETE(
   const { id } = await params
 
   try {
-    await deleteGalleryImage(id, { email: session.email, role: session.role })
+    const actor = { email: session.email, role: session.role }
+    const { imageUrl } = await deleteGalleryImage(id, actor)
     revalidatePath('/gallery')
     revalidatePath('/')
-    return NextResponse.json({ success: true })
+
+    // Remove the uploaded file too, unless something else still references it.
+    // The gallery item is already gone, so a cleanup failure is reported, not thrown.
+    let storageCleaned = true
+    try {
+      const assetId = await findMediaAssetIdByUrl(imageUrl)
+      if (assetId) {
+        const preview = await getMediaAssetDeletePreview(assetId)
+        if (preview.usages.length === 0) {
+          await deleteAssetFromR2({ storageKey: preview.asset.storageKey, bucket: preview.asset.bucket })
+          await deleteMediaAssetRecord(assetId, actor)
+        }
+      }
+    } catch {
+      storageCleaned = false
+    }
+
+    return NextResponse.json({ success: true, storageCleaned })
   } catch (error) {
     return mapApiError(error, 'Failed to delete gallery image', { request, identity: { email: session.email, role: session.role } })
   }
