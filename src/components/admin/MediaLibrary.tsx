@@ -5,6 +5,7 @@ import { File, ImageIcon, ImagePlus, Pencil, RefreshCw, Trash2, Video } from 'lu
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
+import BulkMediaUploader from '@/components/admin/BulkMediaUploader'
 import MediaAssetEditDialog from '@/components/admin/MediaAssetEditDialog'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
@@ -44,6 +45,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [isDeleting, setIsDeleting] = useState(false)
   const [pendingDeleteAsset, setPendingDeleteAsset] = useState<MediaAssetRecord | null>(null)
   const [editingAsset, setEditingAsset] = useState<MediaAssetRecord | null>(null)
+  const [uploadMode, setUploadMode] = useState<'single' | 'bulk'>('single')
   const [uploadDetail, setUploadDetail] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [label, setLabel] = useState('')
@@ -226,264 +228,287 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
   return (
     <div className="space-y-8 admin-fade-in">
-      <form
-        onSubmit={handleSubmit}
-        className="admin-surface space-y-6 rounded-2xl border bg-white p-5 sm:p-6"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <div className="max-w-2xl">
-          <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            Fast Media Upload
-          </p>
-          <h2 className="mt-1 text-balance font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
-            Select, Review & Upload
-          </h2>
-          <p className="mt-2 text-pretty font-body text-sm leading-6 text-gray-500">
-            Choose 1 image or video. Its title is filled from the file name, then you can review the preview and edit details before upload.
-          </p>
-        </div>
-
-        <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 p-1" aria-label="Choose upload type">
-          {(['image', 'video'] as const).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                setMediaType(type)
-                resetSelectedMedia()
-                setStatus('')
-              }}
-              className={`rounded-full px-4 py-2 font-body text-sm font-semibold capitalize transition-colors ${
-                mediaType === type ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              aria-pressed={mediaType === type}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-
-        <div>
-          <span className="block font-body text-sm font-semibold text-slate-800">
-            {mediaType === 'video' ? 'Video' : 'Image'} <span className="text-red-600" aria-hidden="true">*</span>
-          </span>
-          <p id="image-upload-help" className="mt-1 font-body text-xs text-slate-500">
-            {mediaType === 'video' ? 'MP4 or WebM. Maximum size: 200 MB.' : 'JPG, PNG, WebP, GIF, or AVIF. Maximum size: 10 MB.'}
-          </p>
-          <input
-            ref={fileInputRef}
-            id="image-upload-file"
-            name="image"
-            type="file"
-            accept={ACCEPTED_BY_TYPE[mediaType]}
-            tabIndex={-1}
-            aria-label={`Choose ${mediaType} to upload`}
-            aria-required="true"
-            aria-describedby="image-upload-help"
-            onChange={(event) => selectMedia(event.target.files?.[0] ?? null)}
-            className="sr-only"
-            suppressHydrationWarning
-          />
-
-          {!selectedFile ? (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="admin-interactive mt-3 flex min-h-44 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition-colors hover:border-emerald-600 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
-            >
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
-                {mediaType === 'video' ? <Video className="h-6 w-6" aria-hidden="true" /> : <ImagePlus className="h-6 w-6" aria-hidden="true" />}
-              </span>
-              <span className="mt-3 font-body text-sm font-semibold text-slate-900">Choose {mediaType === 'video' ? 'Video' : 'Image'}</span>
-              <span className="mt-1 font-body text-xs text-slate-500">
-                Select {mediaType === 'image' ? 'an image' : 'a video'} from this device
-              </span>
-            </button>
-          ) : null}
-        </div>
-
-        {selectedFile && selectedPreviewUrl ? (
-          <section
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
-            aria-labelledby="selected-image-heading"
-          >
-            <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
-              <div className="bg-slate-950 p-3 sm:p-5">
-                {mediaType === 'image' ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={selectedPreviewUrl}
-                    alt=""
-                    width={1}
-                    height={1}
-                    onLoad={(event) => {
-                      setImageDimensions({
-                        width: event.currentTarget.naturalWidth,
-                        height: event.currentTarget.naturalHeight,
-                      })
-                    }}
-                    className="hidden"
-                  />
-                ) : null}
-                <AdminUploadPreview
-                  title={label || selectedFile.name}
-                  eyebrow="Public gallery preview"
-                  description={description || `This ${mediaType} will be published to the public gallery after upload.`}
-                  mediaUrl={selectedPreviewUrl}
-                  mediaType={mediaType}
-                  altText={altText || label || selectedFile.name}
-                  meta={[mediaType, eventYear, formatBytes(selectedFile.size)]}
-                  publicHref="/gallery"
-                  className="h-full bg-white"
-                />
-              </div>
-
-              <div className="min-w-0 space-y-5 p-5 sm:p-6">
-                <div>
-                  <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                    Ready to Upload
-                  </p>
-                  <h3 id="selected-image-heading" className="mt-1 truncate font-heading text-xl font-bold text-slate-900">
-                    {selectedFile.name}
-                  </h3>
-                  <p className="mt-2 font-body text-xs text-slate-500">
-                    {formatBytes(selectedFile.size)}
-                    {imageDimensions && mediaType === 'image' ? ` · ${imageDimensions.width} × ${imageDimensions.height} px` : ''}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-title">
-                    Media Title <span className="text-red-600" aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    id="image-title"
-                    name="title"
-                    value={label}
-                    required
-                    maxLength={120}
-                    autoComplete="off"
-                    aria-describedby="image-title-help"
-                    onChange={(event) => setLabel(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
-                  />
-                  <p id="image-title-help" className="mt-1.5 font-body text-xs text-slate-500">
-                    Filled automatically from the file name. Edit it to make the media easy to find.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-event-year">
-                    Year of Event <span className="text-red-600" aria-hidden="true">*</span>
-                  </label>
-                  <select
-                    id="image-event-year"
-                    name="eventYear"
-                    value={eventYear}
-                    required
-                    onChange={(event) => setEventYear(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
-                  >
-                    {getGalleryEventYearOptions().map((year) => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-description">
-                    Event Description <span className="text-red-600" aria-hidden="true">*</span>
-                  </label>
-                  <textarea
-                    id="image-description"
-                    name="description"
-                    value={description}
-                    required
-                    minLength={10}
-                    maxLength={800}
-                    rows={4}
-                    aria-describedby="image-description-help"
-                    onChange={(event) => setDescription(event.target.value)}
-                    placeholder="Describe what happened at this event"
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
-                  />
-                  <p id="image-description-help" className="mt-1.5 font-body text-xs text-slate-500">
-                    Shown to visitors when they open this item in the public gallery.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-alt-text">
-                    Alt Text / Video Label <span className="font-normal text-slate-500">(optional)</span>
-                  </label>
-                  <input
-                    id="image-alt-text"
-                    name="altText"
-                    value={altText}
-                    maxLength={200}
-                    autoComplete="off"
-                    aria-describedby="image-alt-help"
-                    onChange={(event) => setAltText(event.target.value)}
-                    placeholder="Example: Dr. Didi speaking at a women’s health outreach…"
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
-                  />
-                  <p id="image-alt-help" className="mt-1.5 font-body text-xs text-slate-500">
-                    Describe meaningful content. Leave blank only when the media is decorative.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
-                  <button
-                    type="submit"
-                    disabled={isUploading}
-                    className="admin-interactive hidden min-h-11 items-center justify-center rounded-full px-6 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 lg:inline-flex"
-                    style={{ backgroundColor: 'var(--color-primary)' }}
-                  >
-                    {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900 disabled:opacity-60"
-                  >
-                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                    Replace Media
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetSelectedMedia}
-                    disabled={isUploading}
-                    className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-50 px-4 py-2 font-body text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        <UploadProgress
-          active={isUploading}
-          label={`Uploading ${mediaType}`}
-          detail={uploadDetail}
-          value={uploadProgress}
-        />
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Choose upload mode">
+        {([
+          { value: 'single', label: 'Single upload' },
+          { value: 'bulk', label: 'Bulk upload (up to 20)' },
+        ] as const).map((option) => (
           <button
-            type="submit"
-            disabled={isUploading}
-            className={`admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${selectedFile ? 'lg:hidden' : ''}`}
-            style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+            key={option.value}
+            type="button"
+            onClick={() => setUploadMode(option.value)}
+            aria-pressed={uploadMode === option.value}
+            className={`min-h-11 rounded-full px-4 py-2 font-body text-sm font-semibold transition-colors ${
+              uploadMode === option.value ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+            }`}
           >
-            {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
+            {option.label}
           </button>
-          <p className="font-body text-xs text-slate-500">4 required inputs · 1 optional input</p>
-        </div>
-        {status ? <div aria-live="polite"><AdminInlineStatus tone={statusTone} message={status} /></div> : null}
-      </form>
+        ))}
+      </div>
+
+      {uploadMode === 'bulk' ? (
+        <BulkMediaUploader onUploaded={refreshAssets} />
+      ) : (
+        <form
+          onSubmit={handleSubmit}
+          className="admin-surface space-y-6 rounded-2xl border bg-white p-5 sm:p-6"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <div className="max-w-2xl">
+            <p className="font-body text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              Fast Media Upload
+            </p>
+            <h2 className="mt-1 text-balance font-heading text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
+              Select, Review & Upload
+            </h2>
+            <p className="mt-2 text-pretty font-body text-sm leading-6 text-gray-500">
+              Choose 1 image or video. Its title is filled from the file name, then you can review the preview and edit details before upload.
+            </p>
+          </div>
+
+          <div className="inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 p-1" aria-label="Choose upload type">
+            {(['image', 'video'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  setMediaType(type)
+                  resetSelectedMedia()
+                  setStatus('')
+                }}
+                className={`rounded-full px-4 py-2 font-body text-sm font-semibold capitalize transition-colors ${
+                  mediaType === type ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+                aria-pressed={mediaType === type}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <span className="block font-body text-sm font-semibold text-slate-800">
+              {mediaType === 'video' ? 'Video' : 'Image'} <span className="text-red-600" aria-hidden="true">*</span>
+            </span>
+            <p id="image-upload-help" className="mt-1 font-body text-xs text-slate-500">
+              {mediaType === 'video' ? 'MP4 or WebM. Maximum size: 200 MB.' : 'JPG, PNG, WebP, GIF, or AVIF. Maximum size: 10 MB.'}
+            </p>
+            <input
+              ref={fileInputRef}
+              id="image-upload-file"
+              name="image"
+              type="file"
+              accept={ACCEPTED_BY_TYPE[mediaType]}
+              tabIndex={-1}
+              aria-label={`Choose ${mediaType} to upload`}
+              aria-required="true"
+              aria-describedby="image-upload-help"
+              onChange={(event) => selectMedia(event.target.files?.[0] ?? null)}
+              className="sr-only"
+              suppressHydrationWarning
+            />
+
+            {!selectedFile ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="admin-interactive mt-3 flex min-h-44 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition-colors hover:border-emerald-600 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+              >
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-700 shadow-sm">
+                  {mediaType === 'video' ? <Video className="h-6 w-6" aria-hidden="true" /> : <ImagePlus className="h-6 w-6" aria-hidden="true" />}
+                </span>
+                <span className="mt-3 font-body text-sm font-semibold text-slate-900">Choose {mediaType === 'video' ? 'Video' : 'Image'}</span>
+                <span className="mt-1 font-body text-xs text-slate-500">
+                  Select {mediaType === 'image' ? 'an image' : 'a video'} from this device
+                </span>
+              </button>
+            ) : null}
+          </div>
+
+          {selectedFile && selectedPreviewUrl ? (
+            <section
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+              aria-labelledby="selected-image-heading"
+            >
+              <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
+                <div className="bg-slate-950 p-3 sm:p-5">
+                  {mediaType === 'image' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedPreviewUrl}
+                      alt=""
+                      width={1}
+                      height={1}
+                      onLoad={(event) => {
+                        setImageDimensions({
+                          width: event.currentTarget.naturalWidth,
+                          height: event.currentTarget.naturalHeight,
+                        })
+                      }}
+                      className="hidden"
+                    />
+                  ) : null}
+                  <AdminUploadPreview
+                    title={label || selectedFile.name}
+                    eyebrow="Public gallery preview"
+                    description={description || `This ${mediaType} will be published to the public gallery after upload.`}
+                    mediaUrl={selectedPreviewUrl}
+                    mediaType={mediaType}
+                    altText={altText || label || selectedFile.name}
+                    meta={[mediaType, eventYear, formatBytes(selectedFile.size)]}
+                    publicHref="/gallery"
+                    className="h-full bg-white"
+                  />
+                </div>
+
+                <div className="min-w-0 space-y-5 p-5 sm:p-6">
+                  <div>
+                    <p className="font-body text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                      Ready to Upload
+                    </p>
+                    <h3 id="selected-image-heading" className="mt-1 truncate font-heading text-xl font-bold text-slate-900">
+                      {selectedFile.name}
+                    </h3>
+                    <p className="mt-2 font-body text-xs text-slate-500">
+                      {formatBytes(selectedFile.size)}
+                      {imageDimensions && mediaType === 'image' ? ` · ${imageDimensions.width} × ${imageDimensions.height} px` : ''}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-title">
+                      Media Title <span className="text-red-600" aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="image-title"
+                      name="title"
+                      value={label}
+                      required
+                      maxLength={120}
+                      autoComplete="off"
+                      aria-describedby="image-title-help"
+                      onChange={(event) => setLabel(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                    />
+                    <p id="image-title-help" className="mt-1.5 font-body text-xs text-slate-500">
+                      Filled automatically from the file name. Edit it to make the media easy to find.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-event-year">
+                      Year of Event <span className="text-red-600" aria-hidden="true">*</span>
+                    </label>
+                    <select
+                      id="image-event-year"
+                      name="eventYear"
+                      value={eventYear}
+                      required
+                      onChange={(event) => setEventYear(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                    >
+                      {getGalleryEventYearOptions().map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-description">
+                      Event Description <span className="text-red-600" aria-hidden="true">*</span>
+                    </label>
+                    <textarea
+                      id="image-description"
+                      name="description"
+                      value={description}
+                      required
+                      minLength={10}
+                      maxLength={800}
+                      rows={4}
+                      aria-describedby="image-description-help"
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="Describe what happened at this event"
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                    />
+                    <p id="image-description-help" className="mt-1.5 font-body text-xs text-slate-500">
+                      Shown to visitors when they open this item in the public gallery.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-alt-text">
+                      Alt Text / Video Label <span className="font-normal text-slate-500">(optional)</span>
+                    </label>
+                    <input
+                      id="image-alt-text"
+                      name="altText"
+                      value={altText}
+                      maxLength={200}
+                      autoComplete="off"
+                      aria-describedby="image-alt-help"
+                      onChange={(event) => setAltText(event.target.value)}
+                      placeholder="Example: Dr. Didi speaking at a women’s health outreach…"
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                    />
+                    <p id="image-alt-help" className="mt-1.5 font-body text-xs text-slate-500">
+                      Describe meaningful content. Leave blank only when the media is decorative.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="admin-interactive hidden min-h-11 items-center justify-center rounded-full px-6 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 lg:inline-flex"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-900 disabled:opacity-60"
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                      Replace Media
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetSelectedMedia}
+                      disabled={isUploading}
+                      className="admin-interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-50 px-4 py-2 font-body text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <UploadProgress
+            active={isUploading}
+            label={`Uploading ${mediaType}`}
+            detail={uploadDetail}
+            value={uploadProgress}
+          />
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="submit"
+              disabled={isUploading}
+              className={`admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${selectedFile ? 'lg:hidden' : ''}`}
+              style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+            >
+              {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
+            </button>
+            <p className="font-body text-xs text-slate-500">4 required inputs · 1 optional input</p>
+          </div>
+          {status ? <div aria-live="polite"><AdminInlineStatus tone={statusTone} message={status} /></div> : null}
+        </form>
+      )}
 
       <section className="admin-surface bg-white rounded-2xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
         <div className="mb-5">
