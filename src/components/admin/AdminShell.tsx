@@ -308,9 +308,10 @@ export default function AdminShell({
   }, [navOpen])
 
   return (
-    <div className="min-h-screen bg-(--color-surface) admin-fade-in">
-      <header className="sticky top-0 z-50 border-b border-(--color-border) bg-white/95 backdrop-blur">
-        <div className="max-w-container mx-auto flex items-center justify-between gap-4 px-4 py-3 md:px-6">
+    <div className="min-h-screen bg-(--color-surface)">
+      {/* Fixed, like the public navbar: html/body use overflow-x:hidden, which makes `sticky` a no-op. */}
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-(--color-border) bg-white/95 backdrop-blur">
+        <div className="max-w-container mx-auto flex h-16 items-center justify-between gap-4 px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <button
               type="button"
@@ -411,7 +412,10 @@ export default function AdminShell({
         </div>
       ) : null}
 
-      <div className="max-w-container mx-auto px-4 py-6 md:px-6 lg:py-8">
+      {/* Spacer for the fixed header (h-16). */}
+      <div className="h-16" aria-hidden="true" />
+
+      <div className="admin-fade-in max-w-container mx-auto px-4 py-6 md:px-6 lg:py-8">
         <div className="min-w-0">{children}</div>
       </div>
     </div>

@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { File, ImageIcon, ImagePlus, RefreshCw, Trash2, Video } from 'lucide-react'
+import { File, ImageIcon, ImagePlus, Pencil, RefreshCw, Trash2, Video } from 'lucide-react'
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog'
 import AdminInlineStatus from '@/components/admin/AdminInlineStatus'
 import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
+import MediaAssetEditDialog from '@/components/admin/MediaAssetEditDialog'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import {
@@ -42,6 +43,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [pendingDeleteAsset, setPendingDeleteAsset] = useState<MediaAssetRecord | null>(null)
+  const [editingAsset, setEditingAsset] = useState<MediaAssetRecord | null>(null)
   const [uploadDetail, setUploadDetail] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [label, setLabel] = useState('')
@@ -432,6 +434,14 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
 
                 <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
                   <button
+                    type="submit"
+                    disabled={isUploading}
+                    className="admin-interactive hidden min-h-11 items-center justify-center rounded-full px-6 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 lg:inline-flex"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
+                  </button>
+                  <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
@@ -465,7 +475,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           <button
             type="submit"
             disabled={isUploading}
-            className="admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            className={`admin-interactive min-h-11 rounded-full px-6 py-3 font-body font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${selectedFile ? 'lg:hidden' : ''}`}
             style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
           >
             {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
@@ -495,9 +505,16 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <a href={asset.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-2 font-body text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
-                    Open asset
-                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setEditingAsset(asset)}
+                    disabled={isDeleting || isUploading}
+                    className="admin-interactive inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3 py-2 font-body text-xs font-semibold disabled:opacity-60"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    Edit
+                  </button>
                   <button
                     type="button"
                     onClick={() => requestDelete(asset)}
@@ -518,7 +535,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Asset</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Type</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Size</th>
-                <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">URL</th>
+                <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Edit</th>
                 <th className="py-3 font-body text-xs uppercase tracking-[0.2em] text-gray-400">Actions</th>
               </tr>
             </thead>
@@ -542,9 +559,16 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                     <td className="py-4 font-body text-sm text-gray-600">{asset.kind}</td>
                     <td className="py-4 font-body text-sm text-gray-600">{formatBytes(asset.sizeBytes)}</td>
                     <td className="py-4 font-body text-sm">
-                      <a href={asset.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>
-                        Open asset
-                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAsset(asset)}
+                        disabled={isDeleting || isUploading}
+                        className="admin-interactive inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors hover:opacity-80 disabled:opacity-60"
+                        style={{ backgroundColor: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        Edit
+                      </button>
                     </td>
                     <td className="py-4 font-body text-sm">
                       <button
@@ -563,6 +587,16 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           </table>
         </div>
       </section>
+
+      <MediaAssetEditDialog
+        asset={editingAsset}
+        onClose={() => setEditingAsset(null)}
+        onSaved={(updated) => {
+          setAssets((current) => current.map((asset) => (asset.id === updated.id ? { ...asset, ...updated } : asset)))
+          setEditingAsset(null)
+          setStatus('Changes saved. The public gallery shows the updated details.')
+        }}
+      />
 
       <AdminConfirmDialog
         open={Boolean(pendingDeleteAsset)}
