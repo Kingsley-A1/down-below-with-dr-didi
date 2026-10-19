@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import {
   deleteMediaAssetRecord,
   getMediaAssetDeletePreview,
@@ -26,11 +27,15 @@ export async function DELETE(
   try {
     const preview = await getMediaAssetDeletePreview(id)
 
-    if (preview.usages.length > 0) {
+    // Gallery entries are created from the upload itself, so they go with the asset.
+    // Any other reference (hero, team, podcast, article) still blocks deletion.
+    const blockingUsages = preview.usages.filter((usage) => usage.entityType !== 'gallery_image')
+
+    if (blockingUsages.length > 0) {
       return NextResponse.json(
         {
           error: 'Asset is in use and cannot be deleted.',
-          usages: preview.usages,
+          usages: blockingUsages,
         },
         { status: 409 }
       )
@@ -41,12 +46,18 @@ export async function DELETE(
       bucket: preview.asset.bucket,
     })
 
-    await deleteMediaAssetRecord(id, {
-      email: session.email,
-      role: session.role,
-    })
+    const { removedGalleryTitles } = await deleteMediaAssetRecord(
+      id,
+      { email: session.email, role: session.role },
+      { removeGalleryEntries: true }
+    )
 
-    return NextResponse.json({ success: true })
+    if (removedGalleryTitles.length > 0) {
+      revalidatePath('/gallery')
+      revalidatePath('/')
+    }
+
+    return NextResponse.json({ success: true, removedGalleryTitles })
   } catch (error) {
     return mapApiError(error, 'Failed to delete media asset', { request, identity: { email: session.email, role: session.role } })
   }

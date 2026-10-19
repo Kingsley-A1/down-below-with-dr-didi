@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { GALLERY_EVENT_YEAR_MIN, isValidGalleryEventYear } from '@/lib/gallery-years'
 
 export const vaultSchema = z.object({
   category: z.enum([
@@ -220,6 +221,14 @@ export const galleryImageSchema = z.object({
     .max(800, 'Description may not exceed 800 characters'),
   mediaType: z.enum(['image', 'video']).optional().default('image'),
   featured: z.boolean().optional().default(false),
+  eventYear: z
+    .number()
+    .int()
+    .refine((year) => isValidGalleryEventYear(year), {
+      message: `Choose an event year between ${GALLERY_EVENT_YEAR_MIN} and the current year`,
+    })
+    .nullable()
+    .optional(),
   imageUrl: z.string().min(1, 'Media URL is required').max(500),
   imageAlt: z.string().min(5, 'Media label must be at least 5 characters').max(200),
   category: z.enum(['outreach', 'event', 'team', 'community', 'facility']),

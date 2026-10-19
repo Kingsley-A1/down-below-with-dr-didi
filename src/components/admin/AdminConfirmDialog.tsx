@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 
 type AdminConfirmDialogProps = {
   open: boolean
@@ -22,6 +23,8 @@ function getFocusableElements(root: HTMLElement) {
   )
 }
 
+const subscribeNoop = () => () => {}
+
 export default function AdminConfirmDialog({
   open,
   title,
@@ -38,6 +41,7 @@ export default function AdminConfirmDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
+  const isClient = useSyncExternalStore(subscribeNoop, () => true, () => false)
 
   useEffect(() => {
     if (!open) {
@@ -86,12 +90,28 @@ export default function AdminConfirmDialog({
     }
   }, [busy, onCancel, open])
 
-  if (!open) {
+  // Lock page scroll while open so the dialog stays where the user is looking.
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
+
+  if (!open || !isClient) {
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-80 flex items-start justify-center overflow-y-auto p-4 py-6 sm:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId}>
+  // Portalled to <body>: ancestors that animate `transform` (e.g. .admin-fade-in)
+  // would otherwise become the containing block for `fixed` and push the dialog off-screen.
+  return createPortal(
+    <div className="fixed inset-0 z-80 flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId}>
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
@@ -100,7 +120,7 @@ export default function AdminConfirmDialog({
         aria-label="Close confirmation dialog"
       />
 
-      <div ref={dialogRef} className="admin-dialog-enter relative z-81 w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto">
+      <div ref={dialogRef} className="admin-dialog-enter relative z-81 w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <h2 id={titleId} className="font-heading text-xl font-bold text-slate-900">
           {title}
         </h2>
@@ -130,6 +150,7 @@ export default function AdminConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

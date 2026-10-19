@@ -8,12 +8,13 @@ import AdminUploadPreview from '@/components/admin/AdminUploadPreview'
 import type { MediaAssetRecord } from '@/lib/admin/repository'
 import UploadProgress from '@/components/admin/UploadProgress'
 import {
-  buildDefaultGalleryUpload,
+  buildGalleryUploadForFile,
   deriveMediaLabel,
   uploadAdminMediaAsset,
 } from '@/components/admin/media-upload'
 import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import { parseApiError, readJsonResponse } from '@/lib/api/client-error'
+import { getGalleryEventYearOptions } from '@/lib/gallery-years'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
@@ -45,6 +46,8 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
   const [uploadProgress, setUploadProgress] = useState(0)
   const [label, setLabel] = useState('')
   const [altText, setAltText] = useState('')
+  const [description, setDescription] = useState('')
+  const [eventYear, setEventYear] = useState(() => String(getGalleryEventYearOptions()[0]))
   const [mediaType, setMediaType] = useState<UploadMediaType>('image')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
@@ -69,6 +72,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
     setSelectedFile(null)
     setLabel('')
     setAltText('')
+    setDescription('')
     setImageDimensions(null)
     setUploadProgress(0)
 
@@ -137,12 +141,15 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
         altText.trim(),
         {
           onProgress: setUploadProgress,
-          gallery: buildDefaultGalleryUpload(
-            selectedFile.name,
-            normalizedLabel,
-            altText.trim(),
-            mediaType
-          ),
+          gallery: buildGalleryUploadForFile({
+            fileName: selectedFile.name,
+            label: normalizedLabel,
+            altText: altText.trim(),
+            description,
+            mediaType,
+            category: 'outreach',
+            eventYear: Number(eventYear),
+          }),
         }
       )
 
@@ -319,11 +326,11 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                 <AdminUploadPreview
                   title={label || selectedFile.name}
                   eyebrow="Public gallery preview"
-                  description={`This ${mediaType} will be published to the public gallery after upload.`}
+                  description={description || `This ${mediaType} will be published to the public gallery after upload.`}
                   mediaUrl={selectedPreviewUrl}
                   mediaType={mediaType}
                   altText={altText || label || selectedFile.name}
-                  meta={[mediaType, formatBytes(selectedFile.size)]}
+                  meta={[mediaType, eventYear, formatBytes(selectedFile.size)]}
                   publicHref="/gallery"
                   className="h-full bg-white"
                 />
@@ -360,6 +367,46 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
                   />
                   <p id="image-title-help" className="mt-1.5 font-body text-xs text-slate-500">
                     Filled automatically from the file name. Edit it to make the media easy to find.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-event-year">
+                    Year of Event <span className="text-red-600" aria-hidden="true">*</span>
+                  </label>
+                  <select
+                    id="image-event-year"
+                    name="eventYear"
+                    value={eventYear}
+                    required
+                    onChange={(event) => setEventYear(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                  >
+                    {getGalleryEventYearOptions().map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="image-description">
+                    Event Description <span className="text-red-600" aria-hidden="true">*</span>
+                  </label>
+                  <textarea
+                    id="image-description"
+                    name="description"
+                    value={description}
+                    required
+                    minLength={10}
+                    maxLength={800}
+                    rows={4}
+                    aria-describedby="image-description-help"
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="Describe what happened at this event"
+                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+                  />
+                  <p id="image-description-help" className="mt-1.5 font-body text-xs text-slate-500">
+                    Shown to visitors when they open this item in the public gallery.
                   </p>
                 </div>
 
@@ -423,7 +470,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
           >
             {isUploading ? 'Uploading…' : `Upload ${mediaType === 'video' ? 'Video' : 'Image'}`}
           </button>
-          <p className="font-body text-xs text-slate-500">2 required inputs · 1 optional input</p>
+          <p className="font-body text-xs text-slate-500">4 required inputs · 1 optional input</p>
         </div>
         {status ? <div aria-live="polite"><AdminInlineStatus tone={statusTone} message={status} /></div> : null}
       </form>
@@ -520,7 +567,7 @@ export default function MediaLibrary({ initialAssets }: { initialAssets: MediaAs
       <AdminConfirmDialog
         open={Boolean(pendingDeleteAsset)}
         title="Delete media asset"
-        message={pendingDeleteAsset ? `Delete \"${pendingDeleteAsset.label}\" permanently from storage and records?` : ''}
+        message={pendingDeleteAsset ? `Delete "${pendingDeleteAsset.label}" permanently from storage and records? If it is published in the public gallery, it will be removed from there too. This cannot be undone.` : ''}
         confirmLabel="Delete asset"
         confirmTone="danger"
         busy={isDeleting}

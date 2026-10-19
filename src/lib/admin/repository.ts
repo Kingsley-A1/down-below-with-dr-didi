@@ -1358,12 +1358,49 @@ export async function getMediaAssetDeletePreview(id: string): Promise<{
   return { asset, usages }
 }
 
-export async function deleteMediaAssetRecord(id: string, actor: { email: string; role: AdminRole }): Promise<void> {
+export async function deleteMediaAssetRecord(
+  id: string,
+  actor: { email: string; role: AdminRole },
+  options: { removeGalleryEntries?: boolean } = {}
+): Promise<{ removedGalleryTitles: string[] }> {
   if (!hasDatabaseConfig()) {
     throw appErrors.databaseUnavailable()
   }
 
-  const record = await prisma.mediaAsset.delete({ where: { id } })
+  const { record, removedGallery } = await prisma.$transaction(async (tx) => {
+    const asset = await tx.mediaAsset.findUnique({ where: { id } })
+
+    if (!asset) {
+      throw appErrors.notFound('Media asset not found')
+    }
+
+    const galleryEntries = options.removeGalleryEntries
+      ? await tx.galleryImage.findMany({
+          where: { imageUrl: asset.url },
+          select: { id: true, slug: true, title: true, category: true },
+        })
+      : []
+
+    if (galleryEntries.length > 0) {
+      await tx.galleryImage.deleteMany({ where: { id: { in: galleryEntries.map((entry) => entry.id) } } })
+    }
+
+    await tx.mediaAsset.delete({ where: { id } })
+
+    return { record: asset, removedGallery: galleryEntries }
+  })
+
+  for (const entry of removedGallery) {
+    await writeAuditLog({
+      action: 'gallery_image.deleted',
+      entityType: 'gallery_image',
+      entityId: entry.id,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      summary: `Deleted gallery image "${entry.title}" with its media asset`,
+      metadata: { slug: entry.slug, category: entry.category, mediaAssetId: id },
+    })
+  }
 
   await writeAuditLog({
     action: 'media_asset.deleted',
@@ -1378,6 +1415,17 @@ export async function deleteMediaAssetRecord(id: string, actor: { email: string;
       url: record.url,
     },
   })
+
+  return { removedGalleryTitles: removedGallery.map((entry) => entry.title) }
+}
+
+export async function findMediaAssetIdByUrl(url: string): Promise<string | null> {
+  if (!hasDatabaseConfig()) {
+    return null
+  }
+
+  const asset = await prisma.mediaAsset.findFirst({ where: { url }, select: { id: true } })
+  return asset?.id ?? null
 }
 
 async function createVaultSubmissionEvent(input: {
@@ -2195,6 +2243,7 @@ export type PublicGalleryImage = {
   description: string
   mediaType: GalleryMediaType
   featured: boolean
+  eventYear?: number | null
   imageUrl: string
   imageAlt: string
   category: GalleryImageCategory
@@ -2209,6 +2258,7 @@ export type GalleryImageRecord = PublicGalleryImage & {
 type GalleryImageSchemaCapabilities = {
   mediaType: boolean
   featured: boolean
+  eventYear: boolean
 }
 
 const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
@@ -2239,16 +2289,17 @@ async function getGalleryImageSchemaCapabilities(): Promise<GalleryImageSchemaCa
     FROM information_schema.columns
     WHERE table_schema = 'public'
       AND table_name = 'GalleryImage'
-      AND column_name IN ('mediaType', 'featured')
+      AND column_name IN ('mediaType', 'featured', 'eventYear')
   `
     .then((rows) => {
       const columns = new Set(rows.map((row) => row.column_name))
       return {
         mediaType: columns.has('mediaType'),
         featured: columns.has('featured'),
+        eventYear: columns.has('eventYear'),
       }
     })
-    .catch(() => ({ mediaType: true, featured: true }))
+    .catch(() => ({ mediaType: true, featured: true, eventYear: true }))
 
   return galleryImageSchemaCapabilitiesPromise
 }
@@ -2261,6 +2312,7 @@ function galleryImageSelect(capabilities: GalleryImageSchemaCapabilities) {
     description: true,
     ...(capabilities.mediaType ? { mediaType: true } : {}),
     ...(capabilities.featured ? { featured: true } : {}),
+    ...(capabilities.eventYear ? { eventYear: true } : {}),
     imageUrl: true,
     imageAlt: true,
     category: true,
@@ -2431,6 +2483,7 @@ type GalleryImageDbRecord = {
   description: string
   mediaType?: string | null
   featured?: boolean | null
+  eventYear?: number | null
   imageUrl: string
   imageAlt: string
   category: string
@@ -2449,6 +2502,7 @@ function mapGalleryImage(r: GalleryImageDbRecord): GalleryImageRecord {
     description: r.description,
     mediaType: inferGalleryMediaType(imageUrl, r.mediaType),
     featured: Boolean(r.featured ?? false),
+    eventYear: r.eventYear ?? null,
     imageUrl,
     imageAlt: r.imageAlt,
     category: r.category as GalleryImageCategory,
@@ -2465,6 +2519,7 @@ function galleryCreateData(
     description: string
     mediaType?: GalleryMediaType
     featured?: boolean
+    eventYear?: number | null
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2478,6 +2533,7 @@ function galleryCreateData(
     description: input.description.trim(),
     ...(capabilities.mediaType ? { mediaType: input.mediaType ?? inferGalleryMediaType(input.imageUrl) } : {}),
     ...(capabilities.featured ? { featured: input.featured ?? false } : {}),
+    ...(capabilities.eventYear ? { eventYear: input.eventYear ?? null } : {}),
     imageUrl: input.imageUrl.trim(),
     imageAlt: input.imageAlt.trim(),
     category: input.category,
@@ -2492,6 +2548,7 @@ function galleryUpdateData(
     description: string
     mediaType: GalleryMediaType
     featured: boolean
+    eventYear: number | null
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2505,6 +2562,7 @@ function galleryUpdateData(
     ...(input.description !== undefined && { description: input.description.trim() }),
     ...(capabilities.mediaType && input.mediaType !== undefined && { mediaType: input.mediaType }),
     ...(capabilities.featured && input.featured !== undefined && { featured: input.featured }),
+    ...(capabilities.eventYear && input.eventYear !== undefined && { eventYear: input.eventYear }),
     ...(input.imageUrl !== undefined && { imageUrl: input.imageUrl.trim() }),
     ...(input.imageAlt !== undefined && { imageAlt: input.imageAlt.trim() }),
     ...(input.category !== undefined && { category: input.category }),
@@ -2679,6 +2737,7 @@ export async function getPublishedGalleryImages(
           description: record.description,
           mediaType: inferGalleryMediaType(imageUrl, record.mediaType),
           featured: Boolean(record.featured ?? false),
+          eventYear: record.eventYear ?? null,
           imageUrl,
           imageAlt: record.imageAlt,
           category: record.category as GalleryImageCategory,
@@ -2696,6 +2755,7 @@ export async function getPublishedGalleryImages(
         description: record.description,
         mediaType: record.mediaType,
         featured: record.featured,
+        eventYear: record.eventYear,
         imageUrl: record.imageUrl,
         imageAlt: record.imageAlt,
         category: record.category,
@@ -2747,6 +2807,7 @@ export async function getGalleryImageBySlug(
       description: r.description,
       mediaType: inferGalleryMediaType(normalizedImageUrl, r.mediaType),
       featured: Boolean(r.featured ?? false),
+      eventYear: r.eventYear ?? null,
       imageUrl: normalizedImageUrl,
       imageAlt: r.imageAlt,
       category: r.category as GalleryImageCategory,
@@ -2785,6 +2846,7 @@ export async function createGalleryImage(
     description: string
     mediaType?: GalleryMediaType
     featured?: boolean
+    eventYear?: number | null
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2833,6 +2895,7 @@ export async function createMediaAssetWithGalleryRecord(input: {
     description: string
     mediaType?: GalleryMediaType
     featured?: boolean
+    eventYear?: number | null
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2930,6 +2993,7 @@ export async function updateGalleryImage(
     description: string
     mediaType: GalleryMediaType
     featured: boolean
+    eventYear: number | null
     imageUrl: string
     imageAlt: string
     category: GalleryImageCategory
@@ -2965,7 +3029,7 @@ export async function updateGalleryImage(
 export async function deleteGalleryImage(
   id: string,
   actor: { email: string; role: AdminRole }
-): Promise<void> {
+): Promise<{ imageUrl: string }> {
   if (!hasDatabaseConfig()) {
     throw appErrors.databaseUnavailable()
   }
@@ -2985,6 +3049,8 @@ export async function deleteGalleryImage(
     summary: `Deleted gallery image "${record.title}"`,
     metadata: { slug: record.slug, category: record.category },
   })
+
+  return { imageUrl: record.imageUrl }
 }
 
 // ─────────────────────────────────────────────
