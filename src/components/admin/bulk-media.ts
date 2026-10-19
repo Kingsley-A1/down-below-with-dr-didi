@@ -1,3 +1,5 @@
+import type { GalleryImageCategory } from '@/lib/admin/repository'
+
 export const MAX_BULK_ITEMS = 20
 export const MAX_BULK_TOTAL_BYTES = 500 * 1024 * 1024
 const MAX_BULK_IMAGE_BYTES = 10 * 1024 * 1024
@@ -5,6 +7,14 @@ const MAX_BULK_VIDEO_BYTES = 200 * 1024 * 1024
 
 export const BULK_ACCEPTED_MEDIA = 'image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm'
 const ACCEPTED_MIME_TYPES = new Set(BULK_ACCEPTED_MEDIA.split(','))
+
+export const GALLERY_CATEGORY_OPTIONS: ReadonlyArray<{ value: GalleryImageCategory; label: string }> = [
+  { value: 'outreach', label: 'Outreach' },
+  { value: 'event', label: 'Event' },
+  { value: 'team', label: 'Team' },
+  { value: 'community', label: 'Community' },
+  { value: 'facility', label: 'Facility' },
+]
 
 export type BulkMediaType = 'image' | 'video'
 

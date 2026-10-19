@@ -8,6 +8,7 @@ import { getAdminStatusTone } from '@/components/admin/adminStatusTone'
 import {
   BULK_ACCEPTED_MEDIA,
   filterBulkAdditions,
+  GALLERY_CATEGORY_OPTIONS,
   getBulkMediaType,
   isBulkDraftComplete,
   MAX_BULK_ITEMS,
@@ -15,6 +16,7 @@ import {
 } from '@/components/admin/bulk-media'
 import { buildGalleryUploadForFile, deriveMediaLabel, uploadAdminMediaAsset } from '@/components/admin/media-upload'
 import { getGalleryEventYearOptions } from '@/lib/gallery-years'
+import type { GalleryImageCategory } from '@/lib/admin/repository'
 
 type ItemState = 'ready' | 'done' | 'failed'
 
@@ -41,11 +43,23 @@ function formatBytes(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Promise<void> }) {
+interface BulkMediaUploaderProps {
+  onUploaded: () => Promise<void>
+  /** Called once every item has uploaded, with how many were added. */
+  onComplete?: (uploadedCount: number) => void
+  /** Shows a Cancel button (used when the uploader is opened as a panel). */
+  onCancel?: () => void
+  /** Offers "Feature the first item uploaded". */
+  allowFeatured?: boolean
+}
+
+export default function BulkMediaUploader({ onUploaded, onComplete, onCancel, allowFeatured = false }: BulkMediaUploaderProps) {
   const yearOptions = getGalleryEventYearOptions()
   const [items, setItems] = useState<BulkItem[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [batchYear, setBatchYear] = useState(yearOptions[0])
+  const [category, setCategory] = useState<GalleryImageCategory>('outreach')
+  const [featured, setFeatured] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState<{ index: number; total: number; fileName: string; percent: number } | null>(null)
   const [status, setStatus] = useState('')
@@ -152,6 +166,7 @@ export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Pr
     const tokenBase = Date.now().toString(36)
     const queue = items.filter((item) => item.state !== 'done')
     const outcomes = new Map<string, { state: ItemState; error?: string }>()
+    let featuredAssigned = false
 
     for (const [queueIndex, item] of queue.entries()) {
       setProgress({ index: queueIndex, total: queue.length, fileName: item.file.name, percent: 0 })
@@ -164,12 +179,16 @@ export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Pr
             label: item.title,
             description: item.description,
             mediaType: getBulkMediaType(item.file),
-            category: 'outreach',
+            category,
+            featured: allowFeatured && featured && !featuredAssigned,
             eventYear: effectiveYear(item),
             uniqueToken: `${tokenBase}${queueIndex.toString(36)}`,
           }),
         })
         outcomes.set(item.id, { state: 'done' })
+        if (allowFeatured && featured) {
+          featuredAssigned = true
+        }
       } catch (error) {
         outcomes.set(item.id, { state: 'failed', error: error instanceof Error ? error.message : 'Upload failed' })
       }
@@ -206,6 +225,7 @@ export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Pr
 
     if (failedCount === 0) {
       setStatus(`Uploaded ${uploadedCount} ${uploadedCount === 1 ? 'item' : 'items'} to the public gallery.`)
+      onComplete?.(uploadedCount)
     } else {
       setStatus(
         `Uploaded ${uploadedCount} of ${queue.length}. ${failedCount} failed and ${failedCount === 1 ? 'is' : 'are'} still in the list. Check the error on each one, then try again.`
@@ -228,16 +248,28 @@ export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Pr
             Choose your files, then fill in one item at a time. Titles start from the file name.
           </p>
         </div>
-        {items.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || items.length >= MAX_BULK_ITEMS}
-            className="admin-interactive min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 hover:border-slate-900 disabled:opacity-60"
-          >
-            Add more files
-          </button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {items.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || items.length >= MAX_BULK_ITEMS}
+              className="admin-interactive min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 hover:border-slate-900 disabled:opacity-60"
+            >
+              Add more files
+            </button>
+          ) : null}
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isUploading}
+              className="admin-interactive min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 font-body text-sm font-semibold text-slate-700 hover:border-slate-900 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <input
@@ -285,6 +317,34 @@ export default function BulkMediaUploader({ onUploaded }: { onUploaded: () => Pr
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block font-body text-sm font-semibold text-slate-800" htmlFor="bulk-category-all">
+                Gallery section for all
+              </label>
+              <select
+                id="bulk-category-all"
+                value={category}
+                disabled={isUploading}
+                onChange={(event) => setCategory(event.target.value as GalleryImageCategory)}
+                className="mt-1.5 min-h-11 rounded-xl border border-slate-300 bg-white px-4 font-body text-sm text-slate-900 focus-visible:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+              >
+                {GALLERY_CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+            {allowFeatured ? (
+              <label className="flex min-h-11 items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={featured}
+                  disabled={isUploading}
+                  onChange={(event) => setFeatured(event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+                />
+                <span className="font-body text-sm font-medium text-slate-700">Feature the first item uploaded</span>
+              </label>
+            ) : null}
             <p className="font-body text-sm font-semibold text-slate-700" aria-live="polite">
               {pendingItems.length - incompleteCount} of {pendingItems.length} ready
             </p>
