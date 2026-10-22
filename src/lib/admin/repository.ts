@@ -1193,7 +1193,11 @@ export async function listMediaAssets(): Promise<MediaAssetRecord[]> {
     take: 50,
   })
 
-  return records.map((record: MediaAssetDbRecord) => ({
+  return records.map(mapMediaAssetRecord)
+}
+
+function mapMediaAssetRecord(record: MediaAssetDbRecord): MediaAssetRecord {
+  return {
     id: record.id,
     label: record.label,
     storageKey: record.storageKey,
@@ -1204,7 +1208,113 @@ export async function listMediaAssets(): Promise<MediaAssetRecord[]> {
     kind: record.kind,
     altText: record.altText,
     createdAt: record.createdAt.toISOString(),
-  }))
+  }
+}
+
+export type MediaAssetGalleryEntry = {
+  id: string
+  title: string
+  description: string
+  eventYear: number | null
+  category: GalleryImageCategory
+  status: GalleryImageRecord['status']
+}
+
+export type MediaAssetWithGallery = {
+  asset: MediaAssetRecord
+  gallery: MediaAssetGalleryEntry | null
+}
+
+function toMediaAssetGalleryEntry(record: GalleryImageDbRecord): MediaAssetGalleryEntry {
+  const gallery = mapGalleryImage(record)
+
+  return {
+    id: gallery.id,
+    title: gallery.title,
+    description: gallery.description,
+    eventYear: gallery.eventYear ?? null,
+    category: gallery.category,
+    status: gallery.status,
+  }
+}
+
+export async function getMediaAssetWithGallery(id: string): Promise<MediaAssetWithGallery> {
+  if (!hasDatabaseConfig()) {
+    throw appErrors.databaseUnavailable()
+  }
+
+  const asset = await prisma.mediaAsset.findUnique({ where: { id } })
+
+  if (!asset) {
+    throw appErrors.notFound('Media asset not found')
+  }
+
+  const capabilities = await getGalleryImageSchemaCapabilities()
+  const gallery = await prisma.galleryImage.findFirst({
+    where: { imageUrl: asset.url },
+    select: galleryImageSelect(capabilities),
+  })
+
+  return {
+    asset: mapMediaAssetRecord(asset as MediaAssetDbRecord),
+    gallery: gallery ? toMediaAssetGalleryEntry(gallery as GalleryImageDbRecord) : null,
+  }
+}
+
+export async function updateMediaAssetWithGallery(
+  id: string,
+  input: {
+    label: string
+    altText: string
+    gallery?: { description: string; eventYear: number }
+  },
+  actor: { email: string; role: AdminRole }
+): Promise<MediaAssetWithGallery> {
+  if (!hasDatabaseConfig()) {
+    throw appErrors.databaseUnavailable()
+  }
+
+  const capabilities = await getGalleryImageSchemaCapabilities()
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.mediaAsset.findUnique({ where: { id }, select: { url: true } })
+
+    if (!existing) {
+      throw appErrors.notFound('Media asset not found')
+    }
+
+    await tx.mediaAsset.update({
+      where: { id },
+      data: { label: input.label, altText: input.altText || null },
+    })
+
+    if (input.gallery) {
+      await tx.galleryImage.updateMany({
+        where: { imageUrl: existing.url },
+        data: galleryUpdateData(
+          {
+            title: input.label,
+            description: input.gallery.description,
+            eventYear: input.gallery.eventYear,
+            imageAlt: input.altText || input.label,
+          },
+          capabilities
+        ),
+      })
+    }
+  })
+
+  await writeAuditLog({
+    action: 'media_asset.updated',
+    entityType: 'media_asset',
+    entityId: id,
+    actorEmail: actor.email,
+    actorRole: actor.role,
+    summary: `Updated media asset ${input.label}`,
+    metadata: { galleryUpdated: Boolean(input.gallery) },
+  })
+
+  return getMediaAssetWithGallery(id)
 }
 
 export async function createMediaAssetRecord(input: {

@@ -208,6 +208,13 @@ export type TeamMemberUpdateData = z.infer<typeof teamMemberUpdateSchema>
 // GALLERY MEDIA VALIDATION
 // ─────────────────────────────────────────────
 
+const galleryEventYearSchema = z
+  .number()
+  .int()
+  .refine((year) => isValidGalleryEventYear(year), {
+    message: `Choose an event year between ${GALLERY_EVENT_YEAR_MIN} and the current year`,
+  })
+
 export const galleryImageSchema = z.object({
   slug: z
     .string()
@@ -221,14 +228,7 @@ export const galleryImageSchema = z.object({
     .max(800, 'Description may not exceed 800 characters'),
   mediaType: z.enum(['image', 'video']).optional().default('image'),
   featured: z.boolean().optional().default(false),
-  eventYear: z
-    .number()
-    .int()
-    .refine((year) => isValidGalleryEventYear(year), {
-      message: `Choose an event year between ${GALLERY_EVENT_YEAR_MIN} and the current year`,
-    })
-    .nullable()
-    .optional(),
+  eventYear: galleryEventYearSchema.nullable().optional(),
   imageUrl: z.string().min(1, 'Media URL is required').max(500),
   imageAlt: z.string().min(5, 'Media label must be at least 5 characters').max(200),
   category: z.enum(['outreach', 'event', 'team', 'community', 'facility']),
@@ -241,6 +241,32 @@ export const galleryImageUpdateSchema = galleryImageSchema.partial().extend({
   id: z.string().min(1, 'Gallery image id is required'),
 })
 
+export const mediaAssetUpdateSchema = z
+  .object({
+    label: z.string().trim().min(1, 'Title is required').max(120, 'Title may not exceed 120 characters'),
+    altText: z.string().trim().max(200, 'Alt text may not exceed 200 characters').optional().default(''),
+    gallery: z
+      .object({
+        description: z
+          .string()
+          .trim()
+          .min(10, 'Description must be at least 10 characters')
+          .max(800, 'Description may not exceed 800 characters'),
+        eventYear: galleryEventYearSchema,
+      })
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.gallery && value.label.length < 5) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['label'],
+        message: 'Title must be at least 5 characters for gallery items',
+      })
+    }
+  })
+
+export type MediaAssetUpdateData = z.infer<typeof mediaAssetUpdateSchema>
 export type GalleryImageFormData = z.infer<typeof galleryImageSchema>
 export type GalleryMediaUploadData = z.infer<typeof galleryMediaUploadSchema>
 export type GalleryImageUpdateData = z.infer<typeof galleryImageUpdateSchema>
