@@ -24,6 +24,7 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
   const modalRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
+  const deepLinkHandledRef = useRef(false)
 
   function getFocusableElements(root: HTMLElement) {
     return Array.from(
@@ -33,17 +34,20 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
     )
   }
 
+  // Open the linked item once. Without the guard this effect re-ran on every close
+  // (activeIndex back to null) and reopened the viewer, so linked visitors could not dismiss it.
   useEffect(() => {
-    if (!initialImageSlug || activeIndex !== null || images.length === 0) {
+    if (deepLinkHandledRef.current || !initialImageSlug || images.length === 0) {
       return
     }
 
+    deepLinkHandledRef.current = true
     const index = images.findIndex((image) => image.slug === initialImageSlug)
     if (index >= 0) {
       const timeoutId = window.setTimeout(() => setActiveIndex(index), 0)
       return () => window.clearTimeout(timeoutId)
     }
-  }, [activeIndex, images, initialImageSlug])
+  }, [images, initialImageSlug])
 
   useEffect(() => {
     if (activeIndex === null) {
@@ -55,7 +59,7 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setActiveIndex(null)
+        close()
         return
       }
 
@@ -128,6 +132,13 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
 
   function close() {
     setActiveIndex(null)
+
+    // Drop ?image= so a refresh or back-navigation doesn't reopen the viewer.
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('image')) {
+      url.searchParams.delete('image')
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+    }
   }
 
   function showNext() {
@@ -239,13 +250,13 @@ export default function ImageViewModal({ images, initialImageSlug }: ImageViewMo
             onClick={close}
           />
 
-          <div className="absolute inset-0 p-3 md:p-6 flex items-center justify-center">
-            <div ref={modalRef} className="admin-dialog-enter relative w-full max-w-6xl max-h-full bg-black/20 rounded-2xl overflow-hidden border border-white/12">
+          <div className="pointer-events-none absolute inset-0 p-3 md:p-6 flex items-center justify-center">
+            <div ref={modalRef} className="admin-dialog-enter pointer-events-auto relative w-full max-w-6xl max-h-full bg-black/20 rounded-2xl overflow-hidden border border-white/12">
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={close}
-                className="admin-interactive absolute top-3 right-3 z-20 rounded-full bg-black/55 text-white p-2 hover:bg-black/75"
+                className="admin-interactive absolute top-3 right-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75"
                 aria-label="Close"
               >
                 <X size={20} />
